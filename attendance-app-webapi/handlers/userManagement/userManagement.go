@@ -200,7 +200,7 @@ func GetAllAdminUsers(c *gin.Context) {
 
 	DB := db.(*gorm.DB)
 
-	if err := DB.Joins("Role").Where("Role.name = ?", "admin").Find(&users).Error; err != nil {
+	if err := DB.Joins("Role").Joins("UserDetail").Where("Role.name = ?", "admin").Find(&users).Error; err != nil {
 		c.JSON(500, gin.H{"error": "failed to retrieve admin users"})
 		return
 	}
@@ -218,7 +218,7 @@ func GetAllNonAdminUsers(c *gin.Context) {
 
 	DB := db.(*gorm.DB)
 
-	if err := DB.Joins("Role").Where("Role.name <> ?", "admin").Find(&users).Error; err != nil {
+	if err := DB.Joins("Role").Joins("UserDetail").Where("Role.name <> ?", "admin").Find(&users).Error; err != nil {
 		c.JSON(500, gin.H{"error": "failed to retrieve non-admin users"})
 		return
 	}

@@ -4,11 +4,12 @@ import (
 	"attendance-app/blocklist"
 	"attendance-app/config"
 	"attendance-app/handlers"
+	"errors"
 	"net/http"
 	"strings"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 func AuthMiddleware() gin.HandlerFunc {
@@ -33,7 +34,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		})
 
 		if err != nil {
-			if err == jwt.ErrSignatureInvalid {
+			if errors.Is(err, jwt.ErrSignatureInvalid) {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token signature"})
 				c.Abort()
 				return

@@ -5,12 +5,19 @@ import (
 	UserManagement "attendance-app/handlers/userManagement"
 	"attendance-app/middleware"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 func SetupRouter(DB *gorm.DB) *gin.Engine {
 	router := gin.Default()
+
+	config := cors.DefaultConfig()
+	config.AllowAllOrigins = true
+	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
+	config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
+	router.Use(cors.New(config))
 
 	api := router.Group("/api")
 	api.Use(middleware.DBMiddleware(DB))

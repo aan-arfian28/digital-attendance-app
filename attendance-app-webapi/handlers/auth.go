@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
 )
 
@@ -20,7 +20,7 @@ var jwtKey = []byte(config.Config("JWT_SECRET_KEY"))
 // JWT Datas Template
 type Claims struct {
 	Username string `json:"username"`
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
 
 type loginPayload struct {
@@ -66,8 +66,8 @@ func Login(c *gin.Context) {
 	expirationTime := time.Now().Add(jwtExpiryTime)
 	claims := &Claims{
 		Username: user.Username,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expirationTime.Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},
 	}
 
@@ -90,7 +90,7 @@ func Logout(c *gin.Context) {
 		log.Fatalf("Invalid JWT_EXP_TIME configuration: %v", err)
 	}
 
-	blocklist.Add(tokenString, jwtExpiryTime*time.Minute)
+	blocklist.Add(tokenString, jwtExpiryTime)
 
 	c.JSON(http.StatusOK, gin.H{"message": "successfully logged out"})
 }
