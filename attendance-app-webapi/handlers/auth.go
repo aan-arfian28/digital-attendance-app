@@ -19,6 +19,7 @@ var jwtKey = []byte(config.Config("JWT_SECRET_KEY"))
 
 // JWT Datas Template
 type Claims struct {
+	Id       uint   `json:"id"`
 	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
@@ -62,9 +63,11 @@ func Login(c *gin.Context) {
 	if err != nil {
 		log.Fatalf("Invalid JWT_EXP_TIME configuration: %v", err)
 	}
+	log.Println(&user)
 
 	expirationTime := time.Now().Add(jwtExpiryTime)
 	claims := &Claims{
+		Id:       user.ID,
 		Username: user.Username,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
