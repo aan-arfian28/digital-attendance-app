@@ -24,7 +24,7 @@ func InitDB() *gorm.DB {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	DB.AutoMigrate(&models.User{}, &models.Role{}, &models.UserDetail{})
+
 
 	//Create Admin if not exist
 	var admin models.User

@@ -19,7 +19,7 @@ type User struct {
 
 type Role struct {
 	gorm.Model
-	Name          string `json:"Name" validate:"required" gorm:"not null;unique"`
+	Name          string `json:"Name" validate:"required" gorm:"not null"`
 	Position      string `json:"Position" validate:"required" gorm:"type:varchar(255);uniqueIndex:idx_name_position,priority:1"`
 	PositionLevel uint   `json:"PositionLevel" validate:"required,gte=1" gorm:"uniqueIndex:idx_name_position,priority:2"`
 }

@@ -3,6 +3,7 @@ package UserManagement
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -39,6 +40,13 @@ func CreateUser(c *gin.Context) {
 	if err := DB.Where("name = ? AND position = ? AND position_level = ?", user.Role.Name, user.Role.Position, user.Role.PositionLevel).First(&existingRole).Error; err == nil {
 		user.RoleID = existingRole.ID
 		user.Role = &existingRole
+	} else {
+		log.Println(user.Role)
+		if err := DB.Create(&user.Role).Error; err != nil {
+			log.Println(err)
+			c.JSON(500, gin.H{"error": "failed to create role"})
+			return
+		}
 	}
 
 	hashedPassword, err := utils.HashPassword(user.Password)
@@ -54,6 +62,7 @@ func CreateUser(c *gin.Context) {
 		c.JSON(500, gin.H{"error": errorMessage})
 	}
 
+	log.Println(user)
 	if err := DB.Create(&user).Error; err != nil {
 		c.JSON(500, gin.H{"error": "failed to create user"})
 		return
@@ -173,17 +182,18 @@ func checkSupervisor(user models.User, DB *gorm.DB) (models.User, error) {
 			return user, errors.New("supervisor not found")
 		}
 
-		var userRole models.Role
-		if err := DB.First(&userRole, user.RoleID).Error; err != nil {
-			return user, errors.New("user role not found")
-		}
+		// var userRole models.Role
+		// if err := DB.First(&userRole, user.RoleID).Error; err != nil {
+		// 	return user, errors.New("user role not found")
+		// }
 
 		var supervisorRole models.Role
 		if err := DB.First(&supervisorRole, supervisor.RoleID).Error; err != nil {
 			return user, errors.New("supervisor role not found")
 		}
 
-		if userRole.PositionLevel >= supervisorRole.PositionLevel {
+		// if userRole.PositionLevel >= supervisorRole.PositionLevel {
+		if user.Role.PositionLevel < supervisorRole.PositionLevel {
 			return user, errors.New("user can only be supervised by someone with a higher position level")
 		}
 	}
