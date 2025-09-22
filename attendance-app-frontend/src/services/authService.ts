@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
 
 const API_URL = 'http://localhost:8080/api/';
 
@@ -32,10 +33,46 @@ const getCurrentUser = (): AuthResponse | null => {
     return null;
 };
 
+const authHeader = () => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+        const user = JSON.parse(userStr);
+        if (user && user.token) {
+            return { Authorization: 'Bearer ' + user.token };
+        }
+    }
+    return {};
+};
+
+const getUserIdFromToken = (): number | null => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+        const user = JSON.parse(userStr);
+        if (user && user.token) {
+            try {
+                const decodedToken: { id: number } = jwtDecode(user.token);
+                return decodedToken.id;
+            } catch (error) {
+                console.error("Invalid token:", error);
+                return null;
+            }
+        }
+    }
+    return null;
+};
+
+const getUserById = (id: number) => {
+    return axios.get(API_URL + `admin/users/${id}`, { headers: authHeader() })
+        .then(response => response.data);
+};
+
+
 const authService = {
     login,
     logout,
     getCurrentUser,
+    getUserIdFromToken,
+    getUserById
 };
 
 export default authService;
