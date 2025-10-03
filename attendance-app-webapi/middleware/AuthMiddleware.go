@@ -39,13 +39,20 @@ func AuthMiddleware() gin.HandlerFunc {
 				c.Abort()
 				return
 			}
+
+			if errors.Is(err, jwt.ErrTokenExpired) {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Token Expired"})
+				c.Abort()
+				return
+			}
+
 			c.JSON(http.StatusBadRequest, gin.H{"error": "bad request"})
 			c.Abort()
 			return
 		}
 
-		if blocklist.IsBlocklisted(tokenString) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+		if err := blocklist.IsBlocklisted(tokenString); err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			c.Abort()
 			return
 		}

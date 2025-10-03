@@ -16,7 +16,7 @@ import {
   UserCircleIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
-import SidebarWidget from "./SidebarWidget";
+// import SidebarWidget from "./SidebarWidget"; //widget example
 
 type NavItem = {
   name: string;
@@ -26,6 +26,16 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
+  {
+    name: "User Management",
+    icon: <TableIcon />,
+    path: "/user-management",
+  },
+  {
+    name: "Role Management",
+    icon: <TableIcon />,
+    path: "/role-management",
+  },
   {
     icon: <GridIcon />,
     name: "Dashboard",
@@ -368,7 +378,6 @@ const AppSidebar: React.FC = () => {
             </div>
           </div>
         </nav>
-        {isExpanded || isHovered || isMobileOpen ? <SidebarWidget /> : null}
       </div>
     </aside>
   );

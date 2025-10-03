@@ -168,7 +168,7 @@ export default function SignInForm() {
                   </Link>
                 </div>
                 <div>
-                  <Button className="w-full" size="sm" disabled={loading}>
+                  <Button className="w-full" size="sm" disabled={loading} type="submit">
                     Sign in
                   </Button>
                 </div>

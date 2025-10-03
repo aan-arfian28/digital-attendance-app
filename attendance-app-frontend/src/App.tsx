@@ -13,6 +13,8 @@ import LineChart from "./pages/Charts/LineChart";
 import BarChart from "./pages/Charts/BarChart";
 import Calendar from "./pages/Calendar";
 import BasicTables from "./pages/Tables/BasicTables";
+import UserManagement from "./pages/AdminUserManagement/UserManagement";
+import RoleManagement from "./pages/AdminRoleManagement/RoleManagement";
 import FormElements from "./pages/Forms/FormElements";
 import Blank from "./pages/Blank";
 import AppLayout from "./layout/AppLayout";
@@ -30,6 +32,10 @@ export default function App() {
           <Route element={<PrivateRoute />}>
             <Route element={<AppLayout />}>
               <Route index path="/" element={<Home />} />
+
+              {/* User Management */}
+              <Route path="/user-management" element={<UserManagement />} />
+              <Route path="/role-management" element={<RoleManagement />} />
 
               {/* Others Page */}
               <Route path="/profile" element={<UserProfiles />} />
