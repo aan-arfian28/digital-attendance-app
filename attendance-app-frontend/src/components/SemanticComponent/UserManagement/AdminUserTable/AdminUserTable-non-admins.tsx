@@ -14,31 +14,31 @@ import  CreateUser  from "./component/CreateUser";
 // Interface for the raw data structure from the API
 interface ApiUser {
   ID: number;
+  Name?: string;
   Username: string;
-  CreatedAt: string;
-  Role: {
+  Email: string;
+  Role:  string;
+  Position: string;
+  PositionLevel: number;
+  Supervisor?: {
     ID: number;
-    Name: string;
-    Position: string;
-    PositionLevel: number;
-  };
-  Supervisor?: number;
-  UserDetail: {
-    Name?: string;
-  };
+    SupervisorName: string;
+  }
 }
 
 // A new, more appropriate interface for the formatted data to be displayed in the table
 interface FormattedAdminUser {
   ID: number;
   Name: string;
+  Username: string;
+  Email: string;
   RoleName: string;
   Position: string;
   PositionLevel : number;
-  Username: string;
+  SupervisorName: string | null;
 }
 
-function AdminUserTableAdmins() {
+export default function AdminUserTableAdmins() {
   const [apiData, setApiData] = useState<ApiUser[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -86,6 +86,7 @@ function AdminUserTableAdmins() {
     
     fetchData();
   }, [refreshTrigger]); // Empty dependency array ensures this effect runs only once on mount
+  console.log("apidata :",apiData)
 
   // useMemo to transform the API data into the structure needed for the table
   const formattedTableData: FormattedAdminUser[] = useMemo(() => {
@@ -96,11 +97,13 @@ function AdminUserTableAdmins() {
     // Map the raw API data to the 'FormattedAdminUser' interface structure
     return apiData.map((apiItem) => ({
       ID: apiItem.ID,
-      Name: apiItem.UserDetail?.Name || 'N/A', // Safely access optional name
-      RoleName: apiItem.Role.Name,
-      Position: apiItem.Role.Position,
-      PositionLevel: apiItem.Role.PositionLevel,
+      Name: apiItem.Name || 'N/A', // Safely access optional name
       Username: apiItem.Username,
+      Email: apiItem.Email,
+      RoleName: apiItem.Role,
+      Position: apiItem.Position,
+      PositionLevel: apiItem.PositionLevel,
+      SupervisorName: apiItem.Supervisor?.SupervisorName || 'N/A'
     }));
   }, [apiData]);
 
@@ -125,6 +128,9 @@ function AdminUserTableAdmins() {
                   User
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                  Email
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                   Role
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
@@ -132,6 +138,9 @@ function AdminUserTableAdmins() {
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                   Position Level
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                  Supervisor
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
                   Actions
@@ -147,6 +156,11 @@ function AdminUserTableAdmins() {
                       {user.Name}
                     </div>
                   </TableCell>
+                  <TableCell className="px-5 py-4 sm:px-6 text-start">
+                    <div className="font-medium text-gray-800 text-theme-sm dark:text-white/90">
+                      {user.Email}
+                    </div>
+                  </TableCell>
                   <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                     {user.RoleName}
                   </TableCell>
@@ -155,6 +169,9 @@ function AdminUserTableAdmins() {
                   </TableCell>
                   <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                     {user.PositionLevel}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                    {user.SupervisorName}
                   </TableCell>
                   <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                     <div className="flex flex-col gap-2 lg:flex-row">
@@ -171,5 +188,3 @@ function AdminUserTableAdmins() {
     </div>
   );
 }
-
-export default AdminUserTableAdmins;

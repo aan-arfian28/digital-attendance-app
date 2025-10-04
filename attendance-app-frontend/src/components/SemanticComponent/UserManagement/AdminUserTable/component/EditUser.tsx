@@ -4,22 +4,24 @@ import axios from 'axios';
 import { Modal } from "../../../../ui/modal";
 import Button from "../../../../ui/button/Button";
 import Input from "../../../../form/input/InputField";
+import Select from "../../../../form/Select";
 import Label from "../../../../form/Label";
 
 interface FormattedUserData {
     ID: number;
     Name: string;
+    Email: string;
+    Username: string;
+    Password?: string
     RoleName: string;
     Position: string;
     PositionLevel : number;
-    Username: string;
-    Password?: string
 }   
 
 //fuck TS is so stingy
 interface EditUserProps {
-  UserData: FormattedUserData;
-  OnSendData: (childReturn:any) =>  void ;
+    UserData: FormattedUserData;
+    OnSendData: (childReturn:any) =>  void ;
 }
 
 export default function EditUser({ UserData, OnSendData }:EditUserProps) {
@@ -32,6 +34,7 @@ export default function EditUser({ UserData, OnSendData }:EditUserProps) {
     useEffect(() => {
         setFormData(UserData);
     }, [UserData]);
+    
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData((prevData) => ({
@@ -142,11 +145,8 @@ export default function EditUser({ UserData, OnSendData }:EditUserProps) {
                 <div className="relative w-full p-4 overflow-y-auto bg-white no-scrollbar rounded-3xl dark:bg-gray-900 lg:p-11">
                 <div className="px-2 pr-14">
                     <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
-                    Edit Address
+                    Edit User Data
                     </h4>
-                    <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 lg:mb-7">
-                    Update your details to keep your profile up-to-date.
-                    </p>
                 </div>
                 <form className="flex flex-col" onSubmit={handleUpdate}>
                     <div className="px-2 overflow-y-auto custom-scrollbar">
@@ -160,17 +160,30 @@ export default function EditUser({ UserData, OnSendData }:EditUserProps) {
                                 <Input type="text" name="Username" id="Username" value={FormData.Username} onChange={handleInputChange} />
                             </div>
                             <div>
-                                <Label htmlFor="Position">Position</Label>
-                                <Input type="text" name="Position" id="Position" value={FormData.Position} onChange={handleInputChange} />
-                            </div>
-                            <div>
-                                <Label htmlFor="PositionLevel">Position Level</Label>
-                                <Input type="number" name="PositionLevel" id="PositionLevel" value={FormData.PositionLevel} onChange={handleInputChange} />
+                                <Label htmlFor="Email">Email</Label>
+                                <Input type="Email" name="Email" id="Email" value={FormData.Email} onChange={handleInputChange} />
                             </div>
                             <div>
                                 <Label htmlFor="Password">Password</Label>
                                 <Input type="text" name="Password" id="Password" value={FormData.Password} onChange={handleInputChange} />
                             </div>
+                            <div>
+                                <Label htmlFor="Position">Position</Label>
+                                <Input disabled type="text" name="Role.Position" id="Position" value={FormData.Position} onChange={handleInputChange} />
+                            </div>
+                            <div>
+                                <Label htmlFor="PositionLevel">Position Level</Label>
+                                <Input disabled type="number" name="Role.PositionLevel" id="PositionLevel" value={FormData.PositionLevel} onChange={handleInputChange} />
+                            </div>
+                            {/* <div>
+                                <Label>Select Input</Label>
+                                <Select
+                                    options={options}
+                                    placeholder="Select an option"
+                                    onChange={handleSelectChange}
+                                    className="dark:bg-dark-900"
+                                />
+                            </div> */}
                             {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
                         </div>
                     </div>

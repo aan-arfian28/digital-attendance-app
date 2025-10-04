@@ -264,6 +264,14 @@ func checkSupervisor(user models.User, DB *gorm.DB) (models.User, error) {
 	return user, nil
 }
 
+type GetAllAdminUsersResponse struct {
+	ID       uint            `json:"ID"`
+	Username string          `json:"Username"`
+	Name     string          `json:"Name"`
+	Email    string          `json:"Email"`
+	Role     models.RoleName `json:"Role"`
+}
+
 func GetAllAdminUsers(c *gin.Context) {
 	var users []models.User
 	db, exists := c.Get("db")
@@ -274,12 +282,53 @@ func GetAllAdminUsers(c *gin.Context) {
 
 	DB := db.(*gorm.DB)
 
-	if err := DB.Joins("Role").Joins("UserDetail").Where("Role.name = ?", "admin").Find(&users).Error; err != nil {
-		c.JSON(500, gin.H{"error": "failed to retrieve admin users"})
+	if err := DB.Joins("Role").Joins("UserDetail").Where("Role.name = ?", "admin").Preload("Supervisor").Preload("Supervisor.UserDetail").Find(&users).Error; err != nil {
+		c.JSON(500, gin.H{"error": "failed to retrieve non-admin users"})
 		return
 	}
 
-	c.JSON(http.StatusOK, users)
+	// log.Println(users)
+
+	var userResponses []GetAllNonAdminUsersResponse
+	for _, user := range users {
+		response := GetAllNonAdminUsersResponse{
+			ID:            user.ID,
+			Username:      user.Username,
+			Name:          user.UserDetail.Name,
+			Email:         user.Email,
+			Role:          user.Role.Name,
+			Position:      user.Role.Position,
+			PositionLevel: user.Role.PositionLevel,
+		}
+
+		// Safely add supervisor info if it exists
+		if user.Supervisor != nil {
+			response.Supervisor = &struct {
+				SupervisorID   uint   `json:"SupervisorID"`
+				SupervisorName string `json:"SupervisorName"`
+			}{
+				SupervisorID:   user.Supervisor.ID,
+				SupervisorName: user.Supervisor.UserDetail.Name,
+			}
+		}
+		userResponses = append(userResponses, response)
+	}
+
+	c.JSON(http.StatusOK, userResponses)
+}
+
+type GetAllNonAdminUsersResponse struct {
+	ID            uint            `json:"ID"`
+	Username      string          `json:"Username"`
+	Name          string          `json:"Name"`
+	Email         string          `json:"Email"`
+	Role          models.RoleName `json:"Role"`
+	Position      string          `json:"Position"`
+	PositionLevel uint            `json:"PositionLevel"`
+	Supervisor    *struct {       // Nested struct for supervisor info
+		SupervisorID   uint   `json:"SupervisorID"`
+		SupervisorName string `json:"SupervisorName"`
+	} `json:"Supervisor"`
 }
 
 func GetAllNonAdminUsers(c *gin.Context) {
@@ -297,8 +346,43 @@ func GetAllNonAdminUsers(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, users)
+	// log.Println(users)
+
+	var userResponses []GetAllNonAdminUsersResponse
+	for _, user := range users {
+		response := GetAllNonAdminUsersResponse{
+			ID:            user.ID,
+			Username:      user.Username,
+			Name:          user.UserDetail.Name,
+			Email:         user.Email,
+			Role:          user.Role.Name,
+			Position:      user.Role.Position,
+			PositionLevel: user.Role.PositionLevel,
+		}
+
+		// Safely add supervisor info if it exists
+		if user.Supervisor != nil {
+			response.Supervisor = &struct {
+				SupervisorID   uint   `json:"SupervisorID"`
+				SupervisorName string `json:"SupervisorName"`
+			}{
+				SupervisorID:   user.Supervisor.ID,
+				SupervisorName: user.Supervisor.UserDetail.Name,
+			}
+		}
+		userResponses = append(userResponses, response)
+	}
+
+	c.JSON(http.StatusOK, userResponses)
 }
+
+// type GetAllAdminUsersResponse struct {
+// 	ID       uint            `json:"ID"`
+// 	Username string          `json:"Username"`
+// 	Name     string          `json:"Name"`
+// 	Email    string          `json:"Email"`
+// 	Role     models.RoleName `json:"Role"`
+// }
 
 func GetRoles(c *gin.Context) {
 	var role []models.Role
@@ -311,6 +395,42 @@ func GetRoles(c *gin.Context) {
 	DB := db.(*gorm.DB)
 
 	if err := DB.Find(&role).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "no roles not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, role)
+}
+
+func GetRolesAdmins(c *gin.Context) {
+	var role []models.Role
+	db, exists := c.Get("db")
+	if !exists {
+		c.JSON(500, gin.H{"error": "database connection not found"})
+		return
+	}
+
+	DB := db.(*gorm.DB)
+
+	if err := DB.Model(&role).Where("name = ?", "admin").Find(&role).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "no roles not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, role)
+}
+
+func GetRolesNonAdmins(c *gin.Context) {
+	var role []models.Role
+	db, exists := c.Get("db")
+	if !exists {
+		c.JSON(500, gin.H{"error": "database connection not found"})
+		return
+	}
+
+	DB := db.(*gorm.DB)
+
+	if err := DB.Model(&role).Where("name <> ?", "admin").Find(&role).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "no roles not found"})
 		return
 	}
@@ -383,8 +503,15 @@ func UpdateRole(c *gin.Context) {
 		return
 	}
 
-	if err := DB.Model(&role).Updates(role).Error; err != nil {
-		c.JSON(500, gin.H{"error": "failed to update user, role already available" + err.Error()})
+	updateData := map[string]interface{}{
+		"name":           role.Name,
+		"position":       role.Position,
+		"position_level": role.PositionLevel,
+		// Add any other fields from the 'role' struct you wish to update
+	}
+
+	if err := DB.Model(&role).Updates(updateData).Error; err != nil {
+		c.JSON(500, gin.H{"error": "failed to update role: " + err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, role)

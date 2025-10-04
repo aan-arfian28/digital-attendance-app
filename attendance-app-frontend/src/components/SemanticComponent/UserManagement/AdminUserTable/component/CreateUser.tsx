@@ -173,7 +173,7 @@ export default function CreateUser({RoleData, OnSendData }:CreateUserProps) {
                                 <Input type="text" name="Role.Position" id="Position" value={FormData.Role.Position} onChange={handleInputChange} />
                             </div>
                             <div>
-                                <Label htmlFor="RoleName">Position Level</Label>
+                                <Label htmlFor="PositionLevel">Position Level</Label>
                                 <Input type="number" name="Role.PositionLevel" id="PositionLevel" value={FormData.Role.PositionLevel} onChange={handleInputChange} />
                             </div>
                             {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
