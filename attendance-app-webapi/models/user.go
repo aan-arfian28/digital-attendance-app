@@ -7,9 +7,6 @@ import (
 // User defines the user model with all its relationships.
 type User struct {
 	gorm.Model
-	CreatedAt string `json:"-"`
-	UpdatedAt string `json:"-"`
-	DeletedAt string `json:"-"`
 	Username  string `json:"Username" validate:"required,min=3,max=32" gorm:"not null"`
 	Password  string `json:"-" validate:"required,min=8,max=72" gorm:"not null"`
 	Email     string `json:"Email" validate:"required,email"`
@@ -34,9 +31,6 @@ type User struct {
 // UserDetail stores additional information about the user. (Corrected)
 type UserDetail struct {
 	gorm.Model
-	CreatedAt string `json:"-"`
-	UpdatedAt string `json:"-"`
-	DeletedAt string `json:"-"`
 	// The 'unique' tag enforces the one-to-one relationship at the database level.
 	UserID uint   `gorm:"not null;unique"`
 	Name   string `json:"Name"`
@@ -55,10 +49,7 @@ const (
 // Role defines the user's role and position level.
 type Role struct {
 	gorm.Model
-	CreatedAt     string   `json:"-"`
-	UpdatedAt     string   `json:"-"`
-	DeletedAt     string   `json:"-"`
-	Name          RoleName `json:"Name" validate:"required" gorm:"type:varchar(255);not null;check:name IN ('user', 'admin')""`
+	Name          RoleName `json:"Name" validate:"required" gorm:"type:varchar(255);not null;check:name IN ('user', 'admin')"`
 	Position      string   `json:"Position" validate:"required" gorm:"type:varchar(255);unique"`
 	PositionLevel uint     `json:"PositionLevel" validate:"gte=0"`
 }
