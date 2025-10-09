@@ -5,6 +5,7 @@ import { Modal } from "../../../../ui/modal";
 import Button from "../../../../ui/button/Button";
 import Input from "../../../../form/input/InputField";
 import Label from "../../../../form/Label";
+import Select from "../../../../form/Select"; // <-- Import your Select component
 
 interface FormattedUserData {
     Name: string,
@@ -15,6 +16,11 @@ interface FormattedUserData {
 interface CreateUserProps {
     OnSendData: (childReturn:any) =>  void,
 }
+
+const roleOptions = [
+    { value: "admin", label: "Admin" },
+    { value: "user", label: "User" }
+  ]
 
 export default function CreateRole({OnSendData}:CreateUserProps) {
     const { isOpen, openModal, closeModal } = useModal();
@@ -58,7 +64,7 @@ export default function CreateRole({OnSendData}:CreateUserProps) {
         
         try {
         const response = await axios.post(
-            API_URL+"roles", 
+            API_URL+"roles/", 
             FormData,
             {
                 headers: {
@@ -79,6 +85,15 @@ export default function CreateRole({OnSendData}:CreateUserProps) {
         setError(err.message || "An unexpected error occurred.");
         } finally {
         setIsSubmitting(false);
+        }
+    };
+
+    const handleSelectChange = (selectedRole: string) => {
+        if (selectedRole) {
+            setFormData(prevData => ({
+                ...prevData,
+                Name: selectedRole,
+            }));
         }
     };
   
@@ -112,9 +127,15 @@ export default function CreateRole({OnSendData}:CreateUserProps) {
                 <form className="flex flex-col" onSubmit={handleUpdate}>
                     <div className="px-2 overflow-y-auto custom-scrollbar">
                         <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
-                            <div>
-                                <Label htmlFor="Name">Role Name</Label>
-                                <Input type="text" name="Name" id="Name" value={FormData.Name} onChange={handleInputChange} />
+                            <div className="lg:col-span-2">
+                                <Label>Role Type</Label>
+                                <Select
+                                    options={roleOptions}
+                                    placeholder="Select a new role"
+                                    onChange={handleSelectChange}
+                                    defaultValue={FormData.Name?.toString() ?? ''}
+                                    className="dark:bg-dark-900"
+                                />
                             </div>
                             <div>
                                 <Label htmlFor="Position">Position</Label>

@@ -9,34 +9,34 @@ interface FormattedUserData {
 }   
 
 //fuck TS is so stingy
-interface DeleteUserProps {
+interface EditUserProps {
   UserData: FormattedUserData;
   MoveDirection: "up" | "down";
   OnSendData: (childReturn:any) => void;
 }
 
-export default function EditRole({ UserData, MoveDirection, OnSendData }:DeleteUserProps) {
+export default function EditRole({ UserData, MoveDirection, OnSendData }:EditUserProps) {
     const [FormData, setFormData] = useState<FormattedUserData>(UserData);
     const [isSubmitting, setIsSubmitting] = useState(false);
     useEffect(() => {
         setFormData(UserData);
     }, [UserData]);
+    const isActionInvalid = MoveDirection === 'down' && UserData.PositionLevel <= 0;
 
     const handleUpdate = async () => {
         setIsSubmitting(true);
+
         
         const adjustment = MoveDirection === "up" ? 1 : -1;
+
         const newFormData = {
             ...FormData, // Keep all existing fields
-            'PositionLevel': FormData.PositionLevel + adjustment,
+            'PositionLevel': UserData.PositionLevel + adjustment, // Use the pre-calculated new level
         };
 
-
-        // This setup can be outside the try block
         const API_URL = `http://localhost:8080/api/admin/users/roles/${FormData.ID}`;
         const userInfo = localStorage.getItem('user');
         if (!userInfo) {
-            // You should handle this more gracefully than throwing an error
             const msg = "User information not found in local storage.";
             OnSendData({ "err": msg });
             setIsSubmitting(false);
@@ -49,33 +49,28 @@ export default function EditRole({ UserData, MoveDirection, OnSendData }:DeleteU
             const response = await axios.put(
                 API_URL, 
                 newFormData,
-                {
-                headers: {
-                    'Authorization': `Bearer ${bearerToken}`
-                }
-            });
+                { headers: { 'Authorization': `Bearer ${bearerToken}` } }
+            );
 
-            // If axios does not throw an error, it was successful (status 2xx).
-            console.log("Delete successful:", response.data);
+            console.log("Update successful:", response.data);
             OnSendData({}); // Call the callback on success
 
         } catch (err: any) {
-            console.error("Failed to Delete user:", err);
-            // Get the specific error message from the API response if it exists
-            OnSendData({ "err": err }); // Pass the actual error message back
+            console.error("Failed to update user role:", err);
+            OnSendData({ "err": err });
         } finally {
             setIsSubmitting(false);
         }
-    };  
+    };
 
     return (
         <div>
             <button
             onClick={handleUpdate}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isActionInvalid}
             className={`
             flex w-full items-center justify-center gap-2 rounded-full border border-yellow-300 bg-amber-200 px-4 py-1 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-yellow-800 dark:bg-yellow-600 dark:text-gray-200 dark:hover:bg-white/[0.03] dark:hover:text-gray-200 lg:inline-flex lg:w-auto
-            ${ isSubmitting ? "cursor-not-allowed opacity-50" : "" }
+            ${ isSubmitting || isActionInvalid ? "cursor-not-allowed opacity-50" : "" }
             `}
             >
             <svg
