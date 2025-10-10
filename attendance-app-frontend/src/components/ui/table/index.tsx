@@ -29,6 +29,7 @@ interface TableCellProps {
   children: ReactNode; // Cell content
   isHeader?: boolean; // If true, renders as <th>, otherwise <td>
   className?: string; // Optional className for styling
+  onClick?: () => void;
 }
 
 // Table Component
@@ -56,9 +57,14 @@ const TableCell: React.FC<TableCellProps> = ({
   children,
   isHeader = false,
   className,
+  onClick
 }) => {
-  const CellTag = isHeader ? "th" : "td";
-  return <CellTag className={` ${className}`}>{children}</CellTag>;
+    const commonProps = { className, onClick };
+    if (isHeader) {
+        return <th {...commonProps}>{children}</th>;
+    }
+    // For <td>, we don't typically pass an onClick for sorting, so we can omit it.
+    return <td className={className}>{children}</td>;
 };
 
 export { Table, TableHeader, TableBody, TableRow, TableCell };

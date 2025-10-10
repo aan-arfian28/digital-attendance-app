@@ -46,6 +46,7 @@ func CreateUser(c *gin.Context) {
 	}
 
 	if err := utils.Validate.Struct(req); err != nil {
+		log.Printf("%+v\n", req)
 		errors := utils.FormatValidationErrors(err)
 		c.JSON(http.StatusBadRequest, gin.H{"errors": errors})
 		return
@@ -160,6 +161,7 @@ func UpdateUser(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
+	log.Println("userdetail = ", user.UserDetail)
 
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		log.Println(err)

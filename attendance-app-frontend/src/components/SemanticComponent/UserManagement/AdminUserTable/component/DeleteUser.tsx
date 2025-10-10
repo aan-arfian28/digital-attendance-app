@@ -4,7 +4,7 @@ import axios from 'axios';
 interface FormattedUserData {
     ID: number;
     Name: string;
-    RoleName: string;
+    Role: string;
     Position: string;
     PositionLevel : number;
     Username: string;
@@ -28,7 +28,7 @@ export default function DeleteUser({ UserData, OnSendData }:DeleteUserProps) {
         setIsSubmitting(true);
 
         // This setup can be outside the try block
-        const API_URL = `http://localhost:8080/api/admin/user/${FormData.ID}`;
+        const API_URL = `http://localhost:8080/api/admin/users/${FormData.ID}`;
         const userInfo = localStorage.getItem('user');
         if (!userInfo) {
             // You should handle this more gracefully than throwing an error

@@ -17,6 +17,7 @@ interface ApiUser {
   Name?: string;
   Username: string;
   Email: string;
+  RoleID: number
   Role:  string;
   Position: string;
   PositionLevel: number;
@@ -32,7 +33,8 @@ interface FormattedAdminUser {
   Name: string;
   Username: string;
   Email: string;
-  RoleName: string;
+  RoleID: number;
+  Role: string;
   Position: string;
   PositionLevel : number;
   SupervisorName: string | null;
@@ -100,7 +102,8 @@ export default function AdminUserTableAdmins() {
       Name: apiItem.Name || 'N/A', // Safely access optional name
       Username: apiItem.Username,
       Email: apiItem.Email,
-      RoleName: apiItem.Role,
+      RoleID: apiItem.RoleID,
+      Role: apiItem.Role,
       Position: apiItem.Position,
       PositionLevel: apiItem.PositionLevel,
       SupervisorName: apiItem.Supervisor?.SupervisorName || 'N/A'
@@ -162,7 +165,7 @@ export default function AdminUserTableAdmins() {
                     </div>
                   </TableCell>
                   <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                    {user.RoleName}
+                    {user.Role}
                   </TableCell>
                   <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                     {user.Position}
