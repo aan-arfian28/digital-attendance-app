@@ -186,8 +186,12 @@ export default function CreateUser({ RoleData, OnSendData }: CreateUserProps) {
             const response = await axios.get<SupervisorData[]>(API_URL, {
                 headers: { 'Authorization': `Bearer ${bearerToken}` }
             });
-            setAllPotentialSupervisors(response.data);
-            console.log(allPotentialSupervisors)
+            if (response.data){
+                setAllPotentialSupervisors(response.data);
+            } else {
+                setAllPotentialSupervisors([]);
+            }
+            console.log(response)
         } catch (err) {
             console.error("Failed to fetch users for supervisor list:", err);
             setError("Could not load user data for supervisor selection.");
@@ -307,7 +311,7 @@ export default function CreateUser({ RoleData, OnSendData }: CreateUserProps) {
                                         options={roleOptions}
                                         placeholder="Select a role"
                                         onChange={handleRoleSelectChange}
-                                        defaultValue={FormData.Role.ID?.toString() ?? ''}
+                                        defaultValue={''}
                                         className="dark:bg-dark-900"
                                     />
                                 </div>
