@@ -13,8 +13,24 @@ import (
 	"attendance-app/utils"
 )
 
+// CreateUserRequest represents the request payload for creating a user
+type CreateUserRequest struct {
+	Username     string `json:"Username" validate:"required,min=3,max=32"`
+	Password     string `json:"Password" validate:"required,min=8,max=72"`
+	Email        string `json:"Email" validate:"required,email"`
+	SupervisorID *uint  `json:"SupervisorID,omitempty"`
+	Role         struct {
+		Name          models.RoleName `json:"Name" validate:"required"`
+		Position      string          `json:"Position" validate:"required"`
+		PositionLevel uint            `json:"PositionLevel" validate:"gte=0"`
+	} `json:"Role" validate:"required"`
+	UserDetail struct {
+		Name string `json:"Name"`
+	} `json:"UserDetail"`
+}
+
 func CreateUser(c *gin.Context) {
-	var user models.User
+	var req CreateUserRequest
 
 	db, exists := c.Get("db")
 	if !exists {
@@ -24,16 +40,32 @@ func CreateUser(c *gin.Context) {
 
 	DB := db.(*gorm.DB)
 
-	if err := c.ShouldBindJSON(&user); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload, " + err.Error()})
 		return
 	}
 
-	if err := utils.Validate.Struct(user); err != nil {
-		log.Printf("%+v\n", user)
+	if err := utils.Validate.Struct(req); err != nil {
+		log.Printf("%+v\n", req)
 		errors := utils.FormatValidationErrors(err)
 		c.JSON(http.StatusBadRequest, gin.H{"errors": errors})
 		return
+	}
+
+	// Create user from request
+	user := models.User{
+		Username:     req.Username,
+		Password:     req.Password, // Will be hashed later
+		Email:        req.Email,
+		SupervisorID: req.SupervisorID,
+		Role: &models.Role{
+			Name:          req.Role.Name,
+			Position:      req.Role.Position,
+			PositionLevel: req.Role.PositionLevel,
+		},
+		UserDetail: models.UserDetail{
+			Name: req.UserDetail.Name,
+		},
 	}
 
 	// Check if role already exists
@@ -52,13 +84,15 @@ func CreateUser(c *gin.Context) {
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error hashing password for user %v: %v", user, err)
 		c.JSON(500, gin.H{"error": errorMessage})
+		return
 	}
 	user.Password = hashedPassword
 
 	user, err = checkSupervisor(user, DB)
 	if err != nil {
-		errorMessage := fmt.Sprintf("Supervisor not found %v: %v", user, err)
-		c.JSON(500, gin.H{"error": errorMessage})
+		errorMessage := fmt.Sprintf("Supervisor error %v: %v", user, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": errorMessage})
+		return
 	}
 
 	if err := DB.Create(&user).Error; err != nil {
@@ -91,9 +125,9 @@ func GetUser(c *gin.Context) {
 
 // Define the struct for the inner 'Role' object
 type Role struct {
-	Name          models.RoleName `json:"Name" validate:"required"`
+	Name          models.RoleName `json:"Name" validate:"omitempty"`
 	Position      string          `json:"Position" validate:"omitempty"`
-	PositionLevel uint            `json:"PositionLevel" validate:"gte=0"`
+	PositionLevel uint            `json:"PositionLevel" validate:"omitempty,gte=0"`
 }
 
 // Define the struct for the inner 'UserDetail' object
@@ -140,6 +174,10 @@ func UpdateUser(c *gin.Context) {
 		errors := utils.FormatValidationErrors(err)
 		c.JSON(http.StatusBadRequest, gin.H{"errors": errors})
 		return
+	}
+
+	if payload.SupervisorID != nil {
+		user.SupervisorID = payload.SupervisorID
 	}
 
 	updates := make(map[string]interface{})
@@ -209,6 +247,14 @@ func UpdateUser(c *gin.Context) {
 	if err := DB.Model(&user).Updates(user).Error; err != nil {
 		c.JSON(500, gin.H{"error": "failed to update user"})
 		return
+	}
+
+	// After updating the user, we need to save the SupervisorID association
+	if payload.SupervisorID != nil {
+		if err := DB.Model(&user).Update("supervisor_id", user.SupervisorID).Error; err != nil {
+			c.JSON(500, gin.H{"error": "failed to update supervisor"})
+			return
+		}
 	}
 
 	if payload.UserDetail.Name != "" {

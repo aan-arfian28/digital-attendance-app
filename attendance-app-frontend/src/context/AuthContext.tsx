@@ -1,19 +1,27 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import authService from '../services/authService';
 
-interface User {
-    ID: number;
-    Username: string;
-    Email: string;
-    RoleID: number;
+interface Role {
+  ID: number;
+  Name: string;
+  Position: string;
+  PositionLevel: number;
 }
 
-interface IAuthContext {
+export interface User {
+  ID: number;
+  Username: string;
+  Email: string;
+  RoleID: number;
+  Role: Role;
+}
+
+interface AuthContextType {
     user: User | null;
     isLoading: boolean;
 }
 
-const AuthContext = createContext<IAuthContext | null>(null);
+const AuthContext = createContext<AuthContextType | null>(null);
 
 export const useAuth = () => {
     return useContext(AuthContext);
@@ -52,3 +60,5 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         </AuthContext.Provider>
     );
 };
+
+export { AuthContext };

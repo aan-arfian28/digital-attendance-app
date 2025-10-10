@@ -21,6 +21,9 @@ import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
 import PrivateRoute from "./components/common/PrivateRoute";
+import RoleBasedPrivateRoute from "./components/common/RoleBasedPrivateRoute";
+import Attendance from "./pages/Attendance";
+import Unauthorized from "./pages/Unauthorized";
 
 export default function App() {
   return (
@@ -33,9 +36,16 @@ export default function App() {
             <Route element={<AppLayout />}>
               <Route index path="/" element={<Home />} />
 
-              {/* User Management */}
-              <Route path="/user-management" element={<UserManagement />} />
-              <Route path="/role-management" element={<RoleManagement />} />
+              {/* Admin Routes */}
+              <Route element={<RoleBasedPrivateRoute allowedRoles={['Admin']} />}>
+                <Route path="/user-management" element={<UserManagement />} />
+                <Route path="/role-management" element={<RoleManagement />} />
+              </Route>
+
+              {/* Student Routes */}
+              <Route element={<RoleBasedPrivateRoute allowedRoles={['Student']} />}>
+                <Route path="/attendance" element={<Attendance />} />
+              </Route>
 
               {/* Others Page */}
               <Route path="/profile" element={<UserProfiles />} />
@@ -65,6 +75,7 @@ export default function App() {
           {/* Auth Layout */}
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
+          <Route path="/unauthorized" element={<Unauthorized />} />
 
           {/* Fallback Route */}
           <Route path="*" element={<NotFound />} />
