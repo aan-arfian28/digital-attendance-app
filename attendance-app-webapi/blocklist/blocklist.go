@@ -1,6 +1,7 @@
 package blocklist
 
 import (
+	"errors"
 	"sync"
 	"time"
 )
@@ -16,16 +17,17 @@ func Add(token string, expiration time.Duration) {
 	blocklistedTokens[token] = time.Now().Add(expiration)
 }
 
-func IsBlocklisted(token string) bool {
+func IsBlocklisted(token string) error {
 	mutex.RLock()
 	defer mutex.RUnlock()
 	expiration, ok := blocklistedTokens[token]
-	if !ok {
-		return false
+	if ok {
+		err := errors.New("logged out")
+		return err
 	}
 	if time.Now().After(expiration) {
 		delete(blocklistedTokens, token)
-		return false
+		return nil
 	}
-	return true
+	return nil
 }
