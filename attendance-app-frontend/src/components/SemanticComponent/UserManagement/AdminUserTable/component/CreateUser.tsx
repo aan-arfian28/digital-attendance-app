@@ -38,19 +38,6 @@ interface RoleData {
     PositionLevel: number;
 }
 
-// NEW: Define the structure for a potential supervisor from the API
-// This assumes the API returns users with their role details nested.
-// interface SupervisorData {
-//     ID: number;
-//     UserDetail: {
-//         Name: string;
-//     };
-//     Role: {
-//         Position: string;
-//         PositionLevel: number;
-//     };
-// }
-
 interface SupervisorData {
   ID: number;
   Name?: string;

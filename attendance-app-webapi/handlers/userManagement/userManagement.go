@@ -103,11 +103,13 @@ type UserDetail struct {
 
 // Define the main struct for the entire payload
 type UserPayload struct {
-	Username   string     `json:"Username" validate:"omitempty,min=3,max=32"`
-	Password   *string    `json:"Password" validate:"omitempty,min=8,max=72"`
-	Email      string     `json:"Email" validate:"omitempty,email"`
-	Role       Role       `json:"Role" `
-	UserDetail UserDetail `json:"UserDetail"`
+	Username     string     `json:"Username" validate:"omitempty,min=3,max=32"`
+	Password     *string    `json:"Password" validate:"omitempty,min=8,max=72"`
+	Email        string     `json:"Email" validate:"omitempty,email"`
+	Role         Role       `json:"Role" `
+	RoleID       uint       `json:"RoleID" `
+	UserDetail   UserDetail `json:"UserDetail"`
+	SupervisorID *uint      `json:"SupervisorID"`
 }
 
 func UpdateUser(c *gin.Context) {
@@ -127,14 +129,12 @@ func UpdateUser(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
-	log.Println("userdetail = ", user.UserDetail)
 
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		log.Println(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload untuk user"})
 		return
 	}
-	log.Println("payload", payload)
 
 	if err := utils.Validate.Struct(payload); err != nil {
 		errors := utils.FormatValidationErrors(err)
@@ -154,6 +154,11 @@ func UpdateUser(c *gin.Context) {
 		updates["Email"] = user.Email
 	}
 
+	if *payload.SupervisorID != 0 {
+		user.SupervisorID = payload.SupervisorID
+		updates["SupervisorID"] = user.SupervisorID
+	}
+
 	if payload.Password != nil {
 		if *payload.Password != "" {
 			log.Println("mencoba mengbuah password")
@@ -170,7 +175,7 @@ func UpdateUser(c *gin.Context) {
 		}
 	}
 
-	if payload.Role.Name != "" || payload.Role.Position != "" {
+	if payload.Role.Name != "" && payload.Role.Position != "" {
 		var role models.Role
 		if payload.Role.Name != "" {
 			user.Role.Name = payload.Role.Name
@@ -179,6 +184,10 @@ func UpdateUser(c *gin.Context) {
 			user.Role.Position = payload.Role.Position
 		}
 		user.Role.PositionLevel = payload.Role.PositionLevel
+		log.Printf("Payload %+v\n", payload)
+		log.Println(user.Role.Name)
+		log.Println(user.Role.Position)
+		log.Println(user.Role.PositionLevel)
 		if err := DB.Where("name = ? AND position = ? AND position_level = ?", user.Role.Name, user.Role.Position, user.Role.PositionLevel).First(&role).Error; err == nil {
 			log.Println("ketemu!! : ", user.Role)
 			user.RoleID = role.ID
@@ -192,6 +201,9 @@ func UpdateUser(c *gin.Context) {
 				return
 			}
 		}
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "role data not found"})
+		return
 	}
 
 	if err := DB.Model(&user).Updates(user).Error; err != nil {

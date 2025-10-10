@@ -137,7 +137,6 @@ export default function EditUser({ UserData, OnSendData }: EditUserProps) {
 
     const reformatDataForAPI = (data: FormattedUserData) => {
         const payload: any = {
-            Name: data.Name,
             Username: data.Username,
             Email: data.Email,
             RoleID: data.RoleID,
@@ -152,6 +151,22 @@ export default function EditUser({ UserData, OnSendData }: EditUserProps) {
         if (data.Password && data.Password.trim().length > 0) {
             payload.Password = data.Password;
         }
+
+        if (data.Name) {
+            payload.UserDetail = {
+                Name: data.Name
+            }
+        }
+
+        if (!data.Role) {
+            return
+        }
+
+        payload.Role = {
+                Name: data.Role,
+                Position: data.Position,
+                PositionLevel: data.PositionLevel
+            }
 
         return payload;
     };
@@ -178,9 +193,13 @@ export default function EditUser({ UserData, OnSendData }: EditUserProps) {
         }
         
         try {
+            const payload = reformatDataForAPI(FormData)
+            if (payload == undefined) {
+                throw new Error('cannot reformat data');
+            }
             const response = await axios.put(
                 API_URL, 
-                reformatDataForAPI(FormData),
+                payload,
                 { headers: { 'Authorization': `Bearer ${bearerToken}` } }
             );
             if (response.status === 200) {
