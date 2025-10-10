@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 
 // Assume these icons are imported from an icon library
@@ -16,6 +16,7 @@ import {
   UserCircleIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
+import { AuthContext } from "../context/AuthContext";
 // import SidebarWidget from "./SidebarWidget"; //widget example
 
 type NavItem = {
@@ -23,6 +24,7 @@ type NavItem = {
   icon: React.ReactNode;
   path?: string;
   subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
+  roles?: string[];
 };
 
 const navItems: NavItem[] = [
@@ -30,11 +32,19 @@ const navItems: NavItem[] = [
     name: "User Management",
     icon: <TableIcon />,
     path: "/user-management",
+    roles: ["Admin"],
   },
   {
     name: "Role Management",
     icon: <TableIcon />,
     path: "/role-management",
+    roles: ["Admin"],
+  },
+  {
+    name: "Attendance",
+    icon: <PageIcon />,
+    path: "/attendance",
+    roles: ["Student"],
   },
   {
     icon: <GridIcon />,
@@ -105,6 +115,9 @@ const othersItems: NavItem[] = [
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
+  const auth = useContext(AuthContext);
+  const user = auth?.user ?? null;
+  const isAuthenticated = !!user;
 
   const [openSubmenu, setOpenSubmenu] = useState<{
     type: "main" | "others";
@@ -169,6 +182,18 @@ const AppSidebar: React.FC = () => {
       return { type: menuType, index };
     });
   };
+
+  const filterItemsByRole = (items: NavItem[]) => {
+    if (!isAuthenticated || !user) {
+      // Hide role-specific items if user is not authenticated
+      return items.filter((item) => !item.roles);
+    }
+    const userRole = user.Role.Position;
+    return items.filter((item) => !item.roles || item.roles.includes(userRole));
+  };
+
+  const filteredNavItems = filterItemsByRole(navItems);
+  const filteredOthersItems = filterItemsByRole(othersItems);
 
   const renderMenuItems = (items: NavItem[], menuType: "main" | "others") => (
     <ul className="flex flex-col gap-4">
@@ -358,7 +383,7 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots className="size-6" />
                 )}
               </h2>
-              {renderMenuItems(navItems, "main")}
+              {renderMenuItems(filteredNavItems, "main")}
             </div>
             <div className="">
               <h2
@@ -374,7 +399,7 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots />
                 )}
               </h2>
-              {renderMenuItems(othersItems, "others")}
+              {renderMenuItems(filteredOthersItems, "others")}
             </div>
           </div>
         </nav>
