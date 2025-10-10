@@ -13,8 +13,24 @@ import (
 	"attendance-app/utils"
 )
 
+// CreateUserRequest represents the request payload for creating a user
+type CreateUserRequest struct {
+	Username     string `json:"Username" validate:"required,min=3,max=32"`
+	Password     string `json:"Password" validate:"required,min=8,max=72"`
+	Email        string `json:"Email" validate:"required,email"`
+	SupervisorID *uint  `json:"SupervisorID,omitempty"`
+	Role         struct {
+		Name          models.RoleName `json:"Name" validate:"required"`
+		Position      string          `json:"Position" validate:"required"`
+		PositionLevel uint            `json:"PositionLevel" validate:"gte=0"`
+	} `json:"Role" validate:"required"`
+	UserDetail struct {
+		Name string `json:"Name"`
+	} `json:"UserDetail"`
+}
+
 func CreateUser(c *gin.Context) {
-	var user models.User
+	var req CreateUserRequest
 
 	db, exists := c.Get("db")
 	if !exists {
@@ -24,16 +40,32 @@ func CreateUser(c *gin.Context) {
 
 	DB := db.(*gorm.DB)
 
-	if err := c.ShouldBindJSON(&user); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload, " + err.Error()})
 		return
 	}
 
-	if err := utils.Validate.Struct(user); err != nil {
-		log.Printf("%+v\n", user)
+	if err := utils.Validate.Struct(req); err != nil {
+		log.Printf("%+v\n", req)
 		errors := utils.FormatValidationErrors(err)
 		c.JSON(http.StatusBadRequest, gin.H{"errors": errors})
 		return
+	}
+
+	// Create user from request
+	user := models.User{
+		Username:     req.Username,
+		Password:     req.Password, // Will be hashed later
+		Email:        req.Email,
+		SupervisorID: req.SupervisorID,
+		Role: &models.Role{
+			Name:          req.Role.Name,
+			Position:      req.Role.Position,
+			PositionLevel: req.Role.PositionLevel,
+		},
+		UserDetail: models.UserDetail{
+			Name: req.UserDetail.Name,
+		},
 	}
 
 	// Check if role already exists
@@ -52,13 +84,15 @@ func CreateUser(c *gin.Context) {
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error hashing password for user %v: %v", user, err)
 		c.JSON(500, gin.H{"error": errorMessage})
+		return
 	}
 	user.Password = hashedPassword
 
 	user, err = checkSupervisor(user, DB)
 	if err != nil {
-		errorMessage := fmt.Sprintf("Supervisor not found %v: %v", user, err)
-		c.JSON(500, gin.H{"error": errorMessage})
+		errorMessage := fmt.Sprintf("Supervisor error %v: %v", user, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": errorMessage})
+		return
 	}
 
 	if err := DB.Create(&user).Error; err != nil {
