@@ -125,9 +125,9 @@ func GetUser(c *gin.Context) {
 
 // Define the struct for the inner 'Role' object
 type Role struct {
-	Name          models.RoleName `json:"Name" validate:"required"`
+	Name          models.RoleName `json:"Name" validate:"omitempty"`
 	Position      string          `json:"Position" validate:"omitempty"`
-	PositionLevel uint            `json:"PositionLevel" validate:"gte=0"`
+	PositionLevel uint            `json:"PositionLevel" validate:"omitempty,gte=0"`
 }
 
 // Define the struct for the inner 'UserDetail' object
@@ -137,11 +137,12 @@ type UserDetail struct {
 
 // Define the main struct for the entire payload
 type UserPayload struct {
-	Username   string     `json:"Username" validate:"omitempty,min=3,max=32"`
-	Password   *string    `json:"Password" validate:"omitempty,min=8,max=72"`
-	Email      string     `json:"Email" validate:"omitempty,email"`
-	Role       Role       `json:"Role" `
-	UserDetail UserDetail `json:"UserDetail"`
+	Username     string     `json:"Username" validate:"omitempty,min=3,max=32"`
+	Password     *string    `json:"Password" validate:"omitempty,min=8,max=72"`
+	Email        string     `json:"Email" validate:"omitempty,email"`
+	SupervisorID *uint      `json:"SupervisorID,omitempty"`
+	Role         Role       `json:"Role" `
+	UserDetail   UserDetail `json:"UserDetail"`
 }
 
 func UpdateUser(c *gin.Context) {
@@ -174,6 +175,10 @@ func UpdateUser(c *gin.Context) {
 		errors := utils.FormatValidationErrors(err)
 		c.JSON(http.StatusBadRequest, gin.H{"errors": errors})
 		return
+	}
+
+	if payload.SupervisorID != nil {
+		user.SupervisorID = payload.SupervisorID
 	}
 
 	updates := make(map[string]interface{})
@@ -231,6 +236,14 @@ func UpdateUser(c *gin.Context) {
 	if err := DB.Model(&user).Updates(user).Error; err != nil {
 		c.JSON(500, gin.H{"error": "failed to update user"})
 		return
+	}
+
+	// After updating the user, we need to save the SupervisorID association
+	if payload.SupervisorID != nil {
+		if err := DB.Model(&user).Update("supervisor_id", user.SupervisorID).Error; err != nil {
+			c.JSON(500, gin.H{"error": "failed to update supervisor"})
+			return
+		}
 	}
 
 	if payload.UserDetail.Name != "" {
