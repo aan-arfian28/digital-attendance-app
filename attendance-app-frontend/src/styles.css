@@ -132,7 +132,25 @@ code {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Custom colors for dashboard */
+.dashboard-bg {
+  background-color: white;
+}
+
+.dashboard-border {
+  border-color: #141414;
+}
+
+.dashboard-accent {
+  background-color: #428bff;
+}
+
+.dashboard-accent-hover {
+  background-color: #3b7ee6;
 }
