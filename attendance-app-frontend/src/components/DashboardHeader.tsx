@@ -6,6 +6,7 @@ interface HeaderProps {
   onMobileMenuToggle: () => void
   userName?: string
   userAvatar?: string
+  userEmail?: string
   onLogout?: () => void
   onProfile?: () => void
 }
@@ -14,6 +15,7 @@ export default function Header({
   onMobileMenuToggle, 
   userName, 
   userAvatar, 
+  userEmail,
   onLogout, 
   onProfile 
 }: HeaderProps) {
@@ -39,6 +41,7 @@ export default function Header({
         <UserDropdown
           userName={userName}
           userAvatar={userAvatar}
+          userEmail={userEmail}
           onLogout={onLogout}
           onProfile={onProfile}
         />

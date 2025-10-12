@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 
 interface UserDropdownProps {
   userName?: string
+  userEmail?: string
   userAvatar?: string
   onLogout?: () => void
   onProfile?: () => void
@@ -19,6 +20,7 @@ interface UserDropdownProps {
 
 export default function UserDropdown({
   userName = "John Doe",
+  userEmail = "user@example.com",
   userAvatar,
   onLogout,
   onProfile
@@ -55,7 +57,7 @@ export default function UserDropdown({
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{userName}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              user@example.com
+              {userEmail}
             </p>
           </div>
         </DropdownMenuLabel>

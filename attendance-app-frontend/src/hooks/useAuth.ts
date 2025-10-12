@@ -1,13 +1,15 @@
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
-import { authService, tokenStorage } from '@/services/auth'
+import { authService, tokenStorage, decodeJWT } from '@/services/auth'
+import { useUser } from '@/contexts/UserContext'
 import type { LoginRequest } from '@/types/auth'
 
 // Hook to check if user is authenticated
 export const useAuth = () => {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
     const [isLoading, setIsLoading] = useState<boolean>(true)
+    const { user } = useUser()
 
     useEffect(() => {
         const checkAuth = () => {
@@ -27,13 +29,13 @@ export const useAuth = () => {
         return () => window.removeEventListener('storage', handleStorageChange)
     }, [])
 
-    return { isAuthenticated, isLoading }
+    return { isAuthenticated, isLoading, user }
 }
 
 // Hook to require authentication
 export const useRequireAuth = () => {
     const navigate = useNavigate()
-    const { isAuthenticated, isLoading } = useAuth()
+    const { isAuthenticated, isLoading, user } = useAuth()
 
     useEffect(() => {
         if (!isLoading && !isAuthenticated) {
@@ -44,23 +46,41 @@ export const useRequireAuth = () => {
         }
     }, [isAuthenticated, isLoading, navigate])
 
-    return { isAuthenticated, isLoading }
+    return { isAuthenticated, isLoading, user }
 }
 
 export const useLogin = () => {
     const navigate = useNavigate()
+    const { setUser } = useUser()
 
     return useMutation({
         mutationFn: (credentials: LoginRequest) => authService.login(credentials),
-        onSuccess: (data) => {
-            // Save token to localStorage
-            tokenStorage.set(data.token)
+        onSuccess: async (data) => {
+            try {
+                // Save token to localStorage
+                tokenStorage.set(data.token)
 
-            // Navigate to dashboard
-            navigate({
-                to: '/dashboard',
-                replace: true
-            })
+                // Decode token to get user ID
+                const decodedToken = decodeJWT(data.token)
+                if (decodedToken) {
+                    // Fetch user profile
+                    const userProfile = await authService.getUserProfile(decodedToken.id, data.token)
+                    setUser(userProfile)
+                }
+
+                // Navigate to dashboard
+                navigate({
+                    to: '/dashboard',
+                    replace: true
+                })
+            } catch (error) {
+                console.error('Failed to fetch user profile after login:', error)
+                // Still navigate to dashboard even if profile fetch fails
+                navigate({
+                    to: '/dashboard',
+                    replace: true
+                })
+            }
         },
         onError: (error) => {
             console.error('Login failed:', error)
@@ -70,6 +90,7 @@ export const useLogin = () => {
 
 export const useLogout = () => {
     const navigate = useNavigate()
+    const { clearUser } = useUser()
 
     return useMutation({
         mutationFn: () => {
@@ -78,7 +99,8 @@ export const useLogout = () => {
             return authService.logout(token)
         },
         onSuccess: () => {
-            // Remove token from localStorage
+            // Clear user data and token
+            clearUser()
             tokenStorage.remove()
 
             // Navigate to login
@@ -89,7 +111,8 @@ export const useLogout = () => {
         },
         onError: (error) => {
             console.error('Logout failed:', error)
-            // Even if logout fails, clear local token and redirect
+            // Even if logout fails, clear local data and redirect
+            clearUser()
             tokenStorage.remove()
             navigate({
                 to: '/login',

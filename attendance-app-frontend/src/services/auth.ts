@@ -1,5 +1,5 @@
 import { buildApiUrl, API_ENDPOINTS } from '@/config/api'
-import type { LoginRequest, LoginResponse } from '@/types/auth'
+import type { LoginRequest, LoginResponse, UserProfile } from '@/types/auth'
 
 // Auth Service
 export const authService = {
@@ -34,6 +34,24 @@ export const authService = {
             throw new Error(errorData.error || 'Logout failed')
         }
     },
+
+    // Get user profile by ID
+    getUserProfile: async (userId: number, token: string): Promise<UserProfile> => {
+        const response = await fetch(buildApiUrl(`${API_ENDPOINTS.USERS}/${userId}`), {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        })
+
+        if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error || 'Failed to fetch user profile')
+        }
+
+        return response.json()
+    },
 }
 
 // Token management
@@ -49,4 +67,35 @@ export const tokenStorage = {
     remove: () => {
         localStorage.removeItem('auth_token')
     },
+}
+
+// User data management
+export const userStorage = {
+    set: (user: UserProfile) => {
+        localStorage.setItem('user_data', JSON.stringify(user))
+    },
+
+    get: (): UserProfile | null => {
+        const userData = localStorage.getItem('user_data')
+        return userData ? JSON.parse(userData) : null
+    },
+
+    remove: () => {
+        localStorage.removeItem('user_data')
+    },
+}
+
+// JWT token decoder utility
+export const decodeJWT = (token: string): { id: number; username: string } | null => {
+    try {
+        const payload = token.split('.')[1]
+        const decoded = JSON.parse(atob(payload))
+        return {
+            id: decoded.id,
+            username: decoded.username
+        }
+    } catch (error) {
+        console.error('Failed to decode JWT:', error)
+        return null
+    }
 }

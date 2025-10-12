@@ -2,25 +2,23 @@ import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import Sidebar from './Sidebar'
 import DashboardHeader from './DashboardHeader'
+import { useUserData } from '@/hooks/useUserData'
 
 interface DashboardLayoutProps {
   children?: React.ReactNode
-  userName?: string
-  userAvatar?: string
   onLogout?: () => void
   onProfile?: () => void
 }
 
 export default function DashboardLayout({
   children,
-  userName = "Admin User",
-  userAvatar,
   onLogout,
   onProfile
 }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const { displayName, email } = useUserData()
 
   // Check if screen is mobile size
   useEffect(() => {
@@ -106,8 +104,9 @@ export default function DashboardLayout({
         {/* Header */}
         <DashboardHeader
           onMobileMenuToggle={handleMobileMenuToggle}
-          userName={userName}
-          userAvatar={userAvatar}
+          userName={displayName}
+          userAvatar={undefined}
+          userEmail={email}
           onLogout={onLogout}
           onProfile={onProfile}
         />

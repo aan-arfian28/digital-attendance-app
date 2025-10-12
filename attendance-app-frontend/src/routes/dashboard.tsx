@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet } from '@tanstack/react-router'
+import { createFileRoute, Outlet, useNavigate } from '@tanstack/react-router'
 import DashboardLayout from '../components/DashboardLayout'
 import AuthGuard from '../components/AuthGuard'
 import { useLogout } from '../hooks/useAuth'
@@ -8,6 +8,7 @@ export const Route = createFileRoute('/dashboard')({
 })
 
 function DashboardLayoutRoute() {
+  const navigate = useNavigate()
   const logoutMutation = useLogout()
 
   const handleLogout = () => {
@@ -15,14 +16,12 @@ function DashboardLayoutRoute() {
   }
 
   const handleProfile = () => {
-    console.log('Profile clicked')
-    // TODO: Implement profile logic here
+    navigate({ to: '/dashboard/profile' as any })
   }
 
   return (
     <AuthGuard>
       <DashboardLayout
-        userName="Admin User"
         onLogout={handleLogout}
         onProfile={handleProfile}
       >
