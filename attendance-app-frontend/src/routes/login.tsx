@@ -1,9 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Eye, EyeOff, Lock, User, AlertCircle, Loader2 } from 'lucide-react'
-import { useLogin } from '@/hooks/useAuth'
+import { useLogin, useAuth } from '@/hooks/useAuth'
 import type { LoginRequest } from '@/types/auth'
 
 export const Route = createFileRoute('/login')({
@@ -11,12 +11,43 @@ export const Route = createFileRoute('/login')({
 })
 
 function Login() {
+  const navigate = useNavigate()
+  const { isAuthenticated, isLoading } = useAuth()
   const loginMutation = useLogin()
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState<LoginRequest>({
     username: '',
     password: ''
   })
+
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      navigate({
+        to: '/dashboard',
+        replace: true
+      })
+    }
+  }, [isAuthenticated, isLoading, navigate])
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center px-4">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#428bff] text-white font-bold text-xl mb-4 animate-pulse">
+            T
+          </div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render login form if already authenticated
+  if (isAuthenticated) {
+    return null
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
