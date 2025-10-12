@@ -466,7 +466,7 @@ function UserManagementContent() {
               variant="outline"
               size="sm"
               onClick={() => openEditModal(user)}
-              className="border-blue-300 text-blue-600 hover:bg-blue-50"
+              className="border-blue-300 text-blue-600 hover:bg-blue-50 rounded-sm"
             >
               Edit
             </Button>
@@ -474,7 +474,7 @@ function UserManagementContent() {
               variant="outline"
               size="sm"
               onClick={() => handleDeleteUser(user.ID)}
-              className="border-red-300 text-red-600 hover:bg-red-50"
+              className="border-red-300 text-red-600 hover:bg-red-50 rounded-sm"
             >
               Delete
             </Button>
@@ -519,7 +519,7 @@ function UserManagementContent() {
             placeholder="Search by email or ID..."
             value={globalFilter ?? ''}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGlobalFilter(e.target.value)}
-            className="pl-10"
+            className="pl-10 rounded-sm"
           />
         </div>
 
@@ -528,7 +528,7 @@ function UserManagementContent() {
           <Button
             variant="outline"
             onClick={exportToCSV}
-            className="border-gray-300"
+            className="border-gray-300 rounded-sm"
           >
             <Download className="h-4 w-4 mr-2" />
             Export CSV
@@ -539,11 +539,11 @@ function UserManagementContent() {
             if (open) resetForm() // Clear form when opening modal
           }}>
             <DialogTrigger asChild>
-              <Button className="bg-[#428bff] hover:bg-[#3b7ee6] text-white">
+              <Button className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm">
                 Create User
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-sm">
               <DialogHeader>
                 <DialogTitle>Create New User</DialogTitle>
                 <DialogDescription>
@@ -552,7 +552,7 @@ function UserManagementContent() {
               </DialogHeader>
               
               {errorMessage && (
-                <Alert variant="destructive" className="mt-4">
+                <Alert variant="destructive" className="mt-4 rounded-sm">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>{errorMessage}</AlertDescription>
                 </Alert>
@@ -565,7 +565,7 @@ function UserManagementContent() {
                     id="username"
                     value={formData.Username}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Username: e.target.value })}
-                    className={fieldErrors.Username ? 'border-red-500' : ''}
+                    className={fieldErrors.Username ? 'border-red-500 rounded-sm' : 'rounded-sm'}
                   />
                   {fieldErrors.Username && (
                     <p className="text-sm text-red-500">{fieldErrors.Username}</p>
@@ -578,7 +578,7 @@ function UserManagementContent() {
                     type="password"
                     value={formData.Password}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Password: e.target.value })}
-                    className={fieldErrors.Password ? 'border-red-500' : ''}
+                    className={fieldErrors.Password ? 'border-red-500 rounded-sm' : 'rounded-sm'}
                   />
                   {fieldErrors.Password && (
                     <p className="text-sm text-red-500">{fieldErrors.Password}</p>
@@ -591,7 +591,7 @@ function UserManagementContent() {
                     type="email"
                     value={formData.Email}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Email: e.target.value })}
-                    className={fieldErrors.Email ? 'border-red-500' : ''}
+                    className={fieldErrors.Email ? 'border-red-500 rounded-sm' : 'rounded-sm'}
                   />
                   {fieldErrors.Email && (
                     <p className="text-sm text-red-500">{fieldErrors.Email}</p>
@@ -603,7 +603,7 @@ function UserManagementContent() {
                     id="name"
                     value={formData.Name}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Name: e.target.value })}
-                    className={fieldErrors.Name ? 'border-red-500' : ''}
+                    className={fieldErrors.Name ? 'border-red-500 rounded-sm' : 'rounded-sm'}
                   />
                   {fieldErrors.Name && (
                     <p className="text-sm text-red-500">{fieldErrors.Name}</p>
@@ -625,10 +625,10 @@ function UserManagementContent() {
                       }
                     }}
                   >
-                    <SelectTrigger id="position">
+                    <SelectTrigger id="position" className="rounded-sm">
                       <SelectValue placeholder="Select position" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="rounded-sm">
                       {[...roles].sort((a, b) => a.PositionLevel - b.PositionLevel).map((role) => (
                         <SelectItem key={role.ID} value={role.Position}>
                           {role.Position} - {role.PositionLevel}
@@ -646,10 +646,10 @@ function UserManagementContent() {
                         setFormData({ ...formData, SupervisorID: parseInt(value) })
                       }
                     >
-                      <SelectTrigger id="supervisor">
+                      <SelectTrigger id="supervisor" className="rounded-sm">
                         <SelectValue placeholder="Select supervisor" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="rounded-sm">
                         <SelectItem value="0">None</SelectItem>
                         {supervisors.map((supervisor) => (
                           <SelectItem key={supervisor.ID} value={supervisor.ID.toString()}>
@@ -668,13 +668,14 @@ function UserManagementContent() {
                     setIsCreateModalOpen(false)
                     resetForm()
                   }}
+                  className="rounded-sm"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleCreateUser}
                   disabled={createUserMutation.isPending}
-                  className="bg-[#428bff] hover:bg-[#3b7ee6]"
+                  className="bg-[#428bff] hover:bg-[#3b7ee6] rounded-sm"
                 >
                   {createUserMutation.isPending ? 'Creating...' : 'Create User'}
                 </Button>
@@ -686,7 +687,7 @@ function UserManagementContent() {
 
       {/* Continuing in next part... */}
       {/* Table */}
-      <div className="border rounded-lg overflow-hidden bg-white">
+      <div className="border rounded-sm overflow-hidden bg-white">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
@@ -740,10 +741,10 @@ function UserManagementContent() {
                 table.setPageSize(Number(value))
               }}
             >
-              <SelectTrigger className="w-20">
+              <SelectTrigger className="w-20 rounded-sm">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-sm">
                 {[10, 20, 50].map((size) => (
                   <SelectItem key={size} value={size.toString()}>
                     {size}
@@ -763,6 +764,7 @@ function UserManagementContent() {
                 size="sm"
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
+                className="rounded-sm"
               >
                 Previous
               </Button>
@@ -771,6 +773,7 @@ function UserManagementContent() {
                 size="sm"
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
+                className="rounded-sm"
               >
                 Next
               </Button>
@@ -781,7 +784,7 @@ function UserManagementContent() {
 
       {/* Edit Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-sm">
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
@@ -790,7 +793,7 @@ function UserManagementContent() {
           </DialogHeader>
           
           {errorMessage && (
-            <Alert variant="destructive" className="mt-4">
+            <Alert variant="destructive" className="mt-4 rounded-sm">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{errorMessage}</AlertDescription>
             </Alert>
@@ -803,7 +806,7 @@ function UserManagementContent() {
                 id="edit-username"
                 value={formData.Username}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Username: e.target.value })}
-                className={fieldErrors.Username ? 'border-red-500' : ''}
+                className={fieldErrors.Username ? 'border-red-500 rounded-sm' : 'rounded-sm'}
               />
               {fieldErrors.Username && (
                 <p className="text-sm text-red-500">{fieldErrors.Username}</p>
@@ -816,7 +819,7 @@ function UserManagementContent() {
                 type="password"
                 value={formData.Password}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Password: e.target.value })}
-                className={fieldErrors.Password ? 'border-red-500' : ''}
+                className={fieldErrors.Password ? 'border-red-500 rounded-sm' : 'rounded-sm'}
               />
               {fieldErrors.Password && (
                 <p className="text-sm text-red-500">{fieldErrors.Password}</p>
@@ -829,7 +832,7 @@ function UserManagementContent() {
                 type="email"
                 value={formData.Email}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Email: e.target.value })}
-                className={fieldErrors.Email ? 'border-red-500' : ''}
+                className={fieldErrors.Email ? 'border-red-500 rounded-sm' : 'rounded-sm'}
               />
               {fieldErrors.Email && (
                 <p className="text-sm text-red-500">{fieldErrors.Email}</p>
@@ -841,7 +844,7 @@ function UserManagementContent() {
                 id="edit-name"
                 value={formData.Name}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Name: e.target.value })}
-                className={fieldErrors.Name ? 'border-red-500' : ''}
+                className={fieldErrors.Name ? 'border-red-500 rounded-sm' : 'rounded-sm'}
               />
               {fieldErrors.Name && (
                 <p className="text-sm text-red-500">{fieldErrors.Name}</p>
@@ -863,10 +866,10 @@ function UserManagementContent() {
                   }
                 }}
               >
-                <SelectTrigger id="edit-position">
+                <SelectTrigger id="edit-position" className="rounded-sm">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-sm">
                   {[...roles].sort((a, b) => a.PositionLevel - b.PositionLevel).map((role) => (
                     <SelectItem key={role.ID} value={role.Position}>
                       {role.Position} - {role.PositionLevel}
@@ -887,10 +890,10 @@ function UserManagementContent() {
                     })
                   }
                 >
-                  <SelectTrigger id="edit-supervisor">
+                  <SelectTrigger id="edit-supervisor" className="rounded-sm">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-sm">
                     <SelectItem value="0">None</SelectItem>
                     {supervisors.map((supervisor) => (
                       <SelectItem key={supervisor.ID} value={supervisor.ID.toString()}>
@@ -910,13 +913,14 @@ function UserManagementContent() {
                 setSelectedUser(null)
                 resetForm()
               }}
+              className="rounded-sm"
             >
               Cancel
             </Button>
             <Button
               onClick={handleEditUser}
               disabled={updateUserMutation.isPending}
-              className="bg-[#428bff] hover:bg-[#3b7ee6]"
+              className="bg-[#428bff] hover:bg-[#3b7ee6] rounded-sm"
             >
               {updateUserMutation.isPending ? 'Updating...' : 'Update User'}
             </Button>

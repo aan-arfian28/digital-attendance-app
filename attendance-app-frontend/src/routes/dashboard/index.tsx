@@ -21,7 +21,7 @@ function DashboardHome() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         {isAdmin && (
           <>
-            <div className="p-6 border border-gray-300 bg-white rounded-lg">
+            <div className="p-6 border border-gray-300 bg-white rounded-sm">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold text-gray-900">Total Users</h3>
                 <Users className="h-5 w-5 text-[#428bff]" />
@@ -30,7 +30,7 @@ function DashboardHome() {
               <p className="text-sm text-gray-600 mt-1">Active system users</p>
             </div>
             
-            <div className="p-6 border border-gray-300 bg-white rounded-lg">
+            <div className="p-6 border border-gray-300 bg-white rounded-sm">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold text-gray-900">Total Roles</h3>
                 <Shield className="h-5 w-5 text-[#428bff]" />
@@ -39,7 +39,7 @@ function DashboardHome() {
               <p className="text-sm text-gray-600 mt-1">System roles configured</p>
             </div>
             
-            <div className="p-6 border border-gray-300 bg-white rounded-lg">
+            <div className="p-6 border border-gray-300 bg-white rounded-sm">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold text-gray-900">System Status</h3>
                 <Settings className="h-5 w-5 text-[#428bff]" />
@@ -52,7 +52,7 @@ function DashboardHome() {
         
         {!isAdmin && (
           <>
-            <div className="p-6 border border-gray-300 bg-white rounded-lg">
+            <div className="p-6 border border-gray-300 bg-white rounded-sm">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold text-gray-900">Today's Attendance</h3>
                 <Clock className="h-5 w-5 text-[#428bff]" />
@@ -61,7 +61,7 @@ function DashboardHome() {
               <p className="text-sm text-gray-600 mt-1">Checked in at 08:30 AM</p>
             </div>
             
-            <div className="p-6 border border-gray-300 bg-white rounded-lg">
+            <div className="p-6 border border-gray-300 bg-white rounded-sm">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold text-gray-900">This Month</h3>
                 <History className="h-5 w-5 text-[#428bff]" />
@@ -70,7 +70,7 @@ function DashboardHome() {
               <p className="text-sm text-gray-600 mt-1">Days present this month</p>
             </div>
             
-            <div className="p-6 border border-gray-300 bg-white rounded-lg">
+            <div className="p-6 border border-gray-300 bg-white rounded-sm">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold text-gray-900">Pending Tasks</h3>
                 <CheckCircle className="h-5 w-5 text-[#428bff]" />
@@ -81,7 +81,7 @@ function DashboardHome() {
           </>
         )}
 
-        <div className="p-6 border border-gray-300 bg-white rounded-lg">
+        <div className="p-6 border border-gray-300 bg-white rounded-sm">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold text-gray-900">Your Profile</h3>
             <User className="h-5 w-5 text-[#428bff]" />
@@ -97,7 +97,7 @@ function DashboardHome() {
           {isAdmin && (
             <>
               <Link to="/dashboard/user-management" className="group">
-                <div className="p-4 text-left border border-gray-300 bg-white rounded-lg hover:bg-gray-50 transition-colors group-hover:border-[#428bff]">
+                <div className="p-4 text-left border border-gray-300 bg-white rounded-sm hover:bg-gray-50 transition-colors group-hover:border-[#428bff]">
                   <Users className="h-6 w-6 text-[#428bff] mb-2" />
                   <h3 className="font-medium text-gray-900">Manage Users</h3>
                   <p className="text-sm text-gray-600">Add or edit users</p>
@@ -105,7 +105,7 @@ function DashboardHome() {
               </Link>
               
               <Link to="/dashboard/role-management" className="group">
-                <div className="p-4 text-left border border-gray-300 bg-white rounded-lg hover:bg-gray-50 transition-colors group-hover:border-[#428bff]">
+                <div className="p-4 text-left border border-gray-300 bg-white rounded-sm hover:bg-gray-50 transition-colors group-hover:border-[#428bff]">
                   <Shield className="h-6 w-6 text-[#428bff] mb-2" />
                   <h3 className="font-medium text-gray-900">Manage Roles</h3>
                   <p className="text-sm text-gray-600">Configure user roles</p>
@@ -113,7 +113,7 @@ function DashboardHome() {
               </Link>
               
               <Link to="/dashboard/settings" className="group">
-                <div className="p-4 text-left border border-gray-300 bg-white rounded-lg hover:bg-gray-50 transition-colors group-hover:border-[#428bff]">
+                <div className="p-4 text-left border border-gray-300 bg-white rounded-sm hover:bg-gray-50 transition-colors group-hover:border-[#428bff]">
                   <Settings className="h-6 w-6 text-[#428bff] mb-2" />
                   <h3 className="font-medium text-gray-900">Settings</h3>
                   <p className="text-sm text-gray-600">System configuration</p>
@@ -125,7 +125,7 @@ function DashboardHome() {
           {!isAdmin && (
             <>
               <Link to="/dashboard/attendance" className="group">
-                <div className="p-4 text-left border border-gray-300 bg-white rounded-lg hover:bg-gray-50 transition-colors group-hover:border-[#428bff]">
+                <div className="p-4 text-left border border-gray-300 bg-white rounded-sm hover:bg-gray-50 transition-colors group-hover:border-[#428bff]">
                   <Clock className="h-6 w-6 text-[#428bff] mb-2" />
                   <h3 className="font-medium text-gray-900">Attendance</h3>
                   <p className="text-sm text-gray-600">Check in/out</p>
@@ -133,7 +133,7 @@ function DashboardHome() {
               </Link>
               
               <Link to="/dashboard/history" className="group">
-                <div className="p-4 text-left border border-gray-300 bg-white rounded-lg hover:bg-gray-50 transition-colors group-hover:border-[#428bff]">
+                <div className="p-4 text-left border border-gray-300 bg-white rounded-sm hover:bg-gray-50 transition-colors group-hover:border-[#428bff]">
                   <History className="h-6 w-6 text-[#428bff] mb-2" />
                   <h3 className="font-medium text-gray-900">History</h3>
                   <p className="text-sm text-gray-600">View attendance history</p>
@@ -141,7 +141,7 @@ function DashboardHome() {
               </Link>
               
               <Link to="/dashboard/validate" className="group">
-                <div className="p-4 text-left border border-gray-300 bg-white rounded-lg hover:bg-gray-50 transition-colors group-hover:border-[#428bff]">
+                <div className="p-4 text-left border border-gray-300 bg-white rounded-sm hover:bg-gray-50 transition-colors group-hover:border-[#428bff]">
                   <CheckCircle className="h-6 w-6 text-[#428bff] mb-2" />
                   <h3 className="font-medium text-gray-900">Validate</h3>
                   <p className="text-sm text-gray-600">Approve records</p>
@@ -151,7 +151,7 @@ function DashboardHome() {
           )}
           
           <Link to="/dashboard/profile" className="group">
-            <div className="p-4 text-left border border-gray-300 bg-white rounded-lg hover:bg-gray-50 transition-colors group-hover:border-[#428bff]">
+            <div className="p-4 text-left border border-gray-300 bg-white rounded-sm hover:bg-gray-50 transition-colors group-hover:border-[#428bff]">
               <User className="h-6 w-6 text-[#428bff] mb-2" />
               <h3 className="font-medium text-gray-900">My Profile</h3>
               <p className="text-sm text-gray-600">View profile details</p>
@@ -162,7 +162,7 @@ function DashboardHome() {
 
       <div>
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Activity</h2>
-        <div className="border border-gray-300 bg-white rounded-lg">
+        <div className="border border-gray-300 bg-white rounded-sm">
           {isAdmin ? (
             <>
               <div className="p-4 border-b border-gray-200">
