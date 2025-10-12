@@ -1,14 +1,16 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 import DashboardLayout from '../components/DashboardLayout'
+import { useLogout } from '../hooks/useAuth'
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardLayoutRoute,
 })
 
 function DashboardLayoutRoute() {
+  const logoutMutation = useLogout()
+
   const handleLogout = () => {
-    console.log('Logout clicked')
-    // TODO: Clear auth tokens/session & Redirect to login page
+    logoutMutation.mutate()
   }
 
   const handleProfile = () => {

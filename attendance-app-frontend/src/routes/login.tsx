@@ -1,25 +1,27 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Eye, EyeOff, Lock, User } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Eye, EyeOff, Lock, User, AlertCircle, Loader2 } from 'lucide-react'
+import { useLogin } from '@/hooks/useAuth'
+import type { LoginRequest } from '@/types/auth'
 
 export const Route = createFileRoute('/login')({
   component: Login,
 })
 
 function Login() {
-  const navigate = useNavigate()
+  const loginMutation = useLogin()
   const [showPassword, setShowPassword] = useState(false)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<LoginRequest>({
     username: '',
     password: ''
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // Temporary login logic - just navigate to dashboard
     if (formData.username && formData.password) {
-      navigate({ to: '/dashboard' })
+      loginMutation.mutate(formData)
     }
   }
 
@@ -43,12 +45,22 @@ function Login() {
         </div>
 
         {/* Login Form */}
-        <div className="border border-[#141414] p-8">
+        <div className="border border-gray-300 p-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-6 text-center">
             Login to Your Account
           </h2>
           
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Error Alert */}
+            {loginMutation.isError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {loginMutation.error?.message || 'Login failed. Please try again.'}
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* Username Field */}
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
@@ -63,7 +75,7 @@ function Login() {
                   name="username"
                   type="text"
                   required
-                  className="w-full pl-10 pr-3 py-2 border border-[#141414] focus:outline-none focus:ring-2 focus:ring-[#428bff] focus:border-transparent"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#428bff] focus:border-transparent"
                   placeholder="Enter your username"
                   value={formData.username}
                   onChange={(e) => handleInputChange('username', e.target.value)}
@@ -85,7 +97,7 @@ function Login() {
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   required
-                  className="w-full pl-10 pr-10 py-2 border border-[#141414] focus:outline-none focus:ring-2 focus:ring-[#428bff] focus:border-transparent"
+                  className="w-full pl-10 pr-10 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#428bff] focus:border-transparent"
                   placeholder="Enter your password"
                   value={formData.password}
                   onChange={(e) => handleInputChange('password', e.target.value)}
@@ -110,7 +122,7 @@ function Login() {
                 id="remember-me"
                 name="remember-me"
                 type="checkbox"
-                className="h-4 w-4 text-[#428bff] focus:ring-[#428bff] border-[#141414]"
+                className="h-4 w-4 text-[#428bff] focus:ring-[#428bff] border-gray-300"
               />
               <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
                 Remember me
@@ -120,9 +132,17 @@ function Login() {
             {/* Login Button */}
             <Button
               type="submit"
-              className="w-full bg-[#428bff] hover:bg-[#3b7ee6] text-white font-medium py-2 px-4 transition-colors duration-200"
+              disabled={loginMutation.isPending}
+              className="w-full bg-[#428bff] hover:bg-[#3b7ee6] text-white font-medium py-2 px-4 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Sign In
+              {loginMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing In...
+                </>
+              ) : (
+                'Sign In'
+              )}
             </Button>
           </form>
 
@@ -136,8 +156,11 @@ function Login() {
 
         {/* Demo Credentials */}
         <div className="mt-6 p-4 bg-gray-50 border border-gray-200">
+          <p className="text-xs text-gray-600 text-center mb-2">
+            <strong>Demo Credentials:</strong>
+          </p>
           <p className="text-xs text-gray-600 text-center">
-            <strong>Demo:</strong> Use any username and password to login
+            Username: <strong>admin</strong> | Password: <strong>admin</strong>
           </p>
         </div>
       </div>
