@@ -1,12 +1,21 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { History, Search, Download, Filter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import RoleGuard from '@/components/RoleGuard'
 
 export const Route = createFileRoute('/dashboard/history')({
   component: AttendanceHistory,
 })
 
 function AttendanceHistory() {
+  return (
+    <RoleGuard userOnly={true}>
+      <AttendanceHistoryContent />
+    </RoleGuard>
+  )
+}
+
+function AttendanceHistoryContent() {
   const historyData = [
     { 
       id: 1, 

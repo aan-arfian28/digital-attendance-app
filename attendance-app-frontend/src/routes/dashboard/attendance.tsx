@@ -1,12 +1,21 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Clock, Calendar, CheckCircle2, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import RoleGuard from '@/components/RoleGuard'
 
 export const Route = createFileRoute('/dashboard/attendance')({
   component: Attendance,
 })
 
 function Attendance() {
+  return (
+    <RoleGuard userOnly={true}>
+      <AttendanceContent />
+    </RoleGuard>
+  )
+}
+
+function AttendanceContent() {
   const todayAttendance = [
     { 
       id: 1, 

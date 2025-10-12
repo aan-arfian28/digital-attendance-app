@@ -1,12 +1,21 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Shield, Plus, Edit, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import RoleGuard from '@/components/RoleGuard'
 
 export const Route = createFileRoute('/dashboard/role-management')({
   component: RoleManagement,
 })
 
 function RoleManagement() {
+  return (
+    <RoleGuard adminOnly={true}>
+      <RoleManagementContent />
+    </RoleGuard>
+  )
+}
+
+function RoleManagementContent() {
   const roles = [
     { 
       id: 1, 

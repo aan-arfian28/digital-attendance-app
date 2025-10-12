@@ -1,12 +1,21 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { CheckCircle, Clock, User, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import RoleGuard from '@/components/RoleGuard'
 
 export const Route = createFileRoute('/dashboard/validate')({
   component: ValidateAttendance,
 })
 
 function ValidateAttendance() {
+  return (
+    <RoleGuard userOnly={true}>
+      <ValidateAttendanceContent />
+    </RoleGuard>
+  )
+}
+
+function ValidateAttendanceContent() {
   const pendingValidations = [
     { 
       id: 1, 

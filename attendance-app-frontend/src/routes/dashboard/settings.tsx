@@ -1,12 +1,21 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Settings, Save, Bell, Lock, Globe, Database } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import RoleGuard from '@/components/RoleGuard'
 
 export const Route = createFileRoute('/dashboard/settings')({
   component: SettingsPage,
 })
 
 function SettingsPage() {
+  return (
+    <RoleGuard adminOnly={true}>
+      <SettingsPageContent />
+    </RoleGuard>
+  )
+}
+
+function SettingsPageContent() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">

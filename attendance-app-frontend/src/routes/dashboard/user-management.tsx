@@ -2,15 +2,23 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Users, Plus, Edit, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useUserData } from '@/hooks/useUserData'
+import RoleGuard from '@/components/RoleGuard'
 
 export const Route = createFileRoute('/dashboard/user-management')({
   component: UserManagement,
 })
 
 function UserManagement() {
+  return (
+    <RoleGuard adminOnly={true}>
+      <UserManagementContent />
+    </RoleGuard>
+  )
+}
+
+function UserManagementContent() {
   const { 
     displayName, 
-    roleName, 
     canManageUsers
   } = useUserData()
 

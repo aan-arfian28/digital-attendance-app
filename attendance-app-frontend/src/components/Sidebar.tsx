@@ -12,6 +12,7 @@ import {
 import { Link, useLocation } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { useUserData } from '@/hooks/useUserData'
 
 interface SidebarProps {
   isOpen: boolean
@@ -24,20 +25,44 @@ interface MenuItem {
   label: string
   icon: React.ComponentType<{ className?: string }>
   href: string
+  isAdminOnly?: boolean
+  isUserOnly?: boolean
 }
 
-const menuItems: MenuItem[] = [
+const allMenuItems: MenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/dashboard' },
-  { id: 'user-management', label: 'User Management', icon: Users, href: '/dashboard/user-management' },
-  { id: 'role-management', label: 'Role Management', icon: Shield, href: '/dashboard/role-management' },
-  { id: 'attendance', label: 'Attendance', icon: Clock, href: '/dashboard/attendance' },
-  { id: 'history', label: 'History', icon: History, href: '/dashboard/history' },
-  { id: 'validate', label: 'Validate', icon: CheckCircle, href: '/dashboard/validate' },
-  { id: 'settings', label: 'Settings', icon: Settings, href: '/dashboard/settings' },
+  // Admin-only pages
+  { id: 'user-management', label: 'User Management', icon: Users, href: '/dashboard/user-management', isAdminOnly: true },
+  { id: 'role-management', label: 'Role Management', icon: Shield, href: '/dashboard/role-management', isAdminOnly: true },
+  { id: 'settings', label: 'Settings', icon: Settings, href: '/dashboard/settings', isAdminOnly: true },
+  // User-only pages
+  { id: 'attendance', label: 'Attendance', icon: Clock, href: '/dashboard/attendance', isUserOnly: true },
+  { id: 'history', label: 'History', icon: History, href: '/dashboard/history', isUserOnly: true },
+  { id: 'validate', label: 'Validate', icon: CheckCircle, href: '/dashboard/validate', isUserOnly: true },
 ]
 
 export default function Sidebar({ isOpen, onToggle, onMobileMenuClose }: SidebarProps) {
   const location = useLocation()
+  const { isAdmin } = useUserData()
+
+  // Filter menu items based on user role
+  const menuItems = allMenuItems.filter(item => {
+    // Dashboard is always visible
+    if (item.id === 'dashboard') return true
+    
+    // Admin-only items
+    if (item.isAdminOnly) {
+      return isAdmin
+    }
+    
+    // User-only items  
+    if (item.isUserOnly) {
+      return !isAdmin
+    }
+    
+    return true
+  })
+
   return (
     <div 
       className={cn(
