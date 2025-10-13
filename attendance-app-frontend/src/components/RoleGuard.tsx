@@ -1,6 +1,7 @@
 import { useUserData } from '@/hooks/useUserData'
+import { useAuth } from '@/hooks/useAuth'
 import { useNavigate } from '@tanstack/react-router'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 interface RoleGuardProps {
   children: React.ReactNode
@@ -9,11 +10,33 @@ interface RoleGuardProps {
 }
 
 export default function RoleGuard({ children, adminOnly = false, userOnly = false }: RoleGuardProps) {
-  const { isAdmin, isLoading } = useUserData()
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const { isAdmin, user, isLoading: userLoading } = useUserData()
   const navigate = useNavigate()
+  const previousAuthState = useRef(isAuthenticated)
+  const previousUserState = useRef(user)
+
+  const isLoading = authLoading || userLoading
 
   useEffect(() => {
-    if (!isLoading) {
+    // Detect if user data is being cleared (logout in progress)
+    const isLogoutInProgress = 
+      previousAuthState.current === true && 
+      isAuthenticated === false ||
+      previousUserState.current !== null && 
+      user === null
+
+    // Update refs for next comparison
+    previousAuthState.current = isAuthenticated
+    previousUserState.current = user
+
+    // Don't perform role checks if logout is in progress
+    if (isLogoutInProgress) {
+      return
+    }
+
+    // Only check role permissions if user is authenticated and not during logout
+    if (!isLoading && isAuthenticated && user) {
       // Admin trying to access user-only page
       if (userOnly && isAdmin) {
         navigate({ to: '/404' })
@@ -26,7 +49,8 @@ export default function RoleGuard({ children, adminOnly = false, userOnly = fals
         return
       }
     }
-  }, [isAdmin, isLoading, adminOnly, userOnly, navigate])
+    // If not authenticated, let AuthGuard handle the redirect to login
+  }, [isAdmin, isLoading, isAuthenticated, user, adminOnly, userOnly, navigate])
 
   // Show loading state while checking permissions
   if (isLoading) {
@@ -42,9 +66,14 @@ export default function RoleGuard({ children, adminOnly = false, userOnly = fals
     )
   }
 
-  // Don't render if access is not allowed
-  if (adminOnly && !isAdmin) return null
-  if (userOnly && isAdmin) return null
+  // If not authenticated, let AuthGuard handle the redirect
+  if (!isAuthenticated) {
+    return null
+  }
+
+  // Don't render if access is not allowed (only check this if authenticated and not during logout)
+  if (user && adminOnly && !isAdmin) return null
+  if (user && userOnly && isAdmin) return null
 
   return <>{children}</>
 }

@@ -98,11 +98,12 @@ export const useLogout = () => {
             if (!token) throw new Error('No token found')
             return authService.logout(token)
         },
-        onSuccess: () => {
-            // Clear user data and token
-            clearUser()
+        onMutate: () => {
+            // Immediately clear everything to prevent race conditions
             tokenStorage.remove()
-
+            clearUser()
+        },
+        onSuccess: () => {
             // Navigate to login
             navigate({
                 to: '/login',
@@ -111,9 +112,7 @@ export const useLogout = () => {
         },
         onError: (error) => {
             console.error('Logout failed:', error)
-            // Even if logout fails, clear local data and redirect
-            clearUser()
-            tokenStorage.remove()
+            // Data is already cleared in onMutate, just navigate
             navigate({
                 to: '/login',
                 replace: true
