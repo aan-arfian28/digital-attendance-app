@@ -11,7 +11,7 @@ import {
   type SortingState,
   type ColumnFiltersState,
 } from '@tanstack/react-table'
-import { Search, Download, ChevronUp, ChevronDown, ChevronsUpDown, AlertCircle } from 'lucide-react'
+import { Search, Download, ChevronUp, ChevronDown, ChevronsUpDown, AlertCircle, Edit, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -466,16 +466,20 @@ function UserManagementContent() {
               variant="outline"
               size="sm"
               onClick={() => openEditModal(user)}
-              className="border-blue-300 text-blue-600 hover:bg-blue-50 rounded-sm"
+              className="bg-blue-50 border-blue-300 text-blue-600 hover:bg-blue-100 rounded-sm"
+              title="Edit"
             >
+              <Edit className="h-4 w-4" />
               Edit
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => handleDeleteUser(user.ID)}
-              className="border-red-300 text-red-600 hover:bg-red-50 rounded-sm"
+              className="bg-red-50 border-red-300 text-red-600 hover:bg-red-100 rounded-sm"
+              title="Delete"
             >
+              <Trash2 className="h-4 w-4" />
               Delete
             </Button>
           </div>
