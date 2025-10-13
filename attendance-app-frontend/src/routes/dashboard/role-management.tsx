@@ -33,6 +33,16 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+
+// Helper to get auth token
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('auth_token')
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` }),
+  }
+}
 
 export const Route = createFileRoute('/dashboard/role-management')({
   component: RoleManagement,
@@ -40,17 +50,19 @@ export const Route = createFileRoute('/dashboard/role-management')({
 
 // Types
 interface Role {
-  id: number
-  role: string
-  position: string
-  positionLevel: number
+  ID: number
+  Name: string
+  Position: string
+  PositionLevel: number
 }
 
 interface CreateRoleData {
-  role: string
-  position: string
-  positionLevel: number
+  Name: string
+  Position: string
+  PositionLevel: number
 }
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 function RoleManagement() {
   return (
@@ -61,6 +73,7 @@ function RoleManagement() {
 }
 
 function RoleManagementContent() {
+  const queryClient = useQueryClient()
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -72,49 +85,128 @@ function RoleManagementContent() {
   
   // Form state
   const [formData, setFormData] = useState<CreateRoleData>({
-    role: '',
-    position: '',
-    positionLevel: 1,
+    Name: '',
+    Position: '',
+    PositionLevel: 1,
   })
   
   // Error states
   const [errorMessage, setErrorMessage] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof CreateRoleData, string>>>({})
 
-  // Dummy data for roles
-  const [roles, setRoles] = useState<Role[]>([
-    {
-      id: 1,
-      role: 'admin',
-      position: 'Admin',
-      positionLevel: 1,
+  // Fetch roles data
+  const { data: roles = [], isLoading, error } = useQuery({
+    queryKey: ['roles'],
+    queryFn: async (): Promise<Role[]> => {
+      const response = await fetch(`${API_BASE_URL}/admin/users/roles/`, {
+        headers: getAuthHeaders(),
+      })
+      if (!response.ok) {
+        throw new Error('Failed to fetch roles')
+      }
+      const data = await response.json()
+      // Sort by position level ascending
+      return data.sort((a: Role, b: Role) => a.PositionLevel - b.PositionLevel)
     },
-    {
-      id: 2,
-      role: 'user',
-      position: 'Headmaster',
-      positionLevel: 2,
+  })
+
+  // Create role mutation
+  const createRoleMutation = useMutation({
+    mutationFn: async (roleData: CreateRoleData): Promise<Role> => {
+      const response = await fetch(`${API_BASE_URL}/admin/users/roles/`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(roleData),
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to create role')
+      }
+      return response.json()
     },
-    {
-      id: 3,
-      role: 'user',
-      position: 'Teacher',
-      positionLevel: 3,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['roles'] })
+      setIsCreateModalOpen(false)
+      resetForm()
     },
-    {
-      id: 4,
-      role: 'user',
-      position: 'Student',
-      positionLevel: 4,
+    onError: (error: Error) => {
+      setErrorMessage(error.message)
     },
-  ])
+  })
+
+  // Update role mutation
+  const updateRoleMutation = useMutation({
+    mutationFn: async ({ id, roleData }: { id: number; roleData: CreateRoleData }): Promise<Role> => {
+      const response = await fetch(`${API_BASE_URL}/admin/users/roles/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(roleData),
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to update role')
+      }
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['roles'] })
+      setIsEditModalOpen(false)
+      setEditingRole(null)
+      resetForm()
+    },
+    onError: (error: Error) => {
+      setErrorMessage(error.message)
+    },
+  })
+
+  // Update position level mutation
+  const updatePositionLevelMutation = useMutation({
+    mutationFn: async ({ id, positionLevel }: { id: number; positionLevel: number }): Promise<Role> => {
+      const response = await fetch(`${API_BASE_URL}/admin/users/roles/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ PositionLevel: positionLevel }),
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to update position level')
+      }
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['roles'] })
+    },
+    onError: (error: Error) => {
+      setErrorMessage(error.message)
+    },
+  })
+
+  // Delete role mutation
+  const deleteRoleMutation = useMutation({
+    mutationFn: async (id: number): Promise<void> => {
+      const response = await fetch(`${API_BASE_URL}/admin/users/roles/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to delete role')
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['roles'] })
+    },
+    onError: (error: Error) => {
+      setErrorMessage(error.message)
+    },
+  })
 
   // Form handling functions
   const resetForm = () => {
     setFormData({
-      role: '',
-      position: '',
-      positionLevel: 1,
+      Name: '',
+      Position: '',
+      PositionLevel: 1,
     })
     setFieldErrors({})
     setErrorMessage('')
@@ -123,23 +215,23 @@ function RoleManagementContent() {
   const validateForm = (): boolean => {
     const errors: Partial<Record<keyof CreateRoleData, string>> = {}
     
-    if (!formData.role.trim()) {
-      errors.role = 'Role is required'
+    if (!formData.Name.trim()) {
+      errors.Name = 'Role is required'
     }
-    if (!formData.position.trim()) {
-      errors.position = 'Position is required'
+    if (!formData.Position.trim()) {
+      errors.Position = 'Position is required'
     }
-    if (formData.positionLevel < 1) {
-      errors.positionLevel = 'Position level must be at least 1'
+    if (formData.PositionLevel < 1) {
+      errors.PositionLevel = 'Position level must be at least 1'
     }
 
     // Check for duplicate position
     const isDuplicate = roles.some(role => 
-      role.position.toLowerCase() === formData.position.toLowerCase().trim() && 
-      (!editingRole || role.id !== editingRole.id)
+      role.Position.toLowerCase() === formData.Position.toLowerCase().trim() && 
+      (!editingRole || role.ID !== editingRole.ID)
     )
     if (isDuplicate) {
-      errors.position = 'This position already exists'
+      errors.Position = 'This position already exists'
     }
 
     setFieldErrors(errors)
@@ -148,85 +240,47 @@ function RoleManagementContent() {
 
   const handleCreateRole = () => {
     if (!validateForm()) return
-
-    const newRole: Role = {
-      id: Math.max(...roles.map(r => r.id)) + 1,
-      role: formData.role,
-      position: formData.position.trim(),
-      positionLevel: formData.positionLevel,
-    }
-
-    setRoles([...roles, newRole])
-    setIsCreateModalOpen(false)
-    resetForm()
+    createRoleMutation.mutate(formData)
   }
 
   const openEditModal = (role: Role) => {
     setEditingRole(role)
     setFormData({
-      role: role.role,
-      position: role.position,
-      positionLevel: role.positionLevel,
+      Name: role.Name,
+      Position: role.Position,
+      PositionLevel: role.PositionLevel,
     })
     setIsEditModalOpen(true)
   }
 
   const handleUpdateRole = () => {
     if (!validateForm() || !editingRole) return
-
-    setRoles(roles.map(role => 
-      role.id === editingRole.id 
-        ? { ...role, role: formData.role, position: formData.position.trim(), positionLevel: formData.positionLevel }
-        : role
-    ))
-    setIsEditModalOpen(false)
-    setEditingRole(null)
-    resetForm()
+    updateRoleMutation.mutate({ id: editingRole.ID, roleData: formData })
   }
 
   const handleDeleteRole = (roleId: number) => {
     if (confirm('Are you sure you want to delete this role?')) {
-      setRoles(roles.filter(role => role.id !== roleId))
+      deleteRoleMutation.mutate(roleId)
     }
   }
 
-  const moveRoleUp = (roleId: number) => {
-    const roleIndex = roles.findIndex(r => r.id === roleId)
-    if (roleIndex <= 0) return
-
-    const newRoles = [...roles]
-    const currentRole = newRoles[roleIndex]
-    const aboveRole = newRoles[roleIndex - 1]
-    
-    // Swap position levels
-    const tempLevel = currentRole.positionLevel
-    currentRole.positionLevel = aboveRole.positionLevel
-    aboveRole.positionLevel = tempLevel
-    
-    setRoles(newRoles)
+  const moveRoleUp = (role: Role) => {
+    const newPositionLevel = role.PositionLevel - 1
+    if (newPositionLevel >= 1) {
+      updatePositionLevelMutation.mutate({ id: role.ID, positionLevel: newPositionLevel })
+    }
   }
 
-  const moveRoleDown = (roleId: number) => {
-    const roleIndex = roles.findIndex(r => r.id === roleId)
-    if (roleIndex >= roles.length - 1) return
-
-    const newRoles = [...roles]
-    const currentRole = newRoles[roleIndex]
-    const belowRole = newRoles[roleIndex + 1]
-    
-    // Swap position levels
-    const tempLevel = currentRole.positionLevel
-    currentRole.positionLevel = belowRole.positionLevel
-    belowRole.positionLevel = tempLevel
-    
-    setRoles(newRoles)
+  const moveRoleDown = (role: Role) => {
+    const newPositionLevel = role.PositionLevel + 1
+    updatePositionLevelMutation.mutate({ id: role.ID, positionLevel: newPositionLevel })
   }
 
   // Export to CSV function
   const exportToCSV = () => {
     const csvContent = [
       ['Role', 'Position', 'Position Level'],
-      ...roles.map(role => [role.role, role.position, role.positionLevel.toString()])
+      ...roles.map(role => [role.Name, role.Position, role.PositionLevel.toString()])
     ].map(row => row.join(',')).join('\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv' })
@@ -243,17 +297,17 @@ function RoleManagementContent() {
   // Table columns definition
   const columns: ColumnDef<Role>[] = [
     {
-      accessorKey: 'role',
+      accessorKey: 'Name',
       header: 'Role',
       enableSorting: false,
     },
     {
-      accessorKey: 'position',
+      accessorKey: 'Position',
       header: 'Position',
       enableSorting: false,
     },
     {
-      accessorKey: 'positionLevel',
+      accessorKey: 'PositionLevel',
       header: ({ column }) => {
         return (
           <button
@@ -277,7 +331,6 @@ function RoleManagementContent() {
       header: 'Actions',
       cell: ({ row }) => {
         const role = row.original
-        const roleIndex = roles.findIndex(r => r.id === role.id)
         
         return (
           <div className="flex gap-2">
@@ -294,8 +347,8 @@ function RoleManagementContent() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => moveRoleUp(role.id)}
-              disabled={roleIndex === 0}
+              onClick={() => moveRoleUp(role)}
+              disabled={role.PositionLevel === 1}
               className="bg-green-50 border-green-300 text-green-600 hover:bg-green-100 rounded-sm"
               title="Change up"
             >
@@ -305,8 +358,7 @@ function RoleManagementContent() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => moveRoleDown(role.id)}
-              disabled={roleIndex === roles.length - 1}
+              onClick={() => moveRoleDown(role)}
               className="bg-yellow-50 border-yellow-300 text-yellow-600 hover:bg-yellow-100 rounded-sm"
               title="Change down"
             >
@@ -316,12 +368,13 @@ function RoleManagementContent() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handleDeleteRole(role.id)}
-              className="bg-red-50 border-red-300 text-red-600 hover:bg-red-100 rounded-sm"
+              onClick={() => handleDeleteRole(role.ID)}
+              disabled={deleteRoleMutation.isPending}
+              className="bg-red-50 border-red-300 text-red-600 hover:bg-red-100 rounded-sm disabled:opacity-50"
               title="Delete"
             >
               <Trash2 className="h-4 w-4" />
-              Delete
+              {deleteRoleMutation.isPending ? 'Deleting...' : 'Delete'}
             </Button>
           </div>
         )
@@ -351,6 +404,29 @@ function RoleManagementContent() {
       },
     },
   })
+
+  if (isLoading) {
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-600">Loading roles...</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <Alert variant="destructive" className="rounded-sm">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Failed to load roles: {error instanceof Error ? error.message : 'Unknown error'}
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
 
   return (
     <div className="p-6">
@@ -411,8 +487,8 @@ function RoleManagementContent() {
                 <div className="grid gap-2">
                   <Label htmlFor="role">Role *</Label>
                   <Select
-                    value={formData.role}
-                    onValueChange={(value) => setFormData({ ...formData, role: value })}
+                    value={formData.Name}
+                    onValueChange={(value) => setFormData({ ...formData, Name: value })}
                   >
                     <SelectTrigger className="rounded-sm">
                       <SelectValue placeholder="Select role" />
@@ -422,21 +498,21 @@ function RoleManagementContent() {
                       <SelectItem value="user">user</SelectItem>
                     </SelectContent>
                   </Select>
-                  {fieldErrors.role && (
-                    <p className="text-sm text-red-500">{fieldErrors.role}</p>
+                  {fieldErrors.Name && (
+                    <p className="text-sm text-red-500">{fieldErrors.Name}</p>
                   )}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="position">Position *</Label>
                   <Input
                     id="position"
-                    value={formData.position}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, position: e.target.value })}
-                    className={fieldErrors.position ? 'border-red-500 rounded-sm' : 'rounded-sm'}
+                    value={formData.Position}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Position: e.target.value })}
+                    className={fieldErrors.Position ? 'border-red-500 rounded-sm' : 'rounded-sm'}
                     placeholder="e.g., Teacher, Manager"
                   />
-                  {fieldErrors.position && (
-                    <p className="text-sm text-red-500">{fieldErrors.position}</p>
+                  {fieldErrors.Position && (
+                    <p className="text-sm text-red-500">{fieldErrors.Position}</p>
                   )}
                 </div>
                 <div className="grid gap-2">
@@ -445,12 +521,12 @@ function RoleManagementContent() {
                     id="positionLevel"
                     type="number"
                     min="1"
-                    value={formData.positionLevel}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, positionLevel: parseInt(e.target.value) || 1 })}
-                    className={fieldErrors.positionLevel ? 'border-red-500 rounded-sm' : 'rounded-sm'}
+                    value={formData.PositionLevel}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, PositionLevel: parseInt(e.target.value) || 1 })}
+                    className={fieldErrors.PositionLevel ? 'border-red-500 rounded-sm' : 'rounded-sm'}
                   />
-                  {fieldErrors.positionLevel && (
-                    <p className="text-sm text-red-500">{fieldErrors.positionLevel}</p>
+                  {fieldErrors.PositionLevel && (
+                    <p className="text-sm text-red-500">{fieldErrors.PositionLevel}</p>
                   )}
                 </div>
               </div>
@@ -465,9 +541,10 @@ function RoleManagementContent() {
                 </Button>
                 <Button
                   onClick={handleCreateRole}
-                  className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm"
+                  disabled={createRoleMutation.isPending}
+                  className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm disabled:opacity-50"
                 >
-                  Create Role
+                  {createRoleMutation.isPending ? 'Creating...' : 'Create Role'}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -571,8 +648,8 @@ function RoleManagementContent() {
             <div className="grid gap-2">
               <Label htmlFor="edit-role">Role *</Label>
               <Select
-                value={formData.role}
-                onValueChange={(value) => setFormData({ ...formData, role: value })}
+                value={formData.Name}
+                onValueChange={(value) => setFormData({ ...formData, Name: value })}
               >
                 <SelectTrigger className="rounded-sm">
                   <SelectValue placeholder="Select role" />
@@ -582,21 +659,21 @@ function RoleManagementContent() {
                   <SelectItem value="user">user</SelectItem>
                 </SelectContent>
               </Select>
-              {fieldErrors.role && (
-                <p className="text-sm text-red-500">{fieldErrors.role}</p>
+              {fieldErrors.Name && (
+                <p className="text-sm text-red-500">{fieldErrors.Name}</p>
               )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-position">Position *</Label>
               <Input
                 id="edit-position"
-                value={formData.position}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, position: e.target.value })}
-                className={fieldErrors.position ? 'border-red-500 rounded-sm' : 'rounded-sm'}
+                value={formData.Position}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Position: e.target.value })}
+                className={fieldErrors.Position ? 'border-red-500 rounded-sm' : 'rounded-sm'}
                 placeholder="e.g., Teacher, Manager"
               />
-              {fieldErrors.position && (
-                <p className="text-sm text-red-500">{fieldErrors.position}</p>
+              {fieldErrors.Position && (
+                <p className="text-sm text-red-500">{fieldErrors.Position}</p>
               )}
             </div>
             <div className="grid gap-2">
@@ -605,12 +682,12 @@ function RoleManagementContent() {
                 id="edit-positionLevel"
                 type="number"
                 min="1"
-                value={formData.positionLevel}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, positionLevel: parseInt(e.target.value) || 1 })}
-                className={fieldErrors.positionLevel ? 'border-red-500 rounded-sm' : 'rounded-sm'}
+                value={formData.PositionLevel}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, PositionLevel: parseInt(e.target.value) || 1 })}
+                className={fieldErrors.PositionLevel ? 'border-red-500 rounded-sm' : 'rounded-sm'}
               />
-              {fieldErrors.positionLevel && (
-                <p className="text-sm text-red-500">{fieldErrors.positionLevel}</p>
+              {fieldErrors.PositionLevel && (
+                <p className="text-sm text-red-500">{fieldErrors.PositionLevel}</p>
               )}
             </div>
           </div>
@@ -625,9 +702,10 @@ function RoleManagementContent() {
             </Button>
             <Button
               onClick={handleUpdateRole}
-              className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm"
+              disabled={updateRoleMutation.isPending}
+              className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm disabled:opacity-50"
             >
-              Update Role
+              {updateRoleMutation.isPending ? 'Updating...' : 'Update Role'}
             </Button>
           </DialogFooter>
         </DialogContent>
