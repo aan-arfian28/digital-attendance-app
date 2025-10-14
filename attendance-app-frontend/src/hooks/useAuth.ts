@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
 import { authService, tokenStorage, decodeJWT } from '@/services/auth'
@@ -52,11 +52,15 @@ export const useRequireAuth = () => {
 export const useLogin = () => {
     const navigate = useNavigate()
     const { setUser } = useUser()
+    const queryClient = useQueryClient()
 
     return useMutation({
         mutationFn: (credentials: LoginRequest) => authService.login(credentials),
         onSuccess: async (data) => {
             try {
+                // Clear all cached queries from previous user
+                queryClient.clear()
+
                 // Save token to localStorage
                 tokenStorage.set(data.token)
 
@@ -91,6 +95,7 @@ export const useLogin = () => {
 export const useLogout = () => {
     const navigate = useNavigate()
     const { clearUser } = useUser()
+    const queryClient = useQueryClient()
 
     return useMutation({
         mutationFn: () => {
@@ -102,6 +107,8 @@ export const useLogout = () => {
             // Immediately clear everything to prevent race conditions
             tokenStorage.remove()
             clearUser()
+            // Clear all cached queries
+            queryClient.clear()
         },
         onSuccess: () => {
             // Navigate to login

@@ -9,6 +9,7 @@ export const API_ENDPOINTS = {
     LOGOUT: '/admin/logout',
     USERS: '/admin/users',
     ROLES: '/admin/users/roles',
+    SUBORDINATES: '/admin/users/subordinates',
 } as const
 
 // Helper function to build full API URL
