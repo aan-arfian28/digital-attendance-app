@@ -590,3 +590,40 @@ func DeleteRole(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "user deleted successfully"})
 }
+
+func GetUserSubordinates(c *gin.Context) {
+	db, exists := c.Get("db")
+	if !exists {
+		c.JSON(500, gin.H{"error": "database connection not found"})
+		return
+	}
+
+	DB := db.(*gorm.DB)
+
+	// Get current user ID from JWT token
+	userId, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user ID not found in token"})
+		return
+	}
+
+	userID := userId.(uint)
+
+	// Find all users who have this user as their supervisor
+	var subordinates []models.User
+	if err := DB.Where("supervisor_id = ?", userID).
+		Preload("Role").
+		Preload("UserDetail").
+		Find(&subordinates).Error; err != nil {
+		c.JSON(500, gin.H{"error": "failed to retrieve subordinates"})
+		return
+	}
+
+	// If no subordinates found, return null
+	if len(subordinates) == 0 {
+		c.JSON(http.StatusOK, nil)
+		return
+	}
+
+	c.JSON(http.StatusOK, subordinates)
+}

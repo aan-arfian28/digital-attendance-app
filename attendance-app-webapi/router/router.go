@@ -38,6 +38,7 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 				users.DELETE("/:id", UserManagement.DeleteUser)
 				users.GET("/admins", UserManagement.GetAllAdminUsers)
 				users.GET("/non-admins", UserManagement.GetAllNonAdminUsers)
+				users.GET("/subordinates", UserManagement.GetUserSubordinates)
 				roles := users.Group("/roles")
 				{
 					roles.GET("/", UserManagement.GetRoles)
