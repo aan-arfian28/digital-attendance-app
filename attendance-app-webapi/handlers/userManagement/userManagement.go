@@ -619,9 +619,9 @@ func GetUserSubordinates(c *gin.Context) {
 		return
 	}
 
-	// If no subordinates found, return null
+	// If no subordinates found, return empty array
 	if len(subordinates) == 0 {
-		c.JSON(http.StatusOK, nil)
+		c.JSON(http.StatusOK, []models.User{})
 		return
 	}
 
