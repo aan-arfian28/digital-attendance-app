@@ -6,6 +6,7 @@ import (
 
 	"attendance-app/config"
 	"attendance-app/models"
+	"attendance-app/storage"
 	"attendance-app/utils"
 
 	"gorm.io/driver/mysql"
@@ -15,6 +16,8 @@ import (
 var DB *gorm.DB
 
 func InitDB() *gorm.DB {
+	// Initialize storage
+	storage.InitConfig("./storage/uploads")
 
 	dsn := config.DBURL()
 
@@ -48,6 +51,25 @@ func InitDB() *gorm.DB {
 				Email:    "admin@school.com",
 				Role:     &models.Role{Name: "admin", Position: "Admin", PositionLevel: 0},
 			})
+		}
+	}
+
+	//Create Default Office Location if not exist
+	var defaultLocation models.Location
+	if err := DB.Where("name = ?", "Main Office").First(&defaultLocation).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			defaultLocation = models.Location{
+				Name:      "Main Office",
+				Address:   "Jl. UNS, Jebres, Surakarta",
+				Latitude:  -7.5583648316326295,
+				Longitude: 110.8577696892991,
+				Radius:    50, // 50 meters radius
+			}
+			if err := DB.Create(&defaultLocation).Error; err != nil {
+				log.Printf("Failed to create default location: %v", err)
+			} else {
+				log.Println("Created default office location")
+			}
 		}
 	}
 

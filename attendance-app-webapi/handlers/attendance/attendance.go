@@ -1,0 +1,394 @@
+package attendance
+
+import (
+	"attendance-app/models"
+	"attendance-app/services"
+	"attendance-app/storage"
+	"attendance-app/utils"
+	"fmt"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+)
+
+// AttendanceRequest represents the request payload for check-in/check-out
+type AttendanceRequest struct {
+	// Latitude of user's location
+	Latitude float64 `json:"latitude" binding:"required" example:"-7.5583648316326295" form:"latitude" default:"-7.5583648316326295"`
+	// Longitude of user's location
+	Longitude float64 `json:"longitude" binding:"required" example:"110.8577696892991" form:"longitude" default:"110.8577696892991"`
+} //@name AttendanceRequest
+
+// AttendanceValidationRequest represents the request payload for validating attendance
+type AttendanceValidationRequest struct {
+	// Status of the validation (PRESENT, ABSENT, LATE)
+	ValidationStatus models.ValidationStatus `json:"validationStatus" binding:"required" example:"REJECTED"`
+	// Optional notes from the validator
+	Notes string `json:"notes" example:"Leave early without permit"`
+} //@name AttendanceValidationRequest
+
+// AttendanceResponse represents the response payload for attendance operations
+type AttendanceResponse struct {
+	// The unique identifier for the attendance record
+	ID uint `json:"id" example:"1"`
+	// The user ID who created the attendance record
+	UserID uint `json:"user_id" example:"1"`
+	// URL of the photo taken during attendance
+	PhotoURL string `json:"photoURL" example:"https://storage.example.com/photos/checkin123.jpg"`
+	// Latitude of recorded location
+	Latitude float64 `json:"latitude" example:"-7.5583648316326295"`
+	// Longitude of recorded location
+	Longitude float64 `json:"longitude" example:"110.8577696892991"`
+	// Status of the attendance record
+	ValidationStatus models.ValidationStatus `json:"validationStatus" example:"PRESENT"`
+	// Notes from validator
+	Notes string `json:"notes,omitempty" example:"Attendance verified"`
+	// When the record was created
+	CreatedAt time.Time `json:"created_at" example:"2025-10-21T09:00:00Z"`
+	// When the record was last updated
+	UpdatedAt time.Time `json:"updated_at" example:"2025-10-21T09:00:00Z"`
+} //@name AttendanceResponse
+
+// @Summary Check-in attendance
+// @Description Record user's check-in with photo and location. Location must be within defined radius of office coordinates.
+// @Tags attendance
+// @Security BearerAuth
+// @Accept multipart/form-data
+// @Produce json
+// @Param photo formData file true "Check-in photo (JPG, JPEG, PNG, max 5MB)"
+// @Param latitude formData number true "Location latitude" minimum:-90 maximum:90 default:-7.5583648316326295
+// @Param longitude formData number true "Location longitude" minimum:-180 maximum:180 default:110.8577696892991
+// @Success 201 {object} AttendanceResponse "Successfully created attendance record"
+// @Failure 400 {object} docs.ErrorResponse "Invalid request, location too far from office, or invalid photo"
+// @Failure 401 {object} docs.ErrorResponse "Unauthorized or invalid token"
+// @Failure 429 {object} docs.ErrorResponse "Already checked in today"
+// @Failure 500 {object} docs.ErrorResponse "Server error"
+// @Router /user/attendance/check-in [post]
+func CheckIn(c *gin.Context) {
+	var req AttendanceRequest
+	db := c.MustGet("db").(*gorm.DB)
+	userId := c.MustGet("userId").(uint)
+
+	// Bind form data
+	if err := c.ShouldBind(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Handle photo upload
+	file, err := c.FormFile("photo")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Photo is required"})
+		return
+	}
+
+	// Initialize storage
+	fileStorage := storage.NewLocalStorage(storage.Current.BasePath)
+
+	// Validate file type
+	if err := fileStorage.ValidateFileType(file.Filename, storage.Current.AllowedTypes["attendance"]); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate file size
+	if err := fileStorage.ValidateFileSize(file.Size, storage.Current.MaxFileSize); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Save file
+	photoURL, err := fileStorage.Save(file, "attendance")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save photo"})
+		return
+	}
+
+	// Find the valid office location
+	var location models.Location
+	if err := db.First(&location).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No valid office locations configured"})
+		return
+	}
+
+	// Verify location is within radius
+	distance := utils.CalculateDistance(
+		location.Latitude, location.Longitude,
+		req.Latitude, req.Longitude,
+	)
+
+	if distance > float64(location.Radius) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Location is too far from %s office", location.Name)})
+		return
+	}
+
+	now := time.Now()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	var attendance models.Attendance
+	result := db.Where("user_id = ? AND check_in_time >= ?", userId, startOfDay).First(&attendance)
+
+	if result.Error != nil {
+		// Create new attendance record if none exists
+		attendance = models.Attendance{
+			UserID:           userId,
+			LocationID:       location.ID,
+			CheckInTime:      &now,
+			CheckInLatitude:  req.Latitude,
+			CheckInLongitude: req.Longitude,
+			CheckInPhotoURL:  photoURL,
+			Status:           models.OnTime,
+			ValidationStatus: models.Present,
+		}
+
+		if now.Hour() > 7 || (now.Hour() == 7 && now.Minute() > 30) {
+			attendance.Status = models.Late
+		}
+
+		if err := db.Create(&attendance).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create attendance record"})
+			return
+		}
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Already checked in today"})
+		return
+	}
+
+	c.JSON(http.StatusOK, attendance)
+}
+
+// @Summary Check-out attendance
+// @Description Record user's check-out with photo and location
+// @Tags attendance
+// @Security BearerAuth
+// @Accept multipart/form-data
+// @Produce json
+// @Param photo formData file true "Check-out photo (JPG, JPEG, PNG, max 5MB)"
+// @Param latitude formData number true "Location latitude" minimum:-90 maximum:90 default:-7.5583648316326295
+// @Param longitude formData number true "Location longitude" minimum:-180 maximum:180 default:110.8577696892991
+// @Success 200 {object} models.Attendance
+// @Failure 400 {object} map[string]string "Invalid request, location too far, or invalid photo"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 404 {object} map[string]string "No check-in record found"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /user/attendance/check-out [post]
+// CheckOut handles user check-out
+func CheckOut(c *gin.Context) {
+	var req AttendanceRequest
+	db := c.MustGet("db").(*gorm.DB)
+	userId := c.MustGet("userId").(uint)
+
+	// Bind form data
+	if err := c.ShouldBind(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Handle photo upload
+	file, err := c.FormFile("photo")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Photo is required"})
+		return
+	}
+
+	// Initialize storage
+	fileStorage := storage.NewLocalStorage(storage.Current.BasePath)
+
+	// Validate file type
+	if err := fileStorage.ValidateFileType(file.Filename, storage.Current.AllowedTypes["attendance"]); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate file size
+	if err := fileStorage.ValidateFileSize(file.Size, storage.Current.MaxFileSize); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Find the valid office location
+	var location models.Location
+	if err := db.First(&location).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No valid office locations configured"})
+		return
+	}
+
+	// Verify location is within radius
+	distance := utils.CalculateDistance(
+		location.Latitude, location.Longitude,
+		req.Latitude, req.Longitude,
+	)
+
+	if distance > float64(location.Radius) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Location is too far from %s office", location.Name)})
+		return
+	}
+
+	now := time.Now()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	var attendance models.Attendance
+	result := db.Where("user_id = ? AND check_in_time >= ?", userId, startOfDay).First(&attendance)
+
+	if result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No check-in record found for today"})
+		return
+	}
+
+	if attendance.CheckOutTime != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Already checked out today"})
+		return
+	}
+
+	// Save photo file
+	photoURL, err := fileStorage.Save(file, "attendance")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save photo"})
+		return
+	}
+
+	attendance.CheckOutTime = &now
+	attendance.CheckOutLatitude = req.Latitude
+	attendance.CheckOutLongitude = req.Longitude
+	attendance.CheckOutPhotoURL = photoURL
+	// Keep the validation status as Present since they've checked out
+	attendance.ValidationStatus = models.Present
+
+	if err := db.Save(&attendance).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update attendance record"})
+		return
+	}
+
+	c.JSON(http.StatusOK, attendance)
+}
+
+// @Summary Get personal attendance records
+// @Description Retrieve all attendance records for the current user
+// @Tags attendance
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {array} models.Attendance
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /user/attendance/my-records [get]
+// GetMyAttendanceRecords gets the current user's attendance records
+func GetMyAttendanceRecords(c *gin.Context) {
+	db := c.MustGet("db").(*gorm.DB)
+	userId := c.MustGet("userId").(uint)
+
+	var attendances []models.Attendance
+	if err := db.Where("user_id = ?", userId).Find(&attendances).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch attendance records"})
+		return
+	}
+
+	c.JSON(http.StatusOK, attendances)
+}
+
+// @Summary Get subordinate attendance records
+// @Description Retrieve attendance records for all subordinates (supervisor only)
+// @Tags attendance
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {array} models.Attendance
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden - Not a supervisor"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /user/attendance/subordinates [get]
+// GetSubordinateAttendanceRecords gets attendance records for all subordinates
+func GetSubordinateAttendanceRecords(c *gin.Context) {
+	db := c.MustGet("db").(*gorm.DB)
+	supervisorId := c.MustGet("userId").(uint)
+
+	var subordinateIds []uint
+	if err := db.Model(&models.User{}).Where("supervisor_id = ?", supervisorId).Pluck("id", &subordinateIds).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch subordinates"})
+		return
+	}
+
+	if len(subordinateIds) == 0 {
+		c.JSON(http.StatusOK, []models.Attendance{})
+		return
+	}
+
+	var attendances []models.Attendance
+	if err := db.Where("user_id IN ?", subordinateIds).Find(&attendances).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch attendance records"})
+		return
+	}
+
+	c.JSON(http.StatusOK, attendances)
+}
+
+// @Summary Update subordinate attendance record
+// @Description Update attendance record for a subordinate (supervisor only)
+// @Tags attendance
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param id path string true "Attendance ID"
+// @Param validation body AttendanceValidationRequest true "Update data"
+// @Success 200 {object} models.Attendance
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden - Not the supervisor"
+// @Failure 404 {object} map[string]string "Record not found"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /user/attendance/update/{id} [put]
+// UpdateSubordinateAttendanceRecord allows supervisors to update their subordinate's attendance records
+func UpdateSubordinateAttendanceRecord(c *gin.Context) {
+	var req AttendanceValidationRequest
+	db := c.MustGet("db").(*gorm.DB)
+	supervisorId := c.MustGet("userId").(uint)
+	attendanceId := c.Param("id")
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var attendance models.Attendance
+	if err := db.First(&attendance, attendanceId).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Attendance record not found"})
+		return
+	}
+
+	// Check if the user is the supervisor of the attendance owner
+	var user models.User
+	if err := db.First(&user, attendance.UserID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	if user.SupervisorID == nil || *user.SupervisorID != supervisorId {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized to update this attendance record"})
+		return
+	}
+
+	// Update the record with new status
+	attendance.ValidationStatus = req.ValidationStatus
+	attendance.ValidatorID = &supervisorId
+	attendance.Notes = req.Notes
+
+	if err := db.Save(&attendance).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update attendance record"})
+		return
+	}
+
+	// Send email notification
+	emailService := services.NewEmailService()
+	if err := emailService.SendAttendanceValidationNotification(
+		user.Email,
+		user.Username,
+		string(req.ValidationStatus),
+		c.MustGet("username").(string),
+		req.Notes,
+	); err != nil {
+		// Log the error but don't fail the request
+		fmt.Printf("Failed to send email notification: %v\n", err)
+	}
+
+	c.JSON(http.StatusOK, attendance)
+}
