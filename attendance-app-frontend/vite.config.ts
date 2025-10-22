@@ -16,7 +16,7 @@ const config = defineConfig({
   ],
   server: {
     host: true, // expose the server to the network
-    // allowedHosts: ['*'], // allow all hosts
+    allowedHosts: ['devoted-vector-dealtime-warrior.trycloudflare.com'], // allow all hosts
 
     proxy: {
       '/api': {

@@ -23,8 +23,7 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 		"http://localhost:3001",
 		"http://127.0.0.1:3000",
 		"http://127.0.0.1:3001",
-		"http://192.168.1.11:3000", // Your computer's local IP - update if different
-		"http://192.168.1.11:3001", // Alternative port
+		"https://devoted-vector-dealtime-warrior.trycloudflare.com", // Cloudflared tunnel
 	}
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}

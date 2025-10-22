@@ -78,16 +78,32 @@ export function AttendanceModal({ isOpen, onClose, type, onSubmit }: AttendanceM
     const startCamera = async () => {
       try {
         setError(null)
+        console.log('🎥 Requesting camera permission...')
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: { 
+            facingMode: 'user', 
+            width: { ideal: 1280 }, 
+            height: { ideal: 720 } 
+          },
         })
+        console.log('✅ Camera permission granted!')
         if (videoRef.current) {
           videoRef.current.srcObject = stream
           streamRef.current = stream
         }
-      } catch (err) {
-        setError('Tidak dapat mengakses kamera. Pastikan izin kamera diberikan.')
-        console.error('Camera error:', err)
+      } catch (err: any) {
+        console.error('❌ Camera error:', err)
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          setError('Izin kamera ditolak. Silakan berikan izin akses kamera di pengaturan browser Anda.')
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          setError('Kamera tidak ditemukan. Pastikan perangkat Anda memiliki kamera.')
+        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+          setError('Kamera sedang digunakan oleh aplikasi lain. Tutup aplikasi tersebut dan coba lagi.')
+        } else if (err.name === 'NotSupportedError') {
+          setError('Browser tidak mendukung akses kamera. Gunakan HTTPS atau browser yang lebih baru.')
+        } else {
+          setError('Tidak dapat mengakses kamera. Pastikan Anda menggunakan HTTPS dan browser mendukung kamera.')
+        }
       }
     }
 
@@ -140,11 +156,13 @@ export function AttendanceModal({ isOpen, onClose, type, onSubmit }: AttendanceM
     setLoading(true)
 
     if (!navigator.geolocation) {
-      setError('Geolocation tidak didukung oleh browser Anda')
+      setError('Geolocation tidak didukung oleh browser Anda. Gunakan browser yang lebih baru.')
       setLoading(false)
       return
     }
 
+    console.log('📍 Requesting location permission...')
+    
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const latitude = position.coords.latitude
@@ -152,6 +170,7 @@ export function AttendanceModal({ isOpen, onClose, type, onSubmit }: AttendanceM
         const accuracy = position.coords.accuracy
         const mapsUrl = `https://www.google.com/maps/search/${latitude},${longitude}`
         
+        console.log('✅ Location permission granted!')
         console.log('📍 Location Found!')
         console.log(`Latitude: ${latitude}`)
         console.log(`Longitude: ${longitude}`)
@@ -168,14 +187,16 @@ export function AttendanceModal({ isOpen, onClose, type, onSubmit }: AttendanceM
         setLoading(false)
       },
       (error) => {
-        console.error('Geolocation error:', error)
+        console.error('❌ Geolocation error:', error)
         if (error.code === error.PERMISSION_DENIED) {
-          setError('Izin lokasi ditolak. Silakan berikan izin akses lokasi.')
+          setError('Izin lokasi ditolak. Silakan berikan izin akses lokasi di pengaturan browser Anda. Untuk mobile: Pengaturan > Safari/Chrome > Izin Lokasi.')
           setLocationPermission('denied')
         } else if (error.code === error.TIMEOUT) {
-          setError('Waktu untuk mendapatkan lokasi habis. Coba lagi.')
+          setError('Waktu untuk mendapatkan lokasi habis. Pastikan GPS aktif dan coba lagi.')
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          setError('Lokasi tidak tersedia. Pastikan GPS aktif dan Anda berada di area terbuka.')
         } else {
-          setError('Tidak dapat mendapatkan lokasi Anda. Coba lagi.')
+          setError('Tidak dapat mendapatkan lokasi Anda. Pastikan GPS aktif dan izin lokasi diberikan.')
         }
         setLoading(false)
       },
