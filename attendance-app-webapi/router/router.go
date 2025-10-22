@@ -16,10 +16,20 @@ import (
 func SetupRouter(DB *gorm.DB) *gin.Engine {
 	router := gin.Default()
 
+	// CORS Configuration - Allow local network access for mobile testing
 	config := cors.DefaultConfig()
-	config.AllowAllOrigins = true
+	config.AllowOrigins = []string{
+		"http://localhost:3000",
+		"http://localhost:3001",
+		"http://127.0.0.1:3000",
+		"http://127.0.0.1:3001",
+		"http://192.168.1.11:3000", // Your computer's local IP - update if different
+		"http://192.168.1.11:3001", // Alternative port
+	}
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
+	config.AllowCredentials = true
+	config.ExposeHeaders = []string{"Content-Length"}
 	router.Use(cors.New(config))
 
 	api := router.Group("/api")

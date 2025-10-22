@@ -1,6 +1,20 @@
 // API Configuration
+// Automatically use the same host as the frontend for backend requests
+// This allows both localhost and mobile IP access (e.g., 192.168.1.11:3001)
+const getApiBaseUrl = (): string => {
+    const envUrl = import.meta.env.VITE_API_BASE_URL
+    if (envUrl) {
+        return envUrl
+    }
+
+    // In development, use the same host but with backend port (8080)
+    const hostname = window.location.hostname
+    const backendPort = 8080
+    return `http://${hostname}:${backendPort}/api`
+}
+
 export const API_CONFIG = {
-    BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api',
+    BASE_URL: getApiBaseUrl(),
 } as const
 
 // API Endpoints
