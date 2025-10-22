@@ -96,7 +96,7 @@ export default function Sidebar({ isOpen, onToggle, onMobileMenuClose }: Sidebar
               <div className="w-8 h-8 bg-[#428bff] flex items-center justify-center text-white font-bold text-sm">
                 T
               </div>
-              <span className="font-bold text-lg text-gray-900">TEKS LOGO</span>
+              <span className="font-bold text-lg text-gray-900">ATTENDAPP</span>
             </div>
             <Button
               variant="ghost"

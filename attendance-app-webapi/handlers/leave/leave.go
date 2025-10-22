@@ -290,7 +290,7 @@ func GetSubordinateLeaveRequests(c *gin.Context) {
 	}
 
 	var leaveRequests []models.LeaveRequest
-	if err := db.Where("user_id IN ?", subordinateIds).Find(&leaveRequests).Error; err != nil {
+	if err := db.Preload("User").Where("user_id IN ?", subordinateIds).Find(&leaveRequests).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch leave requests"})
 		return
 	}

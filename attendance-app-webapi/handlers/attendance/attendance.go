@@ -315,7 +315,7 @@ func GetSubordinateAttendanceRecords(c *gin.Context) {
 	}
 
 	var attendances []models.Attendance
-	if err := db.Where("user_id IN ?", subordinateIds).Find(&attendances).Error; err != nil {
+	if err := db.Preload("User").Where("user_id IN ?", subordinateIds).Find(&attendances).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch attendance records"})
 		return
 	}
