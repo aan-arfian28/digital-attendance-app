@@ -1,7 +1,6 @@
 import { 
   Users, 
   Shield, 
-  Clock, 
   History, 
   CheckCircle, 
   Settings,
@@ -39,7 +38,6 @@ const allMenuItems: MenuItem[] = [
   { id: 'role-management', label: 'Role Management', icon: Shield, href: '/dashboard/role-management', isAdminOnly: true },
   { id: 'settings', label: 'Settings', icon: Settings, href: '/dashboard/settings', isAdminOnly: true },
   // User-only pages
-  { id: 'attendance', label: 'Attendance', icon: Clock, href: '/dashboard/attendance', isUserOnly: true },
   { id: 'history', label: 'History', icon: History, href: '/dashboard/history', isUserOnly: true },
   { id: 'validate', label: 'Validate', icon: CheckCircle, href: '/dashboard/validate', isUserOnly: true },
 ]

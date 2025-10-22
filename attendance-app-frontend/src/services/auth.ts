@@ -88,6 +88,56 @@ export const authService = {
 
         return response.json()
     },
+
+    // Submit attendance with selfie and location
+    submitAttendance: async (data: {
+        type: 'check-in' | 'check-out'
+        photo: string
+        latitude: number
+        longitude: number
+        accuracy?: number
+    }, token?: string): Promise<void> => {
+        let authToken = token || tokenStorage.get() || undefined
+        if (!authToken) {
+            throw new Error('Authentication token not found')
+        }
+
+        // Convert base64 photo to blob
+        const base64 = data.photo.replace(/^data:image\/\w+;base64,/, '')
+        const binaryString = atob(base64)
+        const bytes = new Uint8Array(binaryString.length)
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i)
+        }
+        const photoBlob = new Blob([bytes], { type: 'image/jpeg' })
+
+        // Create form data
+        const formData = new FormData()
+        formData.append('type', data.type)
+        formData.append('photo', photoBlob, 'attendance.jpg')
+        formData.append('latitude', data.latitude.toString())
+        formData.append('longitude', data.longitude.toString())
+        if (data.accuracy) {
+            formData.append('accuracy', data.accuracy.toString())
+        }
+
+        const endpoint = data.type === 'check-in'
+            ? API_ENDPOINTS.ATTENDANCE_CHECKIN
+            : API_ENDPOINTS.ATTENDANCE_CHECKOUT
+
+        const response = await fetch(buildApiUrl(endpoint), {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+            },
+            body: formData,
+        })
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Failed to submit attendance' }))
+            throw new Error(errorData.error || 'Failed to submit attendance')
+        }
+    },
 }
 
 // Token management

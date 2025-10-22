@@ -11,6 +11,8 @@ export const API_ENDPOINTS = {
     ROLES: '/admin/users/roles',
     SUBORDINATES: '/user/subordinates',
     MY_PROFILE: '/user/profile',
+    ATTENDANCE_CHECKIN: '/user/attendance/check-in',
+    ATTENDANCE_CHECKOUT: '/user/attendance/check-out',
 } as const
 
 // Helper function to build full API URL

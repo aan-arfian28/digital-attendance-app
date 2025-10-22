@@ -14,6 +14,18 @@ const config = defineConfig({
     tanstackStart(),
     viteReact(),
   ],
+  server: {
+    host: true, // expose the server to the network
+    // allowedHosts: ['*'], // allow all hosts
+
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      }
+    }
+  },
+
 })
 
 export default config
