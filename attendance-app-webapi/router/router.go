@@ -64,6 +64,12 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 			user := auth.Group("/user")
 			user.Use(middleware.RoleMiddleware(models.RoleUser, models.RoleAdmin))
 			{
+				// Profile endpoint - get current user's profile
+				user.GET("/profile", UserManagement.GetMyProfile)
+
+				// Subordinates endpoint - get current user's subordinates
+				user.GET("/subordinates", UserManagement.GetUserSubordinates)
+
 				// Attendance endpoints
 				attendances := user.Group("/attendance")
 				{

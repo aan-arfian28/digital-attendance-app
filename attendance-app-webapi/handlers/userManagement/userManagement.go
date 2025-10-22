@@ -1035,3 +1035,51 @@ func GetUserSubordinates(c *gin.Context) {
 
 	c.JSON(http.StatusOK, subordinates)
 }
+
+// @Summary Get current user's profile
+// @Description Get the profile of the currently authenticated user (non-admin)
+// @Tags users
+// @Accept json
+// @Produce json
+// @Success 200 {object} models.User "Current user's profile"
+// @Failure 401 {object} map[string]string "Unauthorized or invalid token"
+// @Failure 404 {object} map[string]string "User not found"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /user/profile [get]
+// @Security BearerAuth
+func GetMyProfile(c *gin.Context) {
+	DB := c.MustGet("db").(*gorm.DB)
+
+	// Get current user ID from JWT token
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in token"})
+		return
+	}
+
+	uid := userID.(uint)
+
+	// Load user with all related data
+	var user models.User
+	if err := DB.Preload("Role").
+		Preload("UserDetail").
+		Preload("Supervisor").
+		Preload("Supervisor.UserDetail").
+		Preload("Supervisor.Role").
+		First(&user, uid).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user profile"})
+		}
+		return
+	}
+
+	// Clear sensitive data
+	user.Password = ""
+	if user.Supervisor != nil {
+		user.Supervisor.Password = ""
+	}
+
+	c.JSON(http.StatusOK, user)
+}

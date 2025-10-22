@@ -53,6 +53,24 @@ export const authService = {
         return response.json()
     },
 
+    // Get current user's profile (for non-admin users)
+    getMyProfile: async (token: string): Promise<UserProfile> => {
+        const response = await fetch(buildApiUrl(API_ENDPOINTS.MY_PROFILE), {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        })
+
+        if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error || 'Failed to fetch profile')
+        }
+
+        return response.json()
+    },
+
     // Get user subordinates
     getSubordinates: async (token: string): Promise<UserProfile[]> => {
         const response = await fetch(buildApiUrl(API_ENDPOINTS.SUBORDINATES), {

@@ -64,12 +64,18 @@ export const useLogin = () => {
                 // Save token to localStorage
                 tokenStorage.set(data.token)
 
-                // Decode token to get user ID
-                const decodedToken = decodeJWT(data.token)
-                if (decodedToken) {
-                    // Fetch user profile
-                    const userProfile = await authService.getUserProfile(decodedToken.id, data.token)
+                // Fetch user profile using the new endpoint
+                try {
+                    // Try the non-admin profile endpoint first
+                    const userProfile = await authService.getMyProfile(data.token)
                     setUser(userProfile)
+                } catch (error) {
+                    // If that fails, try the admin endpoint (for backward compatibility)
+                    const decodedToken = decodeJWT(data.token)
+                    if (decodedToken) {
+                        const userProfile = await authService.getUserProfile(decodedToken.id, data.token)
+                        setUser(userProfile)
+                    }
                 }
 
                 // Navigate to dashboard

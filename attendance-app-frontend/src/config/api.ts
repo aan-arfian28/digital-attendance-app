@@ -6,10 +6,11 @@ export const API_CONFIG = {
 // API Endpoints
 export const API_ENDPOINTS = {
     LOGIN: '/login',
-    LOGOUT: '/admin/logout',
+    LOGOUT: '/logout',
     USERS: '/admin/users',
     ROLES: '/admin/users/roles',
-    SUBORDINATES: '/admin/users/subordinates',
+    SUBORDINATES: '/user/subordinates',
+    MY_PROFILE: '/user/profile',
 } as const
 
 // Helper function to build full API URL

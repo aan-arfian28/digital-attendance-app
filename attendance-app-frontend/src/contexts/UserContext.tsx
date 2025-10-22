@@ -34,11 +34,19 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           setUserState(storedUser)
         } else if (token) {
           // If we have token but no user data, try to fetch it
-          const decodedToken = decodeJWT(token)
-          if (decodedToken) {
-            const userProfile = await authService.getUserProfile(decodedToken.id, token)
+          try {
+            // First try the non-admin profile endpoint
+            const userProfile = await authService.getMyProfile(token)
             setUserState(userProfile)
             userStorage.set(userProfile)
+          } catch (error) {
+            // If that fails, try the admin endpoint (for backward compatibility)
+            const decodedToken = decodeJWT(token)
+            if (decodedToken) {
+              const userProfile = await authService.getUserProfile(decodedToken.id, token)
+              setUserState(userProfile)
+              userStorage.set(userProfile)
+            }
           }
         }
       } catch (error) {
@@ -72,10 +80,17 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     }
 
     try {
-      const decodedToken = decodeJWT(token)
-      if (decodedToken) {
-        const userProfile = await authService.getUserProfile(decodedToken.id, token)
+      // First try the non-admin profile endpoint
+      try {
+        const userProfile = await authService.getMyProfile(token)
         setUser(userProfile)
+      } catch (error) {
+        // If that fails, try the admin endpoint (for backward compatibility)
+        const decodedToken = decodeJWT(token)
+        if (decodedToken) {
+          const userProfile = await authService.getUserProfile(decodedToken.id, token)
+          setUser(userProfile)
+        }
       }
     } catch (error) {
       console.error('Failed to refresh user:', error)
