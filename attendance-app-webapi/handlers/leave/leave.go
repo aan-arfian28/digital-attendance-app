@@ -206,7 +206,11 @@ func SubmitLeaveRequest(c *gin.Context) {
 		if currentDate.Weekday() != time.Saturday && currentDate.Weekday() != time.Sunday {
 			attendance := models.Attendance{
 				UserID:           userId,
+				LocationID:       nil, // No location required for leave records
 				CheckInTime:      &currentDate,
+				CheckInLatitude:  0.0,
+				CheckInLongitude: 0.0,
+				CheckInPhotoURL:  "",
 				ValidationStatus: models.Pending,
 				Notes:            fmt.Sprintf("Pending leave request: %s", req.Reason),
 			}
@@ -359,15 +363,15 @@ func ValidateLeaveRequest(c *gin.Context) {
 			checkInTime := time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, d.Location())
 			attendance := models.Attendance{
 				UserID:           leaveRequest.UserID,
+				LocationID:       nil, // No location required for approved leave records
 				CheckInTime:      &checkInTime,
+				CheckInLatitude:  0.0,
+				CheckInLongitude: 0.0,
+				CheckInPhotoURL:  "",
 				Status:           models.OnTime,
 				ValidationStatus: models.Leave,
 				ValidatorID:      &supervisorId,
 				Notes:            "Approved leave request: " + leaveRequest.Reason,
-				LocationID:       0, // or a special "leave" location ID if defined
-				CheckInLatitude:  0.0,
-				CheckInLongitude: 0.0,
-				CheckInPhotoURL:  "",
 			}
 
 			if err := db.Create(&attendance).Error; err != nil {

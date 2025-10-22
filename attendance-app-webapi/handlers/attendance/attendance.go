@@ -132,9 +132,10 @@ func CheckIn(c *gin.Context) {
 
 	if result.Error != nil {
 		// Create new attendance record if none exists
+		locationID := location.ID
 		attendance = models.Attendance{
 			UserID:           userId,
-			LocationID:       location.ID,
+			LocationID:       &locationID,
 			CheckInTime:      &now,
 			CheckInLatitude:  req.Latitude,
 			CheckInLongitude: req.Longitude,

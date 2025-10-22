@@ -3,6 +3,7 @@ import { useUserData } from '@/hooks/useUserData'
 import { LogIn, LogOut, FileText, Calendar, Users, Shield, Settings } from 'lucide-react'
 import { useState } from 'react'
 import { AttendanceModal, type AttendanceData } from '@/components/AttendanceModal'
+import { LeaveModal, type LeaveRequestData } from '@/components/LeaveModal'
 import { authService } from '@/services/auth'
 
 export const Route = createFileRoute('/dashboard/')({
@@ -12,6 +13,7 @@ export const Route = createFileRoute('/dashboard/')({
 function DashboardHome() {
   const { displayName, roleName, rolePosition, isAdmin } = useUserData()
   const [attendanceModal, setAttendanceModal] = useState<{ isOpen: boolean; type: 'check-in' | 'check-out' }>({ isOpen: false, type: 'check-in' })
+  const [leaveModal, setLeaveModal] = useState(false)
   const currentDate = new Date().toLocaleDateString('id-ID', { 
     weekday: 'long', 
     year: 'numeric', 
@@ -28,6 +30,15 @@ function DashboardHome() {
       await authService.submitAttendance(data)
     } catch (error) {
       console.error('Attendance submission error:', error)
+      throw error
+    }
+  }
+
+  const handleLeaveSubmit = async (data: LeaveRequestData) => {
+    try {
+      await authService.submitLeaveRequest(data)
+    } catch (error) {
+      console.error('Leave request submission error:', error)
       throw error
     }
   }
@@ -100,7 +111,9 @@ function DashboardHome() {
             </button>
 
             {/* Leave Request Button */}
-            <button className="bg-white border border-gray-300 rounded-sm p-6 hover:bg-gray-50 transition-colors text-left group">
+            <button 
+              onClick={() => setLeaveModal(true)}
+              className="bg-white border border-gray-300 rounded-sm p-6 hover:bg-gray-50 transition-colors text-left group">
               <div className="flex flex-col items-center justify-center h-full">
                 <div className="bg-blue-100 p-4 rounded-sm mb-4 group-hover:bg-blue-200 transition-colors">
                   <FileText className="h-8 w-8 text-blue-600" />
@@ -204,6 +217,12 @@ function DashboardHome() {
       type={attendanceModal.type}
       onClose={() => setAttendanceModal({ ...attendanceModal, isOpen: false })}
       onSubmit={handleAttendanceSubmit}
+    />
+
+    <LeaveModal
+      isOpen={leaveModal}
+      onClose={() => setLeaveModal(false)}
+      onSubmit={handleLeaveSubmit}
     />
     </>
   )

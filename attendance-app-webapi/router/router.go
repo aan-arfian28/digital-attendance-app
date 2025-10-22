@@ -23,6 +23,8 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 		"http://localhost:3001",
 		"http://127.0.0.1:3000",
 		"http://127.0.0.1:3001",
+		"http://192.168.1.11:3000",
+		"http://192.168.1.11:3001",
 		"https://devoted-vector-dealtime-warrior.trycloudflare.com", // Cloudflared tunnel
 	}
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
@@ -94,7 +96,7 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 				// Leave request endpoints
 				leaves := user.Group("/leave")
 				{
-					leaves.POST("/", leave.SubmitLeaveRequest)
+					leaves.POST("", leave.SubmitLeaveRequest)
 					leaves.GET("/my-requests", leave.GetMyLeaveRequests)
 
 					// Supervisor-only endpoints

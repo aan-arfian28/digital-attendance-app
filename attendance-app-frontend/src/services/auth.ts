@@ -138,6 +138,41 @@ export const authService = {
             throw new Error(errorData.error || 'Failed to submit attendance')
         }
     },
+
+    // Submit leave request
+    submitLeaveRequest: async (data: {
+        leaveType: 'SICK' | 'PERMIT'
+        startDate: string
+        endDate: string
+        reason: string
+        attachment: File
+    }, token?: string): Promise<void> => {
+        let authToken = token || tokenStorage.get() || undefined
+        if (!authToken) {
+            throw new Error('Authentication token not found')
+        }
+
+        // Create form data
+        const formData = new FormData()
+        formData.append('leaveType', data.leaveType)
+        formData.append('startDate', data.startDate)
+        formData.append('endDate', data.endDate)
+        formData.append('reason', data.reason)
+        formData.append('attachment', data.attachment)
+
+        const response = await fetch(buildApiUrl(API_ENDPOINTS.LEAVE_SUBMIT), {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+            },
+            body: formData,
+        })
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Failed to submit leave request' }))
+            throw new Error(errorData.error || 'Failed to submit leave request')
+        }
+    },
 }
 
 // Token management

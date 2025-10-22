@@ -13,6 +13,7 @@ export const API_ENDPOINTS = {
     MY_PROFILE: '/user/profile',
     ATTENDANCE_CHECKIN: '/user/attendance/check-in',
     ATTENDANCE_CHECKOUT: '/user/attendance/check-out',
+    LEAVE_SUBMIT: '/user/leave',
 } as const
 
 // Helper function to build full API URL

@@ -53,10 +53,10 @@ type Location struct {
 // Attendance stores a single attendance record for a user.
 type Attendance struct {
 	gorm.Model
-	UserID     uint     `json:"UserID" gorm:"not null;index:idx_user_date"`
-	User       User     `gorm:"constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;"`
-	LocationID uint     `json:"LocationID" gorm:"not null"`
-	Location   Location `gorm:"constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;"`
+	UserID     uint      `json:"UserID" gorm:"not null;index:idx_user_date"`
+	User       User      `gorm:"constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;"`
+	LocationID *uint     `json:"LocationID"`
+	Location   *Location `gorm:"constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;"`
 
 	CheckInTime       *time.Time `json:"CheckInTime" gorm:"not null;index:idx_user_date"`
 	CheckOutTime      *time.Time `json:"CheckOutTime"`
