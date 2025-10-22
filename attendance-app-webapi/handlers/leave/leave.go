@@ -364,6 +364,10 @@ func ValidateLeaveRequest(c *gin.Context) {
 				ValidationStatus: models.Leave,
 				ValidatorID:      &supervisorId,
 				Notes:            "Approved leave request: " + leaveRequest.Reason,
+				LocationID:       0, // or a special "leave" location ID if defined
+				CheckInLatitude:  0.0,
+				CheckInLongitude: 0.0,
+				CheckInPhotoURL:  "",
 			}
 
 			if err := db.Create(&attendance).Error; err != nil {
