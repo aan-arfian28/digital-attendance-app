@@ -16,9 +16,12 @@ const (
 type ValidationStatus string
 
 const (
-	Pending   ValidationStatus = "PENDING"
-	Validated ValidationStatus = "VALIDATED"
-	Rejected  ValidationStatus = "REJECTED"
+	Pending       ValidationStatus = "PENDING"
+	Present       ValidationStatus = "PRESENT"
+	Absent        ValidationStatus = "ABSENT"
+	Leave         ValidationStatus = "LEAVE"
+	Rejected      ValidationStatus = "REJECTED"
+	DidntCheckout ValidationStatus = "DIDNT_CHECKOUT"
 )
 
 type LeaveRequestStatus string
@@ -50,18 +53,18 @@ type Location struct {
 // Attendance stores a single attendance record for a user.
 type Attendance struct {
 	gorm.Model
-	UserID     uint     `json:"UserID" gorm:"not null;index"`
-	User       User     `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	UserID     uint     `json:"UserID" gorm:"not null;index:idx_user_date"`
+	User       User     `gorm:"constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;"`
 	LocationID uint     `json:"LocationID" gorm:"not null"`
-	Location   Location `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Location   Location `gorm:"constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;"`
 
-	CheckInTime       *time.Time `json:"CheckInTime" gorm:"index"`
+	CheckInTime       *time.Time `json:"CheckInTime" gorm:"not null;index:idx_user_date"`
 	CheckOutTime      *time.Time `json:"CheckOutTime"`
-	CheckInLatitude   float64    `json:"CheckInLatitude"`
-	CheckInLongitude  float64    `json:"CheckInLongitude"`
+	CheckInLatitude   float64    `json:"CheckInLatitude" gorm:"not null"`
+	CheckInLongitude  float64    `json:"CheckInLongitude" gorm:"not null"`
 	CheckOutLatitude  float64    `json:"CheckOutLatitude"`
 	CheckOutLongitude float64    `json:"CheckOutLongitude"`
-	CheckInPhotoURL   string     `json:"CheckInPhotoURL"`
+	CheckInPhotoURL   string     `json:"CheckInPhotoURL" gorm:"not null"`
 	CheckOutPhotoURL  string     `json:"CheckOutPhotoURL"`
 
 	Status           AttendanceStatus `json:"Status" gorm:"type:varchar(20);default:'ON_TIME'"`

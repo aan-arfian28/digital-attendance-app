@@ -1,0 +1,1504 @@
+basePath: /api
+definitions:
+  AttendanceResponse:
+    properties:
+      created_at:
+        description: When the record was created
+        example: "2025-10-21T09:00:00Z"
+        type: string
+      id:
+        description: The unique identifier for the attendance record
+        example: 1
+        type: integer
+      latitude:
+        description: Latitude of recorded location
+        example: -7.5583648316326295
+        type: number
+      longitude:
+        description: Longitude of recorded location
+        example: 110.8577696892991
+        type: number
+      notes:
+        description: Notes from validator
+        example: Attendance verified
+        type: string
+      photoURL:
+        description: URL of the photo taken during attendance
+        example: https://storage.example.com/photos/checkin123.jpg
+        type: string
+      updated_at:
+        description: When the record was last updated
+        example: "2025-10-21T09:00:00Z"
+        type: string
+      user_id:
+        description: The user ID who created the attendance record
+        example: 1
+        type: integer
+      validationStatus:
+        allOf:
+        - $ref: '#/definitions/models.ValidationStatus'
+        description: Status of the attendance record
+        example: PRESENT
+    type: object
+  AttendanceValidationRequest:
+    properties:
+      notes:
+        description: Optional notes from the validator
+        example: Leave early without permit
+        type: string
+      validationStatus:
+        allOf:
+        - $ref: '#/definitions/models.ValidationStatus'
+        description: Status of the validation (PRESENT, ABSENT, LATE)
+        example: REJECTED
+    required:
+    - validationStatus
+    type: object
+  LeaveValidationRequest:
+    properties:
+      approverNotes:
+        description: Optional notes from the approver
+        example: Approved based on medical documentation
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/models.LeaveRequestStatus'
+        description: Status to set for the leave request (APPROVED, REJECTED)
+        example: APPROVED
+    required:
+    - status
+    type: object
+  UserManagement.CreateUserRequest:
+    properties:
+      Email:
+        example: john@example.com
+        type: string
+      Password:
+        example: SecurePass123!
+        maxLength: 72
+        minLength: 8
+        type: string
+      Role:
+        properties:
+          Name:
+            allOf:
+            - $ref: '#/definitions/models.RoleName'
+            example: user
+          Position:
+            example: Manager
+            type: string
+          PositionLevel:
+            example: 2
+            minimum: 0
+            type: integer
+        required:
+        - Name
+        - Position
+        type: object
+      SupervisorID:
+        example: 1
+        type: integer
+      UserDetail:
+        properties:
+          Name:
+            example: John Doe
+            type: string
+        required:
+        - Name
+        type: object
+      Username:
+        example: john_doe
+        maxLength: 32
+        minLength: 3
+        type: string
+    required:
+    - Email
+    - Password
+    - Role
+    - UserDetail
+    - Username
+    type: object
+  UserManagement.GetAllNonAdminUsersResponse:
+    properties:
+      Email:
+        type: string
+      ID:
+        type: integer
+      Name:
+        type: string
+      Position:
+        type: string
+      PositionLevel:
+        type: integer
+      Role:
+        $ref: '#/definitions/models.RoleName'
+      Supervisor:
+        properties:
+          SupervisorID:
+            type: integer
+          SupervisorName:
+            type: string
+        type: object
+      Username:
+        type: string
+    type: object
+  UserManagement.UpdateUserRequest:
+    properties:
+      Email:
+        example: john.updated@example.com
+        type: string
+      Password:
+        example: NewSecurePass123!
+        maxLength: 72
+        minLength: 8
+        type: string
+      Role:
+        properties:
+          Name:
+            allOf:
+            - $ref: '#/definitions/models.RoleName'
+            example: user
+          Position:
+            example: Senior Manager
+            type: string
+          PositionLevel:
+            example: 3
+            minimum: 0
+            type: integer
+        type: object
+      SupervisorID:
+        example: 2
+        type: integer
+      UserDetail:
+        properties:
+          Name:
+            example: John Doe Updated
+            type: string
+        type: object
+      Username:
+        example: john_doe_updated
+        maxLength: 32
+        minLength: 3
+        type: string
+    type: object
+  docs.ErrorResponse:
+    properties:
+      error:
+        example: Error message description
+        type: string
+    type: object
+  gorm.DeletedAt:
+    properties:
+      time:
+        type: string
+      valid:
+        description: Valid is true if Time is not NULL
+        type: boolean
+    type: object
+  handlers.loginPayload:
+    properties:
+      password:
+        example: secretpassword123
+        type: string
+      username:
+        example: john_doe
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  models.Attendance:
+    properties:
+      CheckInLatitude:
+        type: number
+      CheckInLongitude:
+        type: number
+      CheckInPhotoURL:
+        type: string
+      CheckInTime:
+        type: string
+      CheckOutLatitude:
+        type: number
+      CheckOutLongitude:
+        type: number
+      CheckOutPhotoURL:
+        type: string
+      CheckOutTime:
+        type: string
+      LocationID:
+        type: integer
+      Notes:
+        type: string
+      Status:
+        $ref: '#/definitions/models.AttendanceStatus'
+      UserID:
+        type: integer
+      ValidationStatus:
+        $ref: '#/definitions/models.ValidationStatus'
+      Validator:
+        $ref: '#/definitions/models.User'
+      ValidatorID:
+        type: integer
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      id:
+        type: integer
+      location:
+        $ref: '#/definitions/models.Location'
+      updatedAt:
+        type: string
+      user:
+        $ref: '#/definitions/models.User'
+    type: object
+  models.AttendanceStatus:
+    enum:
+    - ON_TIME
+    - LATE
+    type: string
+    x-enum-varnames:
+    - OnTime
+    - Late
+  models.LeaveRequest:
+    properties:
+      Approver:
+        $ref: '#/definitions/models.User'
+      ApproverID:
+        type: integer
+      ApproverNotes:
+        type: string
+      AttachmentURL:
+        type: string
+      EndDate:
+        type: string
+      LeaveType:
+        $ref: '#/definitions/models.LeaveType'
+      Reason:
+        type: string
+      StartDate:
+        type: string
+      Status:
+        $ref: '#/definitions/models.LeaveRequestStatus'
+      UserID:
+        type: integer
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      id:
+        type: integer
+      updatedAt:
+        type: string
+      user:
+        $ref: '#/definitions/models.User'
+    type: object
+  models.LeaveRequestStatus:
+    enum:
+    - PENDING
+    - APPROVED
+    - REJECTED
+    type: string
+    x-enum-varnames:
+    - LeavePending
+    - LeaveApproved
+    - LeaveRejected
+  models.LeaveType:
+    enum:
+    - SICK
+    - PERMIT
+    type: string
+    x-enum-varnames:
+    - Sick
+    - Permit
+  models.Location:
+    properties:
+      Address:
+        type: string
+      Attendances:
+        items:
+          $ref: '#/definitions/models.Attendance'
+        type: array
+      Latitude:
+        type: number
+      Longitude:
+        type: number
+      Name:
+        type: string
+      Radius:
+        type: integer
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      id:
+        type: integer
+      updatedAt:
+        type: string
+    type: object
+  models.Role:
+    properties:
+      Name:
+        allOf:
+        - $ref: '#/definitions/models.RoleName'
+        description: Your fields
+      Position:
+        description: Remove 'unique' tag and use 'uniqueIndex' instead
+        type: string
+      PositionLevel:
+        minimum: 0
+        type: integer
+      createdAt:
+        type: string
+      deletedAt:
+        allOf:
+        - $ref: '#/definitions/gorm.DeletedAt'
+        description: Add index and uniqueIndex tag
+      id:
+        description: Manually define fields from gorm.Model to add tags
+        type: integer
+      updatedAt:
+        type: string
+    required:
+    - Name
+    - Position
+    type: object
+  models.RoleName:
+    enum:
+    - admin
+    - user
+    type: string
+    x-enum-varnames:
+    - RoleAdmin
+    - RoleUser
+  models.User:
+    properties:
+      Attendances:
+        description: One-to-Many Relationships
+        items:
+          $ref: '#/definitions/models.Attendance'
+        type: array
+      Email:
+        type: string
+      LeaveRequests:
+        items:
+          $ref: '#/definitions/models.LeaveRequest'
+        type: array
+      Password:
+        maxLength: 72
+        minLength: 8
+        type: string
+      Role:
+        $ref: '#/definitions/models.Role'
+      Subordinates:
+        description: No constraint tag here to avoid conflict
+        items:
+          $ref: '#/definitions/models.User'
+        type: array
+      SupervisorID:
+        description: |-
+          Supervisor/Subordinate Relationship (Corrected)
+          The constraint is defined here as the primary direction of the relationship.
+        type: integer
+      Username:
+        maxLength: 32
+        minLength: 3
+        type: string
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      id:
+        type: integer
+      roleID:
+        type: integer
+      supervisor:
+        $ref: '#/definitions/models.User'
+      updatedAt:
+        type: string
+      userDetail:
+        allOf:
+        - $ref: '#/definitions/models.UserDetail'
+        description: |-
+          UserDetail Relationship (Corrected)
+          This tag only informs GORM how to join, the actual constraint is in UserDetail model.
+    required:
+    - Email
+    - Password
+    - Username
+    type: object
+  models.UserDetail:
+    properties:
+      Name:
+        type: string
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      id:
+        type: integer
+      updatedAt:
+        type: string
+      user:
+        allOf:
+        - $ref: '#/definitions/models.User'
+        description: The constraint is now defined explicitly and only here.
+      userID:
+        description: The 'unique' tag enforces the one-to-one relationship at the
+          database level.
+        type: integer
+    type: object
+  models.ValidationStatus:
+    enum:
+    - PENDING
+    - PRESENT
+    - ABSENT
+    - LEAVE
+    - REJECTED
+    - DIDNT_CHECKOUT
+    type: string
+    x-enum-varnames:
+    - Pending
+    - Present
+    - Absent
+    - Leave
+    - Rejected
+    - DidntCheckout
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: API service for digital attendance system with role-based access control.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Digital Attendance API
+  version: "1.0"
+paths:
+  /admin/users:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user with role and optional supervisor
+      parameters:
+      - description: User creation data
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/UserManagement.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.User'
+        "400":
+          description: Validation error or duplicate user
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can create users
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create new user
+      tags:
+      - users
+  /admin/users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an existing user from the system
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User deleted successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can delete users
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a user
+      tags:
+      - users
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a specific user
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.User'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can access
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get user details
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: Update an existing user's information
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: User update data
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/UserManagement.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.User'
+        "400":
+          description: Validation error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can update users
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update user details
+      tags:
+      - users
+  /admin/users/non-admins:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of all users who are not administrators
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/UserManagement.GetAllNonAdminUsersResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can view user list
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get all non-admin users
+      tags:
+      - users
+  /admin/users/roles:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of all available roles in the system
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Role'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can view roles
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get all roles
+      tags:
+      - roles
+    post:
+      consumes:
+      - application/json
+      description: Create a new role in the system
+      parameters:
+      - description: Role creation data
+        in: body
+        name: role
+        required: true
+        schema:
+          $ref: '#/definitions/models.Role'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Role'
+        "400":
+          description: Validation error or role already exists
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can create roles
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create new role
+      tags:
+      - roles
+  /admin/users/roles/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an existing role
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role deleted successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Role is in use by users
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can delete roles
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Role not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete role
+      tags:
+      - roles
+    put:
+      consumes:
+      - application/json
+      description: Update an existing role's details
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated role data
+        in: body
+        name: role
+        required: true
+        schema:
+          $ref: '#/definitions/models.Role'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Role'
+        "400":
+          description: Validation error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can update roles
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Role not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update role
+      tags:
+      - roles
+  /admin/users/roles/admins:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all admin roles in the system
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Role'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can view roles
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get admin roles
+      tags:
+      - roles
+  /admin/users/roles/non-admins:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all non-admin roles in the system
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Role'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can view roles
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get non-admin roles
+      tags:
+      - roles
+  /admin/users/subordinates:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all users who report to the current user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of subordinate users
+          schema:
+            items:
+              $ref: '#/definitions/models.User'
+            type: array
+        "401":
+          description: Unauthorized or invalid token
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get user's subordinates
+      tags:
+      - users
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and return JWT token
+      parameters:
+      - description: Login credentials
+        in: body
+        name: login
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.loginPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Returns JWT token
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid request payload or validation error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Invalid username or password
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: User login
+      tags:
+      - auth
+  /logout:
+    post:
+      consumes:
+      - application/json
+      description: Invalidate the current JWT token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully logged out
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: User logout
+      tags:
+      - auth
+  /user/attendance/check-in:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Record user's check-in with photo and location. Location must be
+        within defined radius of office coordinates.
+      parameters:
+      - description: Check-in photo (JPG, JPEG, PNG, max 5MB)
+        in: formData
+        name: photo
+        required: true
+        type: file
+      - description: Location latitude
+        in: formData
+        name: latitude
+        required: true
+        type: number
+      - description: Location longitude
+        in: formData
+        name: longitude
+        required: true
+        type: number
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Successfully created attendance record
+          schema:
+            $ref: '#/definitions/AttendanceResponse'
+        "400":
+          description: Invalid request, location too far from office, or invalid photo
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+        "401":
+          description: Unauthorized or invalid token
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+        "429":
+          description: Already checked in today
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+        "500":
+          description: Server error
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Check-in attendance
+      tags:
+      - attendance
+  /user/attendance/check-out:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Record user's check-out with photo and location
+      parameters:
+      - description: Check-out photo (JPG, JPEG, PNG, max 5MB)
+        in: formData
+        name: photo
+        required: true
+        type: file
+      - description: Location latitude
+        in: formData
+        name: latitude
+        required: true
+        type: number
+      - description: Location longitude
+        in: formData
+        name: longitude
+        required: true
+        type: number
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Attendance'
+        "400":
+          description: Invalid request, location too far, or invalid photo
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: No check-in record found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Check-out attendance
+      tags:
+      - attendance
+  /user/attendance/my-records:
+    get:
+      description: Retrieve all attendance records for the current user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Attendance'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get personal attendance records
+      tags:
+      - attendance
+  /user/attendance/subordinates:
+    get:
+      description: Retrieve attendance records for all subordinates (supervisor only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Attendance'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Not a supervisor
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get subordinate attendance records
+      tags:
+      - attendance
+  /user/attendance/update/{id}:
+    put:
+      consumes:
+      - application/json
+      description: Update attendance record for a subordinate (supervisor only)
+      parameters:
+      - description: Attendance ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: validation
+        required: true
+        schema:
+          $ref: '#/definitions/AttendanceValidationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Attendance'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Not the supervisor
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Record not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update subordinate attendance record
+      tags:
+      - attendance
+  /user/leave:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Submit a new leave request with supporting documentation
+      parameters:
+      - description: Supporting document (JPG, JPEG, PNG, PDF, max 5MB)
+        in: formData
+        name: attachment
+        required: true
+        type: file
+      - description: Type of leave (SICK, PERMIT)
+        in: formData
+        name: leaveType
+        required: true
+        type: string
+      - description: Start date of leave (YYYY-MM-DD)
+        in: formData
+        name: startDate
+        required: true
+        type: string
+      - description: End date of leave (YYYY-MM-DD)
+        in: formData
+        name: endDate
+        required: true
+        type: string
+      - description: Reason for leave request
+        in: formData
+        name: reason
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LeaveRequest'
+        "400":
+          description: Invalid request payload, dates, or attachment
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Submit leave request
+      tags:
+      - leave
+  /user/leave/my-requests:
+    get:
+      consumes:
+      - application/json
+      description: Get all leave requests submitted by the current user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.LeaveRequest'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get my leave requests
+      tags:
+      - leave
+  /user/leave/subordinates:
+    get:
+      consumes:
+      - application/json
+      description: Get all leave requests submitted by users who report to the current
+        user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.LeaveRequest'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get subordinate leave requests
+      tags:
+      - leave
+  /user/leave/validate/{id}:
+    put:
+      consumes:
+      - application/json
+      description: Approve or reject a leave request as a supervisor
+      parameters:
+      - description: Leave request ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Leave validation details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/LeaveValidationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LeaveRequest'
+        "400":
+          description: Invalid request payload
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Not the supervisor
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Leave request or user not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Validate leave request
+      tags:
+      - leave
+schemes:
+- http
+securityDefinitions:
+  BearerAuth:
+    description: For testing, you can use this admin test token (valid for 1 year):<br>Bearer
+      eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImV4cCI6MTc5MzMyODc5OX0.sKEg9JeUxDqHyD4vGwAb6pk9iLrebJfBpTJGPRnMSrY
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

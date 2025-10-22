@@ -13,6 +13,9 @@ import { Link, useLocation } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useUserData } from '@/hooks/useUserData'
+import { useHasSubordinates } from '@/hooks/useSubordinates'
+import { useEffect, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 
 interface SidebarProps {
   isOpen: boolean
@@ -43,7 +46,19 @@ const allMenuItems: MenuItem[] = [
 
 export default function Sidebar({ isOpen, onToggle, onMobileMenuClose }: SidebarProps) {
   const location = useLocation()
-  const { isAdmin } = useUserData()
+  const { isAdmin, userId } = useUserData()
+  const { hasSubordinates, isLoading: subordinatesLoading } = useHasSubordinates()
+  const queryClient = useQueryClient()
+  const previousUserIdRef = useRef(userId)
+
+  // Invalidate subordinates query when user changes (for login/logout scenarios)
+  useEffect(() => {
+    if (previousUserIdRef.current !== userId) {
+      // User has changed, invalidate subordinates cache
+      queryClient.invalidateQueries({ queryKey: ['subordinates'] })
+      previousUserIdRef.current = userId
+    }
+  }, [userId, queryClient])
 
   // Filter menu items based on user role
   const menuItems = allMenuItems.filter(item => {
@@ -57,6 +72,10 @@ export default function Sidebar({ isOpen, onToggle, onMobileMenuClose }: Sidebar
     
     // User-only items  
     if (item.isUserOnly) {
+      // Special case for validate - only show to non-admin users who have subordinates
+      if (item.id === 'validate') {
+        return !isAdmin && !subordinatesLoading && hasSubordinates
+      }
       return !isAdmin
     }
     

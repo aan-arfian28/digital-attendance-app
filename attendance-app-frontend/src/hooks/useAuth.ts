@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
 import { authService, tokenStorage, decodeJWT } from '@/services/auth'
@@ -52,20 +52,30 @@ export const useRequireAuth = () => {
 export const useLogin = () => {
     const navigate = useNavigate()
     const { setUser } = useUser()
+    const queryClient = useQueryClient()
 
     return useMutation({
         mutationFn: (credentials: LoginRequest) => authService.login(credentials),
         onSuccess: async (data) => {
             try {
+                // Clear all cached queries from previous user
+                queryClient.clear()
+
                 // Save token to localStorage
                 tokenStorage.set(data.token)
 
-                // Decode token to get user ID
-                const decodedToken = decodeJWT(data.token)
-                if (decodedToken) {
-                    // Fetch user profile
-                    const userProfile = await authService.getUserProfile(decodedToken.id, data.token)
+                // Fetch user profile using the new endpoint
+                try {
+                    // Try the non-admin profile endpoint first
+                    const userProfile = await authService.getMyProfile(data.token)
                     setUser(userProfile)
+                } catch (error) {
+                    // If that fails, try the admin endpoint (for backward compatibility)
+                    const decodedToken = decodeJWT(data.token)
+                    if (decodedToken) {
+                        const userProfile = await authService.getUserProfile(decodedToken.id, data.token)
+                        setUser(userProfile)
+                    }
                 }
 
                 // Navigate to dashboard
@@ -91,6 +101,7 @@ export const useLogin = () => {
 export const useLogout = () => {
     const navigate = useNavigate()
     const { clearUser } = useUser()
+    const queryClient = useQueryClient()
 
     return useMutation({
         mutationFn: () => {
@@ -98,11 +109,14 @@ export const useLogout = () => {
             if (!token) throw new Error('No token found')
             return authService.logout(token)
         },
-        onSuccess: () => {
-            // Clear user data and token
-            clearUser()
+        onMutate: () => {
+            // Immediately clear everything to prevent race conditions
             tokenStorage.remove()
-
+            clearUser()
+            // Clear all cached queries
+            queryClient.clear()
+        },
+        onSuccess: () => {
             // Navigate to login
             navigate({
                 to: '/login',
@@ -111,9 +125,7 @@ export const useLogout = () => {
         },
         onError: (error) => {
             console.error('Logout failed:', error)
-            // Even if logout fails, clear local data and redirect
-            clearUser()
-            tokenStorage.remove()
+            // Data is already cleared in onMutate, just navigate
             navigate({
                 to: '/login',
                 replace: true

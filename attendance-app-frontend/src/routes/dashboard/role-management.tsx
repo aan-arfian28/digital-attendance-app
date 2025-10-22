@@ -98,7 +98,7 @@ function RoleManagementContent() {
   const { data: roles = [], isLoading, error } = useQuery({
     queryKey: ['roles'],
     queryFn: async (): Promise<Role[]> => {
-      const response = await fetch(`${API_BASE_URL}/admin/users/roles/`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/roles`, {
         headers: getAuthHeaders(),
       })
       if (!response.ok) {
@@ -113,7 +113,7 @@ function RoleManagementContent() {
   // Create role mutation
   const createRoleMutation = useMutation({
     mutationFn: async (roleData: CreateRoleData): Promise<Role> => {
-      const response = await fetch(`${API_BASE_URL}/admin/users/roles/`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/roles`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(roleData),

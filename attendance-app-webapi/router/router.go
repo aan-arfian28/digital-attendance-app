@@ -2,8 +2,11 @@ package router
 
 import (
 	"attendance-app/handlers"
+	"attendance-app/handlers/attendance"
+	"attendance-app/handlers/leave"
 	UserManagement "attendance-app/handlers/userManagement"
 	"attendance-app/middleware"
+	"attendance-app/models"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -25,27 +28,69 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 	{
 		api.POST("/login", handlers.Login)
 
-		// Authenticated routes
-		auth := api.Group("/admin")
+		// Auth required routes
+		auth := api.Group("")
 		auth.Use(middleware.AuthMiddleware())
 		{
 			auth.POST("/logout", handlers.Logout)
-			users := auth.Group("/users")
+
+			// Admin-only routes
+			admin := auth.Group("/admin")
+			admin.Use(middleware.RoleMiddleware(models.RoleAdmin))
 			{
-				users.POST("/", UserManagement.CreateUser)
-				users.GET("/:id", UserManagement.GetUser)
-				users.PUT("/:id", UserManagement.UpdateUser)
-				users.DELETE("/:id", UserManagement.DeleteUser)
-				users.GET("/admins", UserManagement.GetAllAdminUsers)
-				users.GET("/non-admins", UserManagement.GetAllNonAdminUsers)
-				roles := users.Group("/roles")
+				users := admin.Group("/users")
 				{
-					roles.GET("/", UserManagement.GetRoles)
-					roles.POST("/", UserManagement.CreateRole)
-					roles.PUT("/:id", UserManagement.UpdateRole)
-					roles.DELETE("/:id", UserManagement.DeleteRole)
-					roles.GET("/admins", UserManagement.GetRolesAdmins)
-					roles.GET("/non-admins", UserManagement.GetRolesNonAdmins)
+					users.POST("/", UserManagement.CreateUser)
+					users.GET("/:id", UserManagement.GetUser)
+					users.PUT("/:id", UserManagement.UpdateUser)
+					users.DELETE("/:id", UserManagement.DeleteUser)
+					users.GET("/admins", UserManagement.GetAllAdminUsers)
+					users.GET("/non-admins", UserManagement.GetAllNonAdminUsers)
+					users.GET("/subordinates", UserManagement.GetUserSubordinates)
+
+					roles := users.Group("/roles")
+					{
+						roles.GET("", UserManagement.GetRoles)
+						roles.POST("", UserManagement.CreateRole)
+						roles.PUT("/:id", UserManagement.UpdateRole)
+						roles.DELETE("/:id", UserManagement.DeleteRole)
+						roles.GET("/admins", UserManagement.GetRolesAdmins)
+						roles.GET("/non-admins", UserManagement.GetRolesNonAdmins)
+					}
+				}
+			}
+
+			// User routes (accessible by all authenticated users)
+			user := auth.Group("/user")
+			user.Use(middleware.RoleMiddleware(models.RoleUser, models.RoleAdmin))
+			{
+				// Profile endpoint - get current user's profile
+				user.GET("/profile", UserManagement.GetMyProfile)
+
+				// Subordinates endpoint - get current user's subordinates
+				user.GET("/subordinates", UserManagement.GetUserSubordinates)
+
+				// Attendance endpoints
+				attendances := user.Group("/attendance")
+				{
+					attendances.POST("/check-in", attendance.CheckIn)
+					attendances.POST("/check-out", attendance.CheckOut)
+					attendances.GET("/my-records", attendance.GetMyAttendanceRecords)
+
+					// Supervisor-only endpoints
+					attendances.GET("/subordinates", attendance.GetSubordinateAttendanceRecords)
+					attendances.PUT("/update/:id", attendance.UpdateSubordinateAttendanceRecord)
+				}
+
+				// Leave request endpoints
+				leaves := user.Group("/leave")
+				{
+					leaves.POST("/", leave.SubmitLeaveRequest)
+					leaves.GET("/my-requests", leave.GetMyLeaveRequests)
+
+					// Supervisor-only endpoints
+					leaves.GET("/subordinates", leave.GetSubordinateLeaveRequests)
+					leaves.PUT("/validate/:id", leave.ValidateLeaveRequest)
 				}
 			}
 		}

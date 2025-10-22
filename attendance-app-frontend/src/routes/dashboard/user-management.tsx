@@ -149,7 +149,7 @@ function UserManagementContent() {
   const { data: roles = [] } = useQuery({
     queryKey: ['roles'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/admin/users/roles/`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/roles`, {
         headers: getAuthHeaders(),
       })
       if (!response.ok) throw new Error('Failed to fetch roles')

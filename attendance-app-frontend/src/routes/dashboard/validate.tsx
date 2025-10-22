@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { CheckCircle, Clock, User, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import RoleGuard from '@/components/RoleGuard'
+import SubordinateGuard from '@/components/SubordinateGuard'
 
 export const Route = createFileRoute('/dashboard/validate')({
   component: ValidateAttendance,
@@ -10,7 +11,9 @@ export const Route = createFileRoute('/dashboard/validate')({
 function ValidateAttendance() {
   return (
     <RoleGuard userOnly={true}>
-      <ValidateAttendanceContent />
+      <SubordinateGuard>
+        <ValidateAttendanceContent />
+      </SubordinateGuard>
     </RoleGuard>
   )
 }
@@ -64,23 +67,23 @@ function ValidateAttendanceContent() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className="p-4 border border-gray-300 bg-white">
+        <div className="p-4 border border-gray-300 bg-white rounded-sm">
           <h3 className="font-semibold text-gray-900 mb-1">Pending Validations</h3>
           <p className="text-2xl font-bold text-yellow-600">{pendingValidations.length}</p>
         </div>
-        <div className="p-4 border border-gray-300 bg-white">
+        <div className="p-4 border border-gray-300 bg-white rounded-sm">
           <h3 className="font-semibold text-gray-900 mb-1">Late Entries</h3>
           <p className="text-2xl font-bold text-orange-600">
             {pendingValidations.filter(p => p.type === 'Late Entry').length}
           </p>
         </div>
-        <div className="p-4 border border-gray-300 bg-white">
+        <div className="p-4 border border-gray-300 bg-white rounded-sm">
           <h3 className="font-semibold text-gray-900 mb-1">Early Leaves</h3>
           <p className="text-2xl font-bold text-blue-600">
             {pendingValidations.filter(p => p.type === 'Early Leave').length}
           </p>
         </div>
-        <div className="p-4 border border-gray-300 bg-white">
+        <div className="p-4 border border-gray-300 bg-white rounded-sm">
           <h3 className="font-semibold text-gray-900 mb-1">Absences</h3>
           <p className="text-2xl font-bold text-red-600">
             {pendingValidations.filter(p => p.type === 'Absence').length}
@@ -91,10 +94,10 @@ function ValidateAttendanceContent() {
       {/* Pending Validations */}
       <div className="space-y-4">
         {pendingValidations.map((item) => (
-          <div key={item.id} className="border border-gray-300 bg-white p-6">
+          <div key={item.id} className="border border-gray-300 bg-white p-6 rounded-sm">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
-                <div className="p-2 bg-gray-100 border border-gray-300">
+                <div className="p-2 bg-gray-100 border border-gray-300 rounded-sm">
                   {item.type === 'Late Entry' && <Clock className="h-5 w-5 text-orange-600" />}
                   {item.type === 'Early Leave' && <Clock className="h-5 w-5 text-blue-600" />}
                   {item.type === 'Absence' && <AlertCircle className="h-5 w-5 text-red-600" />}
@@ -121,13 +124,13 @@ function ValidateAttendanceContent() {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="border-red-300 text-red-600 hover:bg-red-50"
+                  className="border-red-300 text-red-600 hover:bg-red-50 rounded-sm"
                 >
                   Reject
                 </Button>
                 <Button 
                   size="sm" 
-                  className="bg-green-600 hover:bg-green-700 text-white"
+                  className="bg-green-600 hover:bg-green-700 text-white rounded-sm"
                 >
                   Approve
                 </Button>
@@ -138,7 +141,7 @@ function ValidateAttendanceContent() {
       </div>
 
       {pendingValidations.length === 0 && (
-        <div className="text-center py-12 border border-gray-300 bg-gray-50">
+        <div className="text-center py-12 border border-gray-300 bg-gray-50 rounded-sm">
           <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">All Clear!</h3>
           <p className="text-gray-600">No pending validations at the moment.</p>
