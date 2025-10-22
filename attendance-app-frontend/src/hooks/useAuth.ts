@@ -67,13 +67,13 @@ export const useLogin = () => {
                 // Fetch user profile using the new endpoint
                 try {
                     // Try the non-admin profile endpoint first
-                    const userProfile = await authService.getMyProfile(data.token)
+                    const userProfile = await authService.getMyProfile()
                     setUser(userProfile)
                 } catch (error) {
                     // If that fails, try the admin endpoint (for backward compatibility)
                     const decodedToken = decodeJWT(data.token)
                     if (decodedToken) {
-                        const userProfile = await authService.getUserProfile(decodedToken.id, data.token)
+                        const userProfile = await authService.getUserProfile(decodedToken.id)
                         setUser(userProfile)
                     }
                 }
@@ -105,9 +105,7 @@ export const useLogout = () => {
 
     return useMutation({
         mutationFn: () => {
-            const token = tokenStorage.get()
-            if (!token) throw new Error('No token found')
-            return authService.logout(token)
+            return authService.logout()
         },
         onMutate: () => {
             // Immediately clear everything to prevent race conditions

@@ -66,17 +66,13 @@ export default function UserDropdown({
           <User className="mr-2 h-4 w-4" />
           <span>Profile</span>
         </DropdownMenuItem>
-        <DropdownMenuItem className="cursor-pointer">
-          <Settings className="mr-2 h-4 w-4" />
-          <span>Settings</span>
-        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem 
           onClick={onLogout} 
           className="cursor-pointer text-red-600 focus:text-red-600"
         >
           <LogOut className="mr-2 h-4 w-4" />
-          <span>Log out</span> // TODO handle logout when token expired
+          <span>Log out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

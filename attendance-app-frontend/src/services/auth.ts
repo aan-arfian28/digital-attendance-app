@@ -1,5 +1,6 @@
 import { buildApiUrl, API_ENDPOINTS } from '@/config/api'
 import type { LoginRequest, LoginResponse, UserProfile } from '@/types/auth'
+import { apiClient } from '@/lib/api-client'
 
 // Auth Service
 export const authService = {
@@ -20,73 +21,28 @@ export const authService = {
         return response.json()
     },
 
-    logout: async (token: string): Promise<void> => {
-        const response = await fetch(buildApiUrl(API_ENDPOINTS.LOGOUT), {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-        })
-
-        if (!response.ok) {
-            const errorData = await response.json()
-            throw new Error(errorData.error || 'Logout failed')
+    logout: async (): Promise<void> => {
+        try {
+            await apiClient.post(API_ENDPOINTS.LOGOUT)
+        } catch (error) {
+            // Even if logout fails, we should clear local data
+            console.error('Logout request failed:', error)
         }
     },
 
     // Get user profile by ID
-    getUserProfile: async (userId: number, token: string): Promise<UserProfile> => {
-        const response = await fetch(buildApiUrl(`${API_ENDPOINTS.USERS}/${userId}`), {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-        })
-
-        if (!response.ok) {
-            const errorData = await response.json()
-            throw new Error(errorData.error || 'Failed to fetch user profile')
-        }
-
-        return response.json()
+    getUserProfile: async (userId: number): Promise<UserProfile> => {
+        return apiClient.get<UserProfile>(`${API_ENDPOINTS.USERS}/${userId}`)
     },
 
     // Get current user's profile (for non-admin users)
-    getMyProfile: async (token: string): Promise<UserProfile> => {
-        const response = await fetch(buildApiUrl(API_ENDPOINTS.MY_PROFILE), {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-        })
-
-        if (!response.ok) {
-            const errorData = await response.json()
-            throw new Error(errorData.error || 'Failed to fetch profile')
-        }
-
-        return response.json()
+    getMyProfile: async (): Promise<UserProfile> => {
+        return apiClient.get<UserProfile>(API_ENDPOINTS.MY_PROFILE)
     },
 
     // Get user subordinates
-    getSubordinates: async (token: string): Promise<UserProfile[]> => {
-        const response = await fetch(buildApiUrl(API_ENDPOINTS.SUBORDINATES), {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-        })
-
-        if (!response.ok) {
-            const errorData = await response.json()
-            throw new Error(errorData.error || 'Failed to fetch subordinates')
-        }
-
-        return response.json()
+    getSubordinates: async (): Promise<UserProfile[]> => {
+        return apiClient.get<UserProfile[]>(API_ENDPOINTS.SUBORDINATES)
     },
 
     // Submit attendance with selfie and location

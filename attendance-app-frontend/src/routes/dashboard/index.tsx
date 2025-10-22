@@ -5,6 +5,38 @@ import { useState } from 'react'
 import { AttendanceModal, type AttendanceData } from '@/components/AttendanceModal'
 import { LeaveModal, type LeaveRequestData } from '@/components/LeaveModal'
 import { authService } from '@/services/auth'
+import { useQuery } from '@tanstack/react-query'
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+
+interface AttendanceRecord {
+  ID: number
+  UserID: number
+  CheckInTime: string | null
+  CheckOutTime: string | null
+  Status: string
+  ValidationStatus: string
+  CreatedAt: string
+  UpdatedAt: string
+}
+
+interface LeaveRequestRecord {
+  ID: number
+  UserID: number
+  LeaveType: string
+  StartDate: string
+  EndDate: string
+  Reason: string
+  Status: string
+  CreatedAt: string
+  UpdatedAt: string
+}
+
+type ActivityItem = {
+  time: string
+  activity: string
+  timestamp: Date
+}
 
 export const Route = createFileRoute('/dashboard/')({
   component: DashboardHome,
@@ -24,6 +56,187 @@ function DashboardHome() {
     hour: '2-digit', 
     minute: '2-digit'
   })
+
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('accessToken')
+    return {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+    }
+  }
+
+  // Fetch attendance records for non-admin users
+  const { data: attendanceRecords = [] } = useQuery<AttendanceRecord[]>({
+    queryKey: ['my-attendance-records'],
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE_URL}/user/attendance/my-records`, {
+        headers: getAuthHeaders(),
+      })
+      if (!response.ok) throw new Error('Failed to fetch attendance records')
+      return response.json()
+    },
+    enabled: !isAdmin, // Only fetch for non-admin users
+  })
+
+  // Fetch leave requests for non-admin users
+  const { data: leaveRequests = [] } = useQuery<LeaveRequestRecord[]>({
+    queryKey: ['my-leave-requests'],
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE_URL}/user/leave/my-requests`, {
+        headers: getAuthHeaders(),
+      })
+      if (!response.ok) throw new Error('Failed to fetch leave requests')
+      return response.json()
+    },
+    enabled: !isAdmin, // Only fetch for non-admin users
+  })
+
+  // Fetch subordinate attendance for admin/supervisor users
+  const { data: subordinateAttendance = [] } = useQuery<AttendanceRecord[]>({
+    queryKey: ['subordinate-attendance-dashboard'],
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE_URL}/user/attendance/subordinates`, {
+        headers: getAuthHeaders(),
+      })
+      if (!response.ok) throw new Error('Failed to fetch subordinate attendance')
+      return response.json()
+    },
+    enabled: isAdmin, // Only fetch for admin users
+  })
+
+  // Helper functions
+  const formatTime = (dateString: string | null) => {
+    if (!dateString) return '-'
+    return new Date(dateString).toLocaleTimeString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })
+  }
+
+  const getRelativeTime = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
+    
+    if (diffInHours < 1) {
+      const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
+      return `${diffInMinutes} minutes ago`
+    }
+    if (diffInHours < 24) {
+      return formatTime(dateString)
+    }
+    if (diffInHours < 48) {
+      return 'Yesterday'
+    }
+    return formatDate(dateString)
+  }
+
+  const formatLeaveType = (leaveType: string) => {
+    switch (leaveType) {
+      case 'SICK':
+        return 'Sakit'
+      case 'PERMIT':
+        return 'Izin'
+      default:
+        return leaveType
+    }
+  }
+
+  const formatValidationStatus = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return 'pending validation'
+      case 'PRESENT':
+        return 'validated as present'
+      case 'ABSENT':
+        return 'validated as absent'
+      case 'LEAVE':
+        return 'validated as leave'
+      case 'REJECTED':
+        return 'rejected'
+      default:
+        return status.toLowerCase()
+    }
+  }
+
+  const formatLeaveStatus = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return 'pending approval'
+      case 'APPROVED':
+        return 'approved'
+      case 'REJECTED':
+        return 'rejected'
+      default:
+        return status.toLowerCase()
+    }
+  }
+
+  // Generate activity items from API data
+  const getRecentActivities = (): ActivityItem[] => {
+    const activities: ActivityItem[] = []
+
+    if (isAdmin) {
+      // For admin, show recent subordinate activities
+      subordinateAttendance.slice(0, 10).forEach((record) => {
+        if (record.CheckInTime) {
+          activities.push({
+            time: getRelativeTime(record.CheckInTime),
+            activity: `Attendance record ${formatValidationStatus(record.ValidationStatus)}`,
+            timestamp: new Date(record.CheckInTime),
+          })
+        }
+      })
+    } else {
+      // For non-admin users, show their own attendance and leave activities
+      attendanceRecords.forEach((record) => {
+        if (record.CheckInTime) {
+          activities.push({
+            time: getRelativeTime(record.CheckInTime),
+            activity: `You checked in`,
+            timestamp: new Date(record.CheckInTime),
+          })
+        }
+        if (record.CheckOutTime) {
+          activities.push({
+            time: getRelativeTime(record.CheckOutTime),
+            activity: `You checked out`,
+            timestamp: new Date(record.CheckOutTime),
+          })
+        }
+        if (record.ValidationStatus !== 'PENDING') {
+          activities.push({
+            time: getRelativeTime(record.UpdatedAt),
+            activity: `Attendance ${formatValidationStatus(record.ValidationStatus)}`,
+            timestamp: new Date(record.UpdatedAt),
+          })
+        }
+      })
+
+      leaveRequests.forEach((request) => {
+        activities.push({
+          time: getRelativeTime(request.CreatedAt),
+          activity: `Leave request (${formatLeaveType(request.LeaveType)}) ${formatLeaveStatus(request.Status)}`,
+          timestamp: new Date(request.CreatedAt),
+        })
+      })
+    }
+
+    // Sort by timestamp descending and limit to 5 most recent
+    return activities
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .slice(0, 5)
+  }
+
+  const recentActivities = getRecentActivities()
 
   const handleAttendanceSubmit = async (data: AttendanceData) => {
     try {
@@ -175,36 +388,22 @@ function DashboardHome() {
               </tr>
             </thead>
             <tbody>
-              {isAdmin ? (
-                <>
-                  <tr className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="p-4 text-gray-600">10:30 AM</td>
-                    <td className="p-4 text-gray-900">New user "teacher2" created</td>
-                  </tr>
-                  <tr className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="p-4 text-gray-600">10:25 AM</td>
-                    <td className="p-4 text-gray-900">Role "Supervisor" updated</td>
-                  </tr>
-                  <tr className="hover:bg-gray-50">
-                    <td className="p-4 text-gray-600">10:20 AM</td>
-                    <td className="p-4 text-gray-900">System backup completed</td>
-                  </tr>
-                </>
+              {recentActivities.length === 0 ? (
+                <tr>
+                  <td colSpan={2} className="p-4 text-center text-gray-600">
+                    No recent activity
+                  </td>
+                </tr>
               ) : (
-                <>
-                  <tr className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="p-4 text-gray-600">08:30 AM</td>
-                    <td className="p-4 text-gray-900">You checked in</td>
+                recentActivities.map((activity, index) => (
+                  <tr 
+                    key={index} 
+                    className={`${index !== recentActivities.length - 1 ? 'border-b border-gray-200' : ''} hover:bg-gray-50`}
+                  >
+                    <td className="p-4 text-gray-600">{activity.time}</td>
+                    <td className="p-4 text-gray-900">{activity.activity}</td>
                   </tr>
-                  <tr className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="p-4 text-gray-600">Yesterday</td>
-                    <td className="p-4 text-gray-900">Attendance validated</td>
-                  </tr>
-                  <tr className="hover:bg-gray-50">
-                    <td className="p-4 text-gray-600">Yesterday</td>
-                    <td className="p-4 text-gray-900">8 hours worked</td>
-                  </tr>
-                </>
+                ))
               )}
             </tbody>
           </table>
