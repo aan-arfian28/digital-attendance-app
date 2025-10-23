@@ -268,7 +268,7 @@ export function AttendanceModal({ isOpen, onClose, type, onSubmit }: AttendanceM
 
               {!photo ? (
                 <>
-                  <div className="bg-gray-100 rounded-sm overflow-hidden aspect-video max-w-lg mx-auto">
+                  <div className="bg-gray-100 rounded-sm overflow-hidden aspect-[3/4] sm:aspect-video max-w-lg mx-auto">
                     <video
                       ref={videoRef}
                       autoPlay
@@ -286,7 +286,7 @@ export function AttendanceModal({ isOpen, onClose, type, onSubmit }: AttendanceM
                 </>
               ) : (
                 <>
-                  <div className="bg-gray-100 rounded-sm overflow-hidden aspect-video max-w-lg mx-auto">
+                  <div className="bg-gray-100 rounded-sm overflow-hidden aspect-[3/4] sm:aspect-video max-w-lg mx-auto">
                     <img
                       src={photo}
                       alt="Captured selfie"
@@ -388,7 +388,7 @@ export function AttendanceModal({ isOpen, onClose, type, onSubmit }: AttendanceM
                 {photo && (
                   <div>
                     <p className="text-sm font-medium text-gray-700 mb-2">Foto Selfie</p>
-                    <div className="bg-gray-100 rounded-sm overflow-hidden aspect-video max-w-sm">
+                    <div className="bg-gray-100 rounded-sm overflow-hidden aspect-[3/4] sm:aspect-video max-w-sm">
                       <img
                         src={photo}
                         alt="Selfie preview"
