@@ -25,7 +25,9 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 		"http://127.0.0.1:3001",
 		"http://192.168.1.11:3000",
 		"http://192.168.1.11:3001",
-		"https://devoted-vector-dealtime-warrior.trycloudflare.com", // Cloudflared tunnel
+		"http://10.209.125.240:3000",
+		"http://10.209.125.240:3001",
+		"https://cluster-gotten-sciences-marathon.trycloudflare.com", // Cloudflared tunnel
 	}
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}

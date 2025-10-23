@@ -16,7 +16,8 @@ const config = defineConfig({
   ],
   server: {
     host: true, // expose the server to the network
-    allowedHosts: ['devoted-vector-dealtime-warrior.trycloudflare.com'], // allow all hosts
+    allowedHosts: ['cluster-gotten-sciences-marathon.trycloudflare.com'], // cloudflared tunnel - no http://
+    // allowedHosts: ['*'], // allow all hosts
 
     proxy: {
       '/api': {
