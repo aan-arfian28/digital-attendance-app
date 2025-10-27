@@ -222,6 +222,9 @@ function RoleManagementContent() {
   }
 
   const openEditModal = (role: Role) => {
+    // Clear form data when switching from create to edit modal
+    resetForm()
+    
     setEditingRole(role)
     setFormData({
       Name: role.Name,
@@ -405,15 +408,27 @@ function RoleManagementContent() {
           </Button>
           
           <Dialog open={isCreateModalOpen} onOpenChange={(open) => {
-            setIsCreateModalOpen(open)
-            if (open) resetForm()
+            // Don't auto-close on outside click - only handle explicit close
+            if (!open) {
+              setIsCreateModalOpen(false)
+            }
           }}>
             <DialogTrigger asChild>
-              <Button className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm">
+              <Button 
+                className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm"
+                onClick={() => {
+                  setIsCreateModalOpen(true)
+                  // Don't clear form - keep prefilled data if exists
+                }}
+              >
                 Create Role
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl rounded-sm">
+            <DialogContent 
+              className="max-w-2xl rounded-sm"
+              onInteractOutside={(e) => e.preventDefault()}
+              onEscapeKeyDown={(e) => e.preventDefault()}
+            >
               <DialogHeader>
                 <DialogTitle>Create New Role</DialogTitle>
                 <DialogDescription>
@@ -479,7 +494,10 @@ function RoleManagementContent() {
               <DialogFooter>
                 <Button
                   variant="outline"
-                  onClick={() => setIsCreateModalOpen(false)}
+                  onClick={() => {
+                    resetForm() // Clear form data
+                    setIsCreateModalOpen(false) // Close modal
+                  }}
                   className="rounded-sm"
                 >
                   Cancel
@@ -573,8 +591,22 @@ function RoleManagementContent() {
       </div>
 
       {/* Edit Modal */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="max-w-2xl rounded-sm">
+      <Dialog open={isEditModalOpen} onOpenChange={(open) => {
+        // Don't auto-close on outside click - only handle explicit close
+        if (!open) {
+          setIsEditModalOpen(false)
+        }
+      }}>
+        <DialogContent 
+          className="max-w-2xl rounded-sm"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+          onCloseAutoFocus={() => {
+            // Clear form when X button is clicked (modal closes)
+            resetForm()
+            setEditingRole(null)
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Edit Role</DialogTitle>
             <DialogDescription>
@@ -640,7 +672,11 @@ function RoleManagementContent() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setIsEditModalOpen(false)}
+              onClick={() => {
+                resetForm() // Clear form data
+                setEditingRole(null)
+                setIsEditModalOpen(false) // Close modal
+              }}
               className="rounded-sm"
             >
               Cancel

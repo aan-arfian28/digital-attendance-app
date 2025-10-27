@@ -267,10 +267,19 @@ function ValidateAttendanceContent() {
   }
 
   const openValidateModal = (record: AttendanceRecord | LeaveRequestRecord, action: 'approve' | 'reject') => {
+    // Only reset form if it's a different record or different action
+    // This allows X button to preserve form data when reopening same validation
+    const isSameValidation = 
+      selectedRecord?.ID === record.ID && 
+      validationAction === action
+
+    if (!isSameValidation) {
+      setValidationNote('')
+      setErrorMessage('')
+    }
+    
     setSelectedRecord(record)
     setValidationAction(action)
-    setValidationNote('')
-    setErrorMessage('')
     
     // Set default validation status based on action and record type
     if ('CheckInTime' in record) {
@@ -645,8 +654,17 @@ function ValidateAttendanceContent() {
       )}
 
       {/* Validation Modal */}
-      <Dialog open={isValidateModalOpen} onOpenChange={setIsValidateModalOpen}>
-        <DialogContent className="max-w-2xl rounded-sm">
+      <Dialog open={isValidateModalOpen} onOpenChange={(open) => {
+        // Don't auto-close on outside click - only handle explicit close
+        if (!open) {
+          setIsValidateModalOpen(false)
+        }
+      }}>
+        <DialogContent 
+          className="max-w-2xl rounded-sm"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>
               {validationAction === 'approve' ? 'Approve' : 'Reject'}{' '}
@@ -771,11 +789,13 @@ function ValidateAttendanceContent() {
             <Button
               variant="outline"
               onClick={() => {
-                setIsValidateModalOpen(false)
+                // Clear form data
                 setSelectedRecord(null)
                 setValidationNote('')
                 setValidationStatus('')
                 setErrorMessage('')
+                // Close modal
+                setIsValidateModalOpen(false)
               }}
               className="rounded-sm"
               disabled={validateAttendanceMutation.isPending || validateLeaveMutation.isPending}
