@@ -11,7 +11,7 @@ import {
   type SortingState,
   type ColumnFiltersState,
 } from '@tanstack/react-table'
-import { Search, Download, ChevronUp, ChevronDown, ChevronsUpDown, AlertCircle, ArrowUp, ArrowDown, Trash2, Edit } from 'lucide-react'
+import { Search, Download, ChevronUp, ChevronDown, ChevronsUpDown, AlertCircle, Trash2, Edit } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -159,28 +159,6 @@ function RoleManagementContent() {
     },
   })
 
-  // Update position level mutation
-  const updatePositionLevelMutation = useMutation({
-    mutationFn: async ({ id, positionLevel }: { id: number; positionLevel: number }): Promise<Role> => {
-      const response = await fetch(`${API_BASE_URL}/admin/users/roles/${id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ PositionLevel: positionLevel }),
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Failed to update position level')
-      }
-      return response.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['roles'] })
-    },
-    onError: (error: Error) => {
-      setErrorMessage(error.message)
-    },
-  })
-
   // Delete role mutation
   const deleteRoleMutation = useMutation({
     mutationFn: async (id: number): Promise<void> => {
@@ -264,18 +242,6 @@ function RoleManagementContent() {
     }
   }
 
-  const moveRoleUp = (role: Role) => {
-    const newPositionLevel = role.PositionLevel - 1
-    if (newPositionLevel >= 1) {
-      updatePositionLevelMutation.mutate({ id: role.ID, positionLevel: newPositionLevel })
-    }
-  }
-
-  const moveRoleDown = (role: Role) => {
-    const newPositionLevel = role.PositionLevel + 1
-    updatePositionLevelMutation.mutate({ id: role.ID, positionLevel: newPositionLevel })
-  }
-
   // Export to CSV function
   const exportToCSV = () => {
     const csvContent = [
@@ -343,27 +309,6 @@ function RoleManagementContent() {
             >
               <Edit className="h-4 w-4" />
               Edit
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => moveRoleUp(role)}
-              disabled={role.PositionLevel === 1}
-              className="bg-green-50 border-green-300 text-green-600 hover:bg-green-100 rounded-sm"
-              title="Change up"
-            >
-              <ArrowUp className="h-4 w-4" />
-              Change up
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => moveRoleDown(role)}
-              className="bg-yellow-50 border-yellow-300 text-yellow-600 hover:bg-yellow-100 rounded-sm"
-              title="Change down"
-            >
-              <ArrowDown className="h-4 w-4" />
-              Change down
             </Button>
             <Button
               variant="outline"
