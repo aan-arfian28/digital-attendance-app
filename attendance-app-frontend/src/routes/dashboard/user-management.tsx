@@ -499,6 +499,17 @@ function UserManagementContent() {
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
     onPaginationChange: setPagination,
+    globalFilterFn: (row, _columnId, filterValue) => {
+      const search = filterValue.toLowerCase()
+      const user = row.original
+      
+      // Search only in email, role, and position
+      return (
+        user.Email.toLowerCase().includes(search) ||
+        user.Role.toLowerCase().includes(search) ||
+        user.Position.toLowerCase().includes(search)
+      )
+    },
     state: {
       sorting,
       columnFilters,
@@ -520,7 +531,7 @@ function UserManagementContent() {
         <div className="relative w-full md:w-96">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
-            placeholder="Search by email or ID..."
+            placeholder="Search by email, role, or position..."
             value={globalFilter ?? ''}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGlobalFilter(e.target.value)}
             className="pl-10 rounded-sm"
