@@ -30,24 +30,24 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         const storedUser = userStorage.get()
 
         if (token && storedUser) {
-          // Use stored user data if available
-          setUserState(storedUser)
-        } else if (token) {
-          // If we have token but no user data, try to fetch it
-          try {
-            // First try the non-admin profile endpoint
-            const userProfile = await authService.getMyProfile(token)
-            setUserState(userProfile)
-            userStorage.set(userProfile)
-          } catch (error) {
-            // If that fails, try the admin endpoint (for backward compatibility)
-            const decodedToken = decodeJWT(token)
-            if (decodedToken) {
-              const userProfile = await authService.getUserProfile(decodedToken.id, token)
-              setUserState(userProfile)
-              userStorage.set(userProfile)
-            }
+          // Verify stored user matches current token
+          const decodedToken = decodeJWT(token)
+          if (decodedToken && storedUser.ID === decodedToken.id) {
+            // Use stored user data if it matches the token
+            console.log('📦 Using cached user data:', storedUser.Username)
+            setUserState(storedUser)
+          } else {
+            // Token and stored user don't match - fetch fresh data
+            console.log('⚠️ Token/user mismatch, fetching fresh user data...')
+            await fetchUserProfile(token)
           }
+        } else if (token) {
+          // If we have token but no user data, fetch it
+          console.log('🔄 Token found but no user data, fetching...')
+          await fetchUserProfile(token)
+        } else {
+          // No token, no user
+          console.log('👤 No authentication found')
         }
       } catch (error) {
         console.error('Failed to initialize user:', error)
@@ -57,6 +57,27 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         setUserState(null)
       } finally {
         setIsLoading(false)
+      }
+    }
+
+    const fetchUserProfile = async (token: string) => {
+      try {
+        // First try the non-admin profile endpoint
+        const userProfile = await authService.getMyProfile()
+        console.log('✅ User profile fetched:', userProfile.Username)
+        setUserState(userProfile)
+        userStorage.set(userProfile)
+      } catch (error) {
+        // If that fails, try the admin endpoint (for backward compatibility)
+        const decodedToken = decodeJWT(token)
+        if (decodedToken) {
+          const userProfile = await authService.getUserProfile(decodedToken.id)
+          console.log('✅ User profile fetched (admin):', userProfile.Username)
+          setUserState(userProfile)
+          userStorage.set(userProfile)
+        } else {
+          throw error
+        }
       }
     }
 
@@ -80,16 +101,21 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     }
 
     try {
+      console.log('🔄 Refreshing user data...')
       // First try the non-admin profile endpoint
       try {
-        const userProfile = await authService.getMyProfile(token)
+        const userProfile = await authService.getMyProfile()
+        console.log('✅ User data refreshed:', userProfile.Username)
         setUser(userProfile)
       } catch (error) {
         // If that fails, try the admin endpoint (for backward compatibility)
         const decodedToken = decodeJWT(token)
         if (decodedToken) {
-          const userProfile = await authService.getUserProfile(decodedToken.id, token)
+          const userProfile = await authService.getUserProfile(decodedToken.id)
+          console.log('✅ User data refreshed (admin):', userProfile.Username)
           setUser(userProfile)
+        } else {
+          throw error
         }
       }
     } catch (error) {
@@ -99,6 +125,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   }
 
   const clearUser = () => {
+    console.log('🧹 Clearing user data from context and storage')
     setUserState(null)
     userStorage.remove()
   }

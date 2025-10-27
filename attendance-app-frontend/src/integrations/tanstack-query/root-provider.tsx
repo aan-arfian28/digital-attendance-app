@@ -14,7 +14,14 @@ export function getContext() {
           }
           return failureCount < 3
         },
-        staleTime: 1000 * 60 * 5, // 5 minutes
+        // Reduce staleTime to 30 seconds for more responsive updates
+        staleTime: 1000 * 30, // 30 seconds (was 5 minutes)
+        // Cache time before garbage collection
+        gcTime: 1000 * 60 * 5, // 5 minutes
+        // Refetch on window focus to ensure fresh data
+        refetchOnWindowFocus: true,
+        // Refetch on reconnect
+        refetchOnReconnect: true,
       },
       mutations: {
         retry: false,
