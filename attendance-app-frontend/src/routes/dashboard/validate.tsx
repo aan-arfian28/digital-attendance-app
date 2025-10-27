@@ -107,6 +107,12 @@ function ValidateAttendanceContent() {
   const [validationStatus, setValidationStatus] = useState<string>('')
   const [validationNote, setValidationNote] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  
+  // Pagination states
+  const [attendancePage, setAttendancePage] = useState(0)
+  const [attendancePageSize, setAttendancePageSize] = useState(10)
+  const [leavePage, setLeavePage] = useState(0)
+  const [leavePageSize, setLeavePageSize] = useState(10)
 
   // Fetch subordinate attendance records
   const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery({
@@ -304,6 +310,51 @@ function ValidateAttendanceContent() {
     }
   }
 
+  // Pagination helpers
+  const getCurrentPageData = () => {
+    if (activeTab === 'attendance') {
+      const start = attendancePage * attendancePageSize
+      const end = start + attendancePageSize
+      return attendanceRecords.slice(start, end)
+    } else {
+      const start = leavePage * leavePageSize
+      const end = start + leavePageSize
+      return leaveRequests.slice(start, end)
+    }
+  }
+
+  const getTotalPages = () => {
+    if (activeTab === 'attendance') {
+      return Math.ceil(attendanceRecords.length / attendancePageSize)
+    } else {
+      return Math.ceil(leaveRequests.length / leavePageSize)
+    }
+  }
+
+  const getCurrentPage = () => {
+    return activeTab === 'attendance' ? attendancePage : leavePage
+  }
+
+  const setCurrentPage = (page: number) => {
+    if (activeTab === 'attendance') {
+      setAttendancePage(page)
+    } else {
+      setLeavePage(page)
+    }
+  }
+
+  const setCurrentPageSize = (size: number) => {
+    if (activeTab === 'attendance') {
+      setAttendancePageSize(size)
+      setAttendancePage(0)
+    } else {
+      setLeavePageSize(size)
+      setLeavePage(0)
+    }
+  }
+
+  const paginatedData = getCurrentPageData()
+
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -366,7 +417,7 @@ function ValidateAttendanceContent() {
                     </td>
                   </tr>
                 ) : (
-                  attendanceRecords.map((record: AttendanceRecord) => (
+                  (paginatedData as AttendanceRecord[]).map((record: AttendanceRecord) => (
                     <tr key={record.ID} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm text-gray-900">{record.User.Username}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{formatDate(record.CheckInTime || '')}</td>
@@ -415,6 +466,54 @@ function ValidateAttendanceContent() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-700">Rows per page:</span>
+              <Select
+                value={attendancePageSize.toString()}
+                onValueChange={(value) => setCurrentPageSize(Number(value))}
+              >
+                <SelectTrigger className="w-20 rounded-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-sm">
+                  {[10, 20, 50].map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-700">
+                Page {getCurrentPage() + 1} of {getTotalPages() || 1}
+              </span>
+              <div className="flex gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(getCurrentPage() - 1)}
+                  disabled={getCurrentPage() === 0}
+                  className="rounded-sm"
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(getCurrentPage() + 1)}
+                  disabled={getCurrentPage() >= getTotalPages() - 1}
+                  className="rounded-sm"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -447,7 +546,7 @@ function ValidateAttendanceContent() {
                     </td>
                   </tr>
                 ) : (
-                  leaveRequests.map((request: LeaveRequestRecord) => (
+                  (paginatedData as LeaveRequestRecord[]).map((request: LeaveRequestRecord) => (
                     <tr key={request.ID} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm text-gray-900">{request.User.Username}</td>
                       <td className="px-6 py-4">
@@ -493,6 +592,54 @@ function ValidateAttendanceContent() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Pagination */}
+          <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-700">Rows per page:</span>
+              <Select
+                value={leavePageSize.toString()}
+                onValueChange={(value) => setCurrentPageSize(Number(value))}
+              >
+                <SelectTrigger className="w-20 rounded-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-sm">
+                  {[10, 20, 50].map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-700">
+                Page {getCurrentPage() + 1} of {getTotalPages() || 1}
+              </span>
+              <div className="flex gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(getCurrentPage() - 1)}
+                  disabled={getCurrentPage() === 0}
+                  className="rounded-sm"
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(getCurrentPage() + 1)}
+                  disabled={getCurrentPage() >= getTotalPages() - 1}
+                  className="rounded-sm"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}
