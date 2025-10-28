@@ -11,7 +11,7 @@ import {
   type SortingState,
   type ColumnFiltersState,
 } from '@tanstack/react-table'
-import { Search, Download, ChevronUp, ChevronDown, ChevronsUpDown, AlertCircle, ArrowUp, ArrowDown, Trash2, Edit } from 'lucide-react'
+import { Search, Download, ChevronUp, ChevronDown, ChevronsUpDown, AlertCircle, Trash2, Edit } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -159,28 +159,6 @@ function RoleManagementContent() {
     },
   })
 
-  // Update position level mutation
-  const updatePositionLevelMutation = useMutation({
-    mutationFn: async ({ id, positionLevel }: { id: number; positionLevel: number }): Promise<Role> => {
-      const response = await fetch(`${API_BASE_URL}/admin/users/roles/${id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ PositionLevel: positionLevel }),
-      })
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Failed to update position level')
-      }
-      return response.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['roles'] })
-    },
-    onError: (error: Error) => {
-      setErrorMessage(error.message)
-    },
-  })
-
   // Delete role mutation
   const deleteRoleMutation = useMutation({
     mutationFn: async (id: number): Promise<void> => {
@@ -244,6 +222,9 @@ function RoleManagementContent() {
   }
 
   const openEditModal = (role: Role) => {
+    // Clear form data when switching from create to edit modal
+    resetForm()
+    
     setEditingRole(role)
     setFormData({
       Name: role.Name,
@@ -262,18 +243,6 @@ function RoleManagementContent() {
     if (confirm('Are you sure you want to delete this role?')) {
       deleteRoleMutation.mutate(roleId)
     }
-  }
-
-  const moveRoleUp = (role: Role) => {
-    const newPositionLevel = role.PositionLevel - 1
-    if (newPositionLevel >= 1) {
-      updatePositionLevelMutation.mutate({ id: role.ID, positionLevel: newPositionLevel })
-    }
-  }
-
-  const moveRoleDown = (role: Role) => {
-    const newPositionLevel = role.PositionLevel + 1
-    updatePositionLevelMutation.mutate({ id: role.ID, positionLevel: newPositionLevel })
   }
 
   // Export to CSV function
@@ -343,27 +312,6 @@ function RoleManagementContent() {
             >
               <Edit className="h-4 w-4" />
               Edit
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => moveRoleUp(role)}
-              disabled={role.PositionLevel === 1}
-              className="bg-green-50 border-green-300 text-green-600 hover:bg-green-100 rounded-sm"
-              title="Change up"
-            >
-              <ArrowUp className="h-4 w-4" />
-              Change up
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => moveRoleDown(role)}
-              className="bg-yellow-50 border-yellow-300 text-yellow-600 hover:bg-yellow-100 rounded-sm"
-              title="Change down"
-            >
-              <ArrowDown className="h-4 w-4" />
-              Change down
             </Button>
             <Button
               variant="outline"
@@ -460,15 +408,27 @@ function RoleManagementContent() {
           </Button>
           
           <Dialog open={isCreateModalOpen} onOpenChange={(open) => {
-            setIsCreateModalOpen(open)
-            if (open) resetForm()
+            // Don't auto-close on outside click - only handle explicit close
+            if (!open) {
+              setIsCreateModalOpen(false)
+            }
           }}>
             <DialogTrigger asChild>
-              <Button className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm">
+              <Button 
+                className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm"
+                onClick={() => {
+                  setIsCreateModalOpen(true)
+                  // Don't clear form - keep prefilled data if exists
+                }}
+              >
                 Create Role
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl rounded-sm">
+            <DialogContent 
+              className="max-w-2xl rounded-sm"
+              onInteractOutside={(e) => e.preventDefault()}
+              onEscapeKeyDown={(e) => e.preventDefault()}
+            >
               <DialogHeader>
                 <DialogTitle>Create New Role</DialogTitle>
                 <DialogDescription>
@@ -534,7 +494,10 @@ function RoleManagementContent() {
               <DialogFooter>
                 <Button
                   variant="outline"
-                  onClick={() => setIsCreateModalOpen(false)}
+                  onClick={() => {
+                    resetForm() // Clear form data
+                    setIsCreateModalOpen(false) // Close modal
+                  }}
                   className="rounded-sm"
                 >
                   Cancel
@@ -628,8 +591,22 @@ function RoleManagementContent() {
       </div>
 
       {/* Edit Modal */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="max-w-2xl rounded-sm">
+      <Dialog open={isEditModalOpen} onOpenChange={(open) => {
+        // Don't auto-close on outside click - only handle explicit close
+        if (!open) {
+          setIsEditModalOpen(false)
+        }
+      }}>
+        <DialogContent 
+          className="max-w-2xl rounded-sm"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+          onCloseAutoFocus={() => {
+            // Clear form when X button is clicked (modal closes)
+            resetForm()
+            setEditingRole(null)
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Edit Role</DialogTitle>
             <DialogDescription>
@@ -695,7 +672,11 @@ function RoleManagementContent() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setIsEditModalOpen(false)}
+              onClick={() => {
+                resetForm() // Clear form data
+                setEditingRole(null)
+                setIsEditModalOpen(false) // Close modal
+              }}
               className="rounded-sm"
             >
               Cancel

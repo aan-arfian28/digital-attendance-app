@@ -51,29 +51,37 @@ export const useRequireAuth = () => {
 
 export const useLogin = () => {
     const navigate = useNavigate()
-    const { setUser } = useUser()
+    const { setUser, clearUser } = useUser()
     const queryClient = useQueryClient()
 
     return useMutation({
         mutationFn: (credentials: LoginRequest) => authService.login(credentials),
+        onMutate: () => {
+            // IMPORTANT: Clear old user data BEFORE login to prevent stale data
+            console.log('🧹 Clearing old user data before login...')
+            clearUser()
+            tokenStorage.remove()
+            queryClient.clear()
+        },
         onSuccess: async (data) => {
             try {
-                // Clear all cached queries from previous user
-                queryClient.clear()
+                console.log('✅ Login successful, fetching new user profile...')
 
-                // Save token to localStorage
+                // Save NEW token to localStorage
                 tokenStorage.set(data.token)
 
-                // Fetch user profile using the new endpoint
+                // Fetch NEW user profile
                 try {
                     // Try the non-admin profile endpoint first
-                    const userProfile = await authService.getMyProfile(data.token)
+                    const userProfile = await authService.getMyProfile()
+                    console.log('👤 New user profile loaded:', userProfile.Username)
                     setUser(userProfile)
                 } catch (error) {
                     // If that fails, try the admin endpoint (for backward compatibility)
                     const decodedToken = decodeJWT(data.token)
                     if (decodedToken) {
-                        const userProfile = await authService.getUserProfile(decodedToken.id, data.token)
+                        const userProfile = await authService.getUserProfile(decodedToken.id)
+                        console.log('👤 New user profile loaded (admin):', userProfile.Username)
                         setUser(userProfile)
                     }
                 }
@@ -85,15 +93,18 @@ export const useLogin = () => {
                 })
             } catch (error) {
                 console.error('Failed to fetch user profile after login:', error)
-                // Still navigate to dashboard even if profile fetch fails
-                navigate({
-                    to: '/dashboard',
-                    replace: true
-                })
+                // Clear everything if profile fetch fails
+                clearUser()
+                tokenStorage.remove()
+                throw error
             }
         },
         onError: (error) => {
             console.error('Login failed:', error)
+            // Make sure everything is cleared on error
+            clearUser()
+            tokenStorage.remove()
+            queryClient.clear()
         },
     })
 }
@@ -105,11 +116,10 @@ export const useLogout = () => {
 
     return useMutation({
         mutationFn: () => {
-            const token = tokenStorage.get()
-            if (!token) throw new Error('No token found')
-            return authService.logout(token)
+            return authService.logout()
         },
         onMutate: () => {
+            console.log('🚪 Logging out, clearing all data...')
             // Immediately clear everything to prevent race conditions
             tokenStorage.remove()
             clearUser()
@@ -117,6 +127,7 @@ export const useLogout = () => {
             queryClient.clear()
         },
         onSuccess: () => {
+            console.log('✅ Logout successful')
             // Navigate to login
             navigate({
                 to: '/login',

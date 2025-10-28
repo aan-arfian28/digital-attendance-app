@@ -14,6 +14,19 @@ const config = defineConfig({
     tanstackStart(),
     viteReact(),
   ],
+  server: {
+    host: true, // expose the server to the network
+    allowedHosts: ['cluster-gotten-sciences-marathon.trycloudflare.com'], // cloudflared tunnel - no http://
+    // allowedHosts: ['*'], // allow all hosts
+
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      }
+    }
+  },
+
 })
 
 export default config

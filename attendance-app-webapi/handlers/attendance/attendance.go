@@ -132,9 +132,10 @@ func CheckIn(c *gin.Context) {
 
 	if result.Error != nil {
 		// Create new attendance record if none exists
+		locationID := location.ID
 		attendance = models.Attendance{
 			UserID:           userId,
-			LocationID:       location.ID,
+			LocationID:       &locationID,
 			CheckInTime:      &now,
 			CheckInLatitude:  req.Latitude,
 			CheckInLongitude: req.Longitude,
@@ -314,7 +315,7 @@ func GetSubordinateAttendanceRecords(c *gin.Context) {
 	}
 
 	var attendances []models.Attendance
-	if err := db.Where("user_id IN ?", subordinateIds).Find(&attendances).Error; err != nil {
+	if err := db.Preload("User").Where("user_id IN ?", subordinateIds).Find(&attendances).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch attendance records"})
 		return
 	}

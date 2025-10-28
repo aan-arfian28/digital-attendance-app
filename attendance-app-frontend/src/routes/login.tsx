@@ -71,8 +71,8 @@ function Login() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-[#428bff] text-white font-bold text-xl mb-4">
             T
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">TEKS LOGO</h1>
-          <p className="text-gray-600">Digital Attendance System</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">ATTENDAPP</h1>
+          <p className="text-gray-600">Digital Attendance App</p>
         </div>
 
         {/* Login Form */}

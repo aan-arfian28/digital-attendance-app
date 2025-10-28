@@ -20,7 +20,6 @@ import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settin
 import { Route as DashboardRoleManagementRouteImport } from './routes/dashboard/role-management'
 import { Route as DashboardProfileRouteImport } from './routes/dashboard/profile'
 import { Route as DashboardHistoryRouteImport } from './routes/dashboard/history'
-import { Route as DashboardAttendanceRouteImport } from './routes/dashboard/attendance'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -77,18 +76,12 @@ const DashboardHistoryRoute = DashboardHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => DashboardRoute,
 } as any)
-const DashboardAttendanceRoute = DashboardAttendanceRouteImport.update({
-  id: '/attendance',
-  path: '/attendance',
-  getParentRoute: () => DashboardRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/404': typeof R404Route
   '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
-  '/dashboard/attendance': typeof DashboardAttendanceRoute
   '/dashboard/history': typeof DashboardHistoryRoute
   '/dashboard/profile': typeof DashboardProfileRoute
   '/dashboard/role-management': typeof DashboardRoleManagementRoute
@@ -101,7 +94,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/404': typeof R404Route
   '/login': typeof LoginRoute
-  '/dashboard/attendance': typeof DashboardAttendanceRoute
   '/dashboard/history': typeof DashboardHistoryRoute
   '/dashboard/profile': typeof DashboardProfileRoute
   '/dashboard/role-management': typeof DashboardRoleManagementRoute
@@ -116,7 +108,6 @@ export interface FileRoutesById {
   '/404': typeof R404Route
   '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
-  '/dashboard/attendance': typeof DashboardAttendanceRoute
   '/dashboard/history': typeof DashboardHistoryRoute
   '/dashboard/profile': typeof DashboardProfileRoute
   '/dashboard/role-management': typeof DashboardRoleManagementRoute
@@ -132,7 +123,6 @@ export interface FileRouteTypes {
     | '/404'
     | '/dashboard'
     | '/login'
-    | '/dashboard/attendance'
     | '/dashboard/history'
     | '/dashboard/profile'
     | '/dashboard/role-management'
@@ -145,7 +135,6 @@ export interface FileRouteTypes {
     | '/'
     | '/404'
     | '/login'
-    | '/dashboard/attendance'
     | '/dashboard/history'
     | '/dashboard/profile'
     | '/dashboard/role-management'
@@ -159,7 +148,6 @@ export interface FileRouteTypes {
     | '/404'
     | '/dashboard'
     | '/login'
-    | '/dashboard/attendance'
     | '/dashboard/history'
     | '/dashboard/profile'
     | '/dashboard/role-management'
@@ -255,18 +243,10 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardHistoryRouteImport
       parentRoute: typeof DashboardRoute
     }
-    '/dashboard/attendance': {
-      id: '/dashboard/attendance'
-      path: '/attendance'
-      fullPath: '/dashboard/attendance'
-      preLoaderRoute: typeof DashboardAttendanceRouteImport
-      parentRoute: typeof DashboardRoute
-    }
   }
 }
 
 interface DashboardRouteChildren {
-  DashboardAttendanceRoute: typeof DashboardAttendanceRoute
   DashboardHistoryRoute: typeof DashboardHistoryRoute
   DashboardProfileRoute: typeof DashboardProfileRoute
   DashboardRoleManagementRoute: typeof DashboardRoleManagementRoute
@@ -277,7 +257,6 @@ interface DashboardRouteChildren {
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
-  DashboardAttendanceRoute: DashboardAttendanceRoute,
   DashboardHistoryRoute: DashboardHistoryRoute,
   DashboardProfileRoute: DashboardProfileRoute,
   DashboardRoleManagementRoute: DashboardRoleManagementRoute,

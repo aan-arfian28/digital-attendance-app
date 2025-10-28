@@ -9,7 +9,7 @@ type Config struct {
 
 // Default configuration
 var DefaultConfig = Config{
-	BasePath:    "./storage/uploads",
+	BasePath:    "./uploads",
 	MaxFileSize: 5 * 1024 * 1024, // 5MB default
 	AllowedTypes: map[string][]string{
 		"attendance": {".jpg", ".jpeg", ".png"},

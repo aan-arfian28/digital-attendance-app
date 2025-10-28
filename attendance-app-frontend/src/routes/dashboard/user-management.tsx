@@ -339,6 +339,9 @@ function UserManagementContent() {
   }
 
   const openEditModal = (user: User) => {
+    // Clear form data when switching from create to edit modal
+    resetForm()
+    
     setSelectedUser(user)
     setFormData({
       Username: user.Username,
@@ -499,6 +502,17 @@ function UserManagementContent() {
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
     onPaginationChange: setPagination,
+    globalFilterFn: (row, _columnId, filterValue) => {
+      const search = filterValue.toLowerCase()
+      const user = row.original
+      
+      // Search only in email, role, and position
+      return (
+        user.Email.toLowerCase().includes(search) ||
+        user.Role.toLowerCase().includes(search) ||
+        user.Position.toLowerCase().includes(search)
+      )
+    },
     state: {
       sorting,
       columnFilters,
@@ -520,7 +534,7 @@ function UserManagementContent() {
         <div className="relative w-full md:w-96">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
-            placeholder="Search by email or ID..."
+            placeholder="Search by email, role, or position..."
             value={globalFilter ?? ''}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGlobalFilter(e.target.value)}
             className="pl-10 rounded-sm"
@@ -539,15 +553,27 @@ function UserManagementContent() {
           </Button>
           
           <Dialog open={isCreateModalOpen} onOpenChange={(open) => {
-            setIsCreateModalOpen(open)
-            if (open) resetForm() // Clear form when opening modal
+            // Don't auto-close on outside click - only handle explicit close
+            if (!open) {
+              setIsCreateModalOpen(false)
+            }
           }}>
             <DialogTrigger asChild>
-              <Button className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm">
+              <Button 
+                className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm"
+                onClick={() => {
+                  setIsCreateModalOpen(true)
+                  // Don't clear form - keep prefilled data if exists
+                }}
+              >
                 Create User
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-sm">
+            <DialogContent 
+              className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-sm"
+              onInteractOutside={(e) => e.preventDefault()}
+              onEscapeKeyDown={(e) => e.preventDefault()}
+            >
               <DialogHeader>
                 <DialogTitle>Create New User</DialogTitle>
                 <DialogDescription>
@@ -669,8 +695,8 @@ function UserManagementContent() {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setIsCreateModalOpen(false)
-                    resetForm()
+                    resetForm() // Clear form data
+                    setIsCreateModalOpen(false) // Close modal
                   }}
                   className="rounded-sm"
                 >
@@ -787,8 +813,22 @@ function UserManagementContent() {
       </div>
 
       {/* Edit Modal */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-sm">
+      <Dialog open={isEditModalOpen} onOpenChange={(open) => {
+        // Don't auto-close on outside click - only handle explicit close
+        if (!open) {
+          setIsEditModalOpen(false)
+        }
+      }}>
+        <DialogContent 
+          className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-sm"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+          onCloseAutoFocus={() => {
+            // Clear form when X button is clicked (modal closes)
+            resetForm()
+            setSelectedUser(null)
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
@@ -913,9 +953,9 @@ function UserManagementContent() {
             <Button
               variant="outline"
               onClick={() => {
-                setIsEditModalOpen(false)
+                resetForm() // Clear form data
                 setSelectedUser(null)
-                resetForm()
+                setIsEditModalOpen(false) // Close modal
               }}
               className="rounded-sm"
             >
