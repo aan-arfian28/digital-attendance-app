@@ -1,1 +1,7 @@
 .env
+
+# Uploaded files (photos, PDFs)
+attendance-app-webapi/uploads/*
+!attendance-app-webapi/uploads/.gitkeep
+!attendance-app-webapi/uploads/attendance/.gitkeep
+!attendance-app-webapi/uploads/leave/.gitkeep

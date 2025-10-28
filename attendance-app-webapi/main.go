@@ -24,10 +24,12 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
 	"attendance-app/database"
 	"attendance-app/router"
 	"attendance-app/scheduler"
+	"attendance-app/storage"
 
 	docs "attendance-app/docs"
 
@@ -38,6 +40,21 @@ import (
 // @Summary Main entry point of the application
 // @Description Initializes the database, sets up routes, and starts the server
 func main() {
+	// Initialize uploads directory structure
+	uploadDirs := []string{
+		"./uploads/attendance",
+		"./uploads/leave",
+	}
+	for _, dir := range uploadDirs {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			log.Fatalf("Failed to create upload directory %s: %v", dir, err)
+		}
+	}
+	log.Println("Upload directories initialized")
+
+	// Initialize storage configuration
+	storage.InitConfig("./uploads")
+
 	DB := database.InitDB()
 
 	// Initialize and start the attendance scheduler

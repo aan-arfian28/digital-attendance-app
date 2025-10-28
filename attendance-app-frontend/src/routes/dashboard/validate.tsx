@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, ExternalLink } from 'lucide-react'
 import RoleGuard from '@/components/RoleGuard'
 import SubordinateGuard from '@/components/SubordinateGuard'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -266,7 +266,34 @@ function ValidateAttendanceContent() {
     }
   }
 
+  // Helper to check if URL is a PDF
+  const isPDF = (url: string) => {
+    return url?.toLowerCase().endsWith('.pdf')
+  }
+
+  // Helper to get full URL for uploaded files
+  const getFullFileURL = (relativePath: string) => {
+    if (!relativePath) return ''
+    // If it's already a full URL, return as is
+    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+      return relativePath
+    }
+    // Otherwise, prepend the backend base URL (without /api)
+    const baseURL = API_BASE_URL.replace('/api', '')
+    return `${baseURL}${relativePath}`
+  }
+
   const openValidateModal = (record: AttendanceRecord | LeaveRequestRecord, action: 'approve' | 'reject') => {
+    // Debug: Log the record to see URLs
+    console.log('Opening validation modal for record:', record)
+    if ('CheckInPhotoURL' in record) {
+      console.log('Check-in Photo URL:', record.CheckInPhotoURL)
+      console.log('Check-out Photo URL:', record.CheckOutPhotoURL)
+    }
+    if ('AttachmentURL' in record) {
+      console.log('Attachment URL:', record.AttachmentURL)
+    }
+
     // Only reset form if it's a different record or different action
     // This allows X button to preserve form data when reopening same validation
     const isSameValidation = 
@@ -661,7 +688,7 @@ function ValidateAttendanceContent() {
         }
       }}>
         <DialogContent 
-          className="max-w-2xl rounded-sm"
+          className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-sm"
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
@@ -743,9 +770,125 @@ function ValidateAttendanceContent() {
                     <span className="text-gray-600">Reason:</span>
                     <span className="font-medium text-gray-900">{selectedRecord.Reason}</span>
                   </div>
+                  {selectedRecord.AttachmentURL && (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-gray-600">Attachment:</span>
+                      <a 
+                        href={selectedRecord.AttachmentURL} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline text-sm flex items-center gap-1"
+                      >
+                        View Attachment <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  )}
                 </div>
               ) : null}
             </div>
+
+            {/* Image/PDF Preview Section */}
+            {selectedRecord && (
+              <div className="grid gap-4">
+                {/* Attendance Photos Preview */}
+                {'CheckInPhotoURL' in selectedRecord && (selectedRecord.CheckInPhotoURL || selectedRecord.CheckOutPhotoURL) && (
+                  <div className="grid gap-3">
+                    <h3 className="font-semibold text-gray-900">Photos</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Check-in Photo */}
+                      {selectedRecord.CheckInPhotoURL && (
+                        <div className="border rounded-sm overflow-hidden bg-gray-50">
+                          <div className="bg-gray-100 px-3 py-2 border-b">
+                            <p className="text-sm font-medium text-gray-700">Check-in Photo</p>
+                          </div>
+                          <div className="p-2">
+                            <img 
+                              src={getFullFileURL(selectedRecord.CheckInPhotoURL)} 
+                              alt="Check-in" 
+                              className="w-full h-auto rounded-sm cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => window.open(getFullFileURL(selectedRecord.CheckInPhotoURL), '_blank')}
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                target.onerror = null
+                                target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="16" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3EImage not available%3C/text%3E%3C/svg%3E'
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Check-out Photo */}
+                      {selectedRecord.CheckOutPhotoURL && (
+                        <div className="border rounded-sm overflow-hidden bg-gray-50">
+                          <div className="bg-gray-100 px-3 py-2 border-b">
+                            <p className="text-sm font-medium text-gray-700">Check-out Photo</p>
+                          </div>
+                          <div className="p-2">
+                            <img 
+                              src={getFullFileURL(selectedRecord.CheckOutPhotoURL)} 
+                              alt="Check-out" 
+                              className="w-full h-auto rounded-sm cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => window.open(getFullFileURL(selectedRecord.CheckOutPhotoURL), '_blank')}
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                target.onerror = null
+                                target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="16" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3EImage not available%3C/text%3E%3C/svg%3E'
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Leave Attachment Preview */}
+                {'AttachmentURL' in selectedRecord && selectedRecord.AttachmentURL && (
+                  <div className="grid gap-3">
+                    <h3 className="font-semibold text-gray-900">Attachment</h3>
+                    <div className="border rounded-sm overflow-hidden bg-gray-50">
+                      {isPDF(selectedRecord.AttachmentURL) ? (
+                        // PDF Preview
+                        <div className="p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <p className="text-sm font-medium text-gray-700">PDF Document</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(getFullFileURL(selectedRecord.AttachmentURL), '_blank')}
+                              className="rounded-sm"
+                            >
+                              <ExternalLink className="h-4 w-4 mr-1" />
+                              Open in New Tab
+                            </Button>
+                          </div>
+                          <iframe
+                            src={getFullFileURL(selectedRecord.AttachmentURL)}
+                            className="w-full h-96 rounded-sm border"
+                            title="PDF Preview"
+                          />
+                        </div>
+                      ) : (
+                        // Image Preview
+                        <div className="p-2">
+                          <img 
+                            src={getFullFileURL(selectedRecord.AttachmentURL)} 
+                            alt="Leave Attachment" 
+                            className="w-full h-auto rounded-sm cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => window.open(getFullFileURL(selectedRecord.AttachmentURL), '_blank')}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement
+                              target.onerror = null
+                              target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="16" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3EImage not available%3C/text%3E%3C/svg%3E'
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Validation Status */}
             {selectedRecord && 'CheckInTime' in selectedRecord && (

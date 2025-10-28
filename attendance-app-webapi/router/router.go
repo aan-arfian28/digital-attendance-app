@@ -35,6 +35,9 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 	config.ExposeHeaders = []string{"Content-Length"}
 	router.Use(cors.New(config))
 
+	// Serve static files (photos, PDFs, etc.) from the uploads directory
+	router.Static("/uploads", "./uploads")
+
 	api := router.Group("/api")
 	api.Use(middleware.DBMiddleware(DB))
 	api.Use(middleware.XSSProtection())
