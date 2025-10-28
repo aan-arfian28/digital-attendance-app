@@ -128,7 +128,7 @@ function DashboardHome() {
     
     if (diffInHours < 1) {
       const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
-      return `${diffInMinutes} minutes ago`
+      return `${diffInMinutes} menit yang lalu`
     }
     if (diffInHours < 24) {
       return formatTime(dateString)
