@@ -27,6 +27,25 @@ const getAuthHeaders = () => {
   }
 }
 
+// OPTIMIZATION: Extract query functions outside component to prevent recreation
+const fetchMyAttendanceHistory = async () => {
+  const response = await fetch(`${API_BASE_URL}/user/attendance/my-records`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to fetch attendance records')
+  const data = await response.json()
+  return Array.isArray(data) ? data : []
+}
+
+const fetchMyLeaveHistory = async () => {
+  const response = await fetch(`${API_BASE_URL}/user/leave/my-requests`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to fetch leave requests')
+  const data = await response.json()
+  return Array.isArray(data) ? data : []
+}
+
 // Types
 interface AttendanceRecord {
   ID: number
@@ -62,30 +81,20 @@ function AttendanceHistoryContent() {
   const [attendanceSortOrder, setAttendanceSortOrder] = useState<'asc' | 'desc' | null>(null)
   const [leaveSortOrder, setLeaveSortOrder] = useState<'asc' | 'desc' | null>(null)
 
-  // Fetch attendance records
+  // OPTIMIZED: Use extracted query functions + disable aggressive refetching
   const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery({
     queryKey: ['my-attendance'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/user/attendance/my-records`, {
-        headers: getAuthHeaders(),
-      })
-      if (!response.ok) throw new Error('Failed to fetch attendance records')
-      const data = await response.json()
-      return Array.isArray(data) ? data : []
-    },
+    queryFn: fetchMyAttendanceHistory,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: false,
   })
 
   // Fetch leave requests
   const { data: leaveRecords = [], isLoading: leaveLoading } = useQuery({
     queryKey: ['my-leave-requests'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/user/leave/my-requests`, {
-        headers: getAuthHeaders(),
-      })
-      if (!response.ok) throw new Error('Failed to fetch leave requests')
-      const data = await response.json()
-      return Array.isArray(data) ? data : []
-    },
+    queryFn: fetchMyLeaveHistory,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: false,
   })
 
   // Simple date formatting - extract date part directly from string

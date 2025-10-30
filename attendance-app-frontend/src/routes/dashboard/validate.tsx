@@ -39,6 +39,25 @@ const getAuthHeaders = () => {
   }
 }
 
+// OPTIMIZATION: Extract query functions outside component to prevent recreation
+const fetchSubordinateAttendance = async () => {
+  const response = await fetch(`${API_BASE_URL}/user/attendance/subordinates`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to fetch attendance records')
+  const data = await response.json()
+  return Array.isArray(data) ? data : []
+}
+
+const fetchSubordinateLeaveRequests = async () => {
+  const response = await fetch(`${API_BASE_URL}/user/leave/subordinates`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to fetch leave requests')
+  const data = await response.json()
+  return Array.isArray(data) ? data : []
+}
+
 // Types
 interface User {
   ID: number
@@ -116,30 +135,20 @@ function ValidateAttendanceContent() {
   const [leavePage, setLeavePage] = useState(0)
   const [leavePageSize, setLeavePageSize] = useState(10)
 
-  // Fetch subordinate attendance records
+  // OPTIMIZED: Use extracted query functions + disable aggressive refetching
   const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery({
     queryKey: ['subordinate-attendance'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/user/attendance/subordinates`, {
-        headers: getAuthHeaders(),
-      })
-      if (!response.ok) throw new Error('Failed to fetch attendance records')
-      const data = await response.json()
-      return Array.isArray(data) ? data : []
-    },
+    queryFn: fetchSubordinateAttendance,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: false,
   })
 
   // Fetch subordinate leave requests
   const { data: leaveRequests = [], isLoading: leaveLoading } = useQuery({
     queryKey: ['subordinate-leave-requests'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/user/leave/subordinates`, {
-        headers: getAuthHeaders(),
-      })
-      if (!response.ok) throw new Error('Failed to fetch leave requests')
-      const data = await response.json()
-      return Array.isArray(data) ? data : []
-    },
+    queryFn: fetchSubordinateLeaveRequests,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: false,
   })
 
   // Validate attendance mutation

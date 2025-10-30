@@ -9,6 +9,40 @@ import { useQuery } from '@tanstack/react-query'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
 
+// Helper to get auth token
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('auth_token')
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` }),
+  }
+}
+
+// OPTIMIZATION: Extract query functions outside component to prevent recreation
+const fetchMyAttendanceRecords = async () => {
+  const response = await fetch(`${API_BASE_URL}/user/attendance/my-records`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to fetch attendance records')
+  return response.json()
+}
+
+const fetchMyLeaveRequests = async () => {
+  const response = await fetch(`${API_BASE_URL}/user/leave/my-requests`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to fetch leave requests')
+  return response.json()
+}
+
+const fetchSubordinateAttendanceDashboard = async () => {
+  const response = await fetch(`${API_BASE_URL}/user/attendance/subordinates`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to fetch subordinate attendance')
+  return response.json()
+}
+
 interface AttendanceRecord {
   ID: number
   UserID: number
@@ -57,51 +91,31 @@ function DashboardHome() {
     minute: '2-digit'
   })
 
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('accessToken')
-    return {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-    }
-  }
-
-  // Fetch attendance records for non-admin users
+  // OPTIMIZED: Use extracted query functions + disable aggressive refetching
   const { data: attendanceRecords = [] } = useQuery<AttendanceRecord[]>({
     queryKey: ['my-attendance-records'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/user/attendance/my-records`, {
-        headers: getAuthHeaders(),
-      })
-      if (!response.ok) throw new Error('Failed to fetch attendance records')
-      return response.json()
-    },
-    enabled: !isAdmin, // Only fetch for non-admin users
+    queryFn: fetchMyAttendanceRecords,
+    enabled: !isAdmin,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: false,
   })
 
   // Fetch leave requests for non-admin users
   const { data: leaveRequests = [] } = useQuery<LeaveRequestRecord[]>({
     queryKey: ['my-leave-requests'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/user/leave/my-requests`, {
-        headers: getAuthHeaders(),
-      })
-      if (!response.ok) throw new Error('Failed to fetch leave requests')
-      return response.json()
-    },
-    enabled: !isAdmin, // Only fetch for non-admin users
+    queryFn: fetchMyLeaveRequests,
+    enabled: !isAdmin,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: false,
   })
 
   // Fetch subordinate attendance for admin/supervisor users
   const { data: subordinateAttendance = [] } = useQuery<AttendanceRecord[]>({
     queryKey: ['subordinate-attendance-dashboard'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/user/attendance/subordinates`, {
-        headers: getAuthHeaders(),
-      })
-      if (!response.ok) throw new Error('Failed to fetch subordinate attendance')
-      return response.json()
-    },
-    enabled: isAdmin, // Only fetch for admin users
+    queryFn: fetchSubordinateAttendanceDashboard,
+    enabled: isAdmin,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: false,
   })
 
   // Helper functions

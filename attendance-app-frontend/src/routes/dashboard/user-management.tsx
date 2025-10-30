@@ -193,7 +193,7 @@ function UserManagementContent() {
     queryFn: fetchUsers,
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    // Remove refetchOnMount: false to ensure data loads on mount
   })
 
   // Fetch roles
@@ -202,7 +202,7 @@ function UserManagementContent() {
     queryFn: fetchRoles,
     staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    // Remove refetchOnMount: false to ensure data loads on mount
   })
 
   // OPTIMIZED: Derive supervisors dari cache, bukan fetch ulang
@@ -236,17 +236,17 @@ function UserManagementContent() {
     }))
   }, [])
 
-  // OPTIMIZED: Use extracted mutation functions + memoize callbacks
+  // OPTIMIZED: Use extracted mutation functions (remove useCallback from options to prevent closure leak)
   const createUserMutation = useMutation({
     mutationFn: createUser,
-    onSuccess: useCallback(() => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setIsCreateModalOpen(false)
       resetForm()
       setErrorMessage('')
       setFieldErrors({})
-    }, [queryClient]),
-    onError: useCallback((error: any) => {
+    },
+    onError: (error: any) => {
       if (error.errors) {
         setFieldErrors(error.errors)
         setErrorMessage('Please fix the validation errors below.')
@@ -257,21 +257,21 @@ function UserManagementContent() {
         setErrorMessage('Failed to create user. Please try again.')
         setFieldErrors({})
       }
-    }, []),
+    },
   })
 
   // Update user mutation
   const updateUserMutation = useMutation({
     mutationFn: updateUser,
-    onSuccess: useCallback(() => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setIsEditModalOpen(false)
       setSelectedUser(null)
       resetForm()
       setErrorMessage('')
       setFieldErrors({})
-    }, [queryClient]),
-    onError: useCallback((error: any) => {
+    },
+    onError: (error: any) => {
       if (error.errors) {
         setFieldErrors(error.errors)
         setErrorMessage('Please fix the validation errors below.')
@@ -282,19 +282,19 @@ function UserManagementContent() {
         setErrorMessage('Failed to update user. Please try again.')
         setFieldErrors({})
       }
-    }, []),
+    },
   })
 
   // Delete user mutation
   const deleteUserMutation = useMutation({
     mutationFn: deleteUser,
-    onSuccess: useCallback(() => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
-    }, [queryClient]),
+    },
   })
 
-  // OPTIMIZED: Memoize resetForm
-  const resetForm = useCallback(() => {
+  // Reset form (no useCallback to avoid circular dependencies)
+  const resetForm = () => {
     setFormData({
       Username: '',
       Password: '',
@@ -307,7 +307,7 @@ function UserManagementContent() {
     })
     setErrorMessage('')
     setFieldErrors({})
-  }, [])
+  }
 
   const handleCreateUser = useCallback(() => {
     if (!formData.Role || !formData.Position) return
