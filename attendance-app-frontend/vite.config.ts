@@ -3,11 +3,9 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
 import viteTsConfigPaths from 'vite-tsconfig-paths'
 import tailwindcss from '@tailwindcss/vite'
-import { nitroV2Plugin } from '@tanstack/nitro-v2-vite-plugin'
 
 const config = defineConfig({
   plugins: [
-    // this is the plugin that enables path aliases
     viteTsConfigPaths({
       projects: ['./tsconfig.json'],
     }),
@@ -17,31 +15,25 @@ const config = defineConfig({
         enabled: true,
       },
     }),
-    nitroV2Plugin({
-      preset: 'node-server'
-    }),
     viteReact(),
   ],
 
-  // Build optimizations
   build: {
     target: 'esnext',
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: true, // Remove console.log in production
+        drop_console: true,
         drop_debugger: true,
         pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.trace'],
       },
     },
     chunkSizeWarningLimit: 600,
-    reportCompressedSize: false, // Faster builds
+    reportCompressedSize: false,
   },
   server: {
-    host: true, // expose the server to the network
-    allowedHosts: ['cluster-gotten-sciences-marathon.trycloudflare.com'], // cloudflared tunnel - no http://
-    // allowedHosts: ['*'], // allow all hosts
-
+    host: true,
+    allowedHosts: ['cluster-gotten-sciences-marathon.trycloudflare.com'],
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
@@ -49,7 +41,6 @@ const config = defineConfig({
       }
     }
   },
-
 })
 
 export default config

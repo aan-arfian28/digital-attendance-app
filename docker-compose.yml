@@ -60,14 +60,10 @@
         VITE_API_BASE_URL: /api
     container_name: attendapp_frontend
     restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      HOST: 0.0.0.0
     networks:
       - attendapp-net
     ports:
-      - "8081:3000"
+      - "8081:80"
     depends_on:
       - backend
 

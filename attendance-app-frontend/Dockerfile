@@ -17,35 +17,44 @@ ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 RUN npm run build
 
 # ==============================================
-# Stage 2: Production Runtime (Node.js Server)
+# Stage 2: Production Runtime (Nginx Server for SPA)
 # ==============================================
-FROM node:22-alpine
+FROM nginx:alpine
 
-WORKDIR /app
-
-# Copy built application from builder (.output folder from Nitro build)
-# Nitro build sudah standalone, tidak perlu node_modules lengkap
-COPY --from=builder /app/.output ./.output
+# Copy built static files from builder
+COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy public folder for assets
-COPY --from=builder /app/public ./public
+COPY --from=builder /app/public /usr/share/nginx/html
 
-# Change ownership to node user (already exists in node:alpine)
-RUN chown -R node:node /app
+# Create custom nginx configuration for SPA routing
+RUN echo 'server { \
+    listen 80; \
+    server_name localhost; \
+    root /usr/share/nginx/html; \
+    index index.html; \
+    location / { \
+    try_files $uri $uri/ /index.html; \
+    } \
+    location /api { \
+    proxy_pass http://attendance-app-webapi:8080; \
+    proxy_http_version 1.1; \
+    proxy_set_header Upgrade $http_upgrade; \
+    proxy_set_header Connection "upgrade"; \
+    proxy_set_header Host $host; \
+    proxy_set_header X-Real-IP $remote_addr; \
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; \
+    proxy_set_header X-Forwarded-Proto $scheme; \
+    } \
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ { \
+    expires 1y; \
+    add_header Cache-Control "public, immutable"; \
+    } \
+    }' > /etc/nginx/conf.d/default.conf
 
-USER node
+EXPOSE 80
 
-# Expose port
-EXPOSE 3000
-
-# Environment variables
-ENV NODE_ENV=production
-ENV HOST=0.0.0.0
-ENV PORT=3000
-
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
 
-# Start the application directly (Nitro server sudah standalone)
-CMD ["node", ".output/server/index.mjs"]
+CMD ["nginx", "-g", "daemon off;"]
