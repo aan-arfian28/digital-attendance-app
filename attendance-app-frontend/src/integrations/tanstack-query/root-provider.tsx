@@ -12,19 +12,19 @@ export function getContext() {
           if (error instanceof Error && error.message.includes('Session expired')) {
             return false
           }
-          return failureCount < 3
+          // Only retry once on other errors
+          return failureCount < 1
         },
-        // Reduce staleTime to 30 seconds for more responsive updates
-        staleTime: 1000 * 30, // 30 seconds (was 5 minutes)
-        // Cache time before garbage collection
-        gcTime: 1000 * 60 * 5, // 5 minutes
-        // Refetch on window focus to ensure fresh data
-        refetchOnWindowFocus: true,
-        // Refetch on reconnect
-        refetchOnReconnect: true,
+        // Optimized cache timings for production performance
+        staleTime: 5 * 60 * 1000, // 5 minutes - data considered fresh
+        gcTime: 10 * 60 * 1000, // 10 minutes - cache garbage collection time
+        // Disable aggressive refetching to reduce memory & network usage
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        refetchOnMount: true, // Only refetch when component mounts
       },
       mutations: {
-        retry: false,
+        retry: false, // Never retry mutations
       },
     },
   })

@@ -18,6 +18,21 @@ const config = defineConfig({
     }),
     viteReact(),
   ],
+  
+  // Build optimizations
+  build: {
+    target: 'esnext',
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remove console.log in production
+        drop_debugger: true,
+        pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.trace'],
+      },
+    },
+    chunkSizeWarningLimit: 600,
+    reportCompressedSize: false, // Faster builds
+  },
   server: {
     host: true, // expose the server to the network
     allowedHosts: ['cluster-gotten-sciences-marathon.trycloudflare.com'], // cloudflared tunnel - no http://

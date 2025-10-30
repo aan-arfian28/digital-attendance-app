@@ -284,16 +284,6 @@ function ValidateAttendanceContent() {
   }
 
   const openValidateModal = (record: AttendanceRecord | LeaveRequestRecord, action: 'approve' | 'reject') => {
-    // Debug: Log the record to see URLs
-    console.log('Opening validation modal for record:', record)
-    if ('CheckInPhotoURL' in record) {
-      console.log('Check-in Photo URL:', record.CheckInPhotoURL)
-      console.log('Check-out Photo URL:', record.CheckOutPhotoURL)
-    }
-    if ('AttachmentURL' in record) {
-      console.log('Attachment URL:', record.AttachmentURL)
-    }
-
     // Only reset form if it's a different record or different action
     // This allows X button to preserve form data when reopening same validation
     const isSameValidation = 
@@ -804,7 +794,9 @@ function ValidateAttendanceContent() {
                           <div className="p-2">
                             <img 
                               src={getFullFileURL(selectedRecord.CheckInPhotoURL)} 
-                              alt="Check-in" 
+                              alt="Check-in"
+                              loading="lazy"
+                              decoding="async"
                               className="w-full h-auto rounded-sm cursor-pointer hover:opacity-90 transition-opacity"
                               onClick={() => window.open(getFullFileURL(selectedRecord.CheckInPhotoURL), '_blank')}
                               onError={(e) => {
@@ -826,7 +818,9 @@ function ValidateAttendanceContent() {
                           <div className="p-2">
                             <img 
                               src={getFullFileURL(selectedRecord.CheckOutPhotoURL)} 
-                              alt="Check-out" 
+                              alt="Check-out"
+                              loading="lazy"
+                              decoding="async"
                               className="w-full h-auto rounded-sm cursor-pointer hover:opacity-90 transition-opacity"
                               onClick={() => window.open(getFullFileURL(selectedRecord.CheckOutPhotoURL), '_blank')}
                               onError={(e) => {
@@ -873,7 +867,9 @@ function ValidateAttendanceContent() {
                         <div className="p-2">
                           <img 
                             src={getFullFileURL(selectedRecord.AttachmentURL)} 
-                            alt="Leave Attachment" 
+                            alt="Leave Attachment"
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-auto rounded-sm cursor-pointer hover:opacity-90 transition-opacity"
                             onClick={() => window.open(getFullFileURL(selectedRecord.AttachmentURL), '_blank')}
                             onError={(e) => {
