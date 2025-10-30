@@ -1,0 +1,80 @@
+﻿services:
+  db:
+    image: mariadb:10.11
+    container_name: attendapp_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      TZ: Asia/Jakarta
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - attendapp-net
+    expose:
+      - "3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max_allowed_packet=256M
+
+  backend:
+    build:
+      context: ./attendance-app-webapi
+      dockerfile: Dockerfile
+    container_name: attendapp_backend
+    restart: unless-stopped
+    environment:
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_EXP_TIME: ${JWT_EXP_TIME}
+      GIN_MODE: release
+      TZ: Asia/Jakarta
+    volumes:
+      - uploads_data:/app/uploads
+    networks:
+      - attendapp-net
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./attendance-app-frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    container_name: attendapp_frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+    networks:
+      - attendapp-net
+    ports:
+      - "8081:3000"
+    depends_on:
+      - backend
+
+networks:
+  attendapp-net:
+    driver: bridge
+
+volumes:
+  db_data:
+  uploads_data:

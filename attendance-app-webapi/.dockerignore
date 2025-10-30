@@ -1,0 +1,33 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+server
+
+# Test files
+*_test.go
+*.test
+
+# Development files
+.env
+.env.local
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+README.md
+
+# Uploads (will be in volume)
+uploads/
+
+# Temporary files
+*.tmp
+*.swp
+*~
