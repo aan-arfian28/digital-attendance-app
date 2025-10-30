@@ -1,5 +1,5 @@
 ﻿import { createFileRoute } from '@tanstack/react-router'
-import { useState, useMemo, useCallback, memo } from 'react'
+import { useState, useMemo } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -211,12 +211,12 @@ function UserManagementContent() {
     return users.filter((user) => user.PositionLevel < formData.PositionLevel)
   }, [users, formData.PositionLevel])
 
-  // OPTIMIZED: Memoized handlers untuk prevent memory leak dari inline functions
-  const handleFormChange = useCallback((field: keyof typeof formData, value: any) => {
+  // Form handlers - simplified without unnecessary useCallback
+  const handleFormChange = (field: keyof typeof formData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-  }, [])
+  }
 
-  const handleRoleChange = useCallback((value: string) => {
+  const handleRoleChange = (value: string) => {
     const selectedRole = roles.find((r) => r.Position === value)
     if (selectedRole) {
       setFormData(prev => ({
@@ -227,14 +227,14 @@ function UserManagementContent() {
         SupervisorID: undefined,
       }))
     }
-  }, [roles])
+  }
 
-  const handleSupervisorChange = useCallback((value: string) => {
+  const handleSupervisorChange = (value: string) => {
     setFormData(prev => ({
       ...prev,
       SupervisorID: value === 'none' ? undefined : parseInt(value)
     }))
-  }, [])
+  }
 
   // OPTIMIZED: Use extracted mutation functions (remove useCallback from options to prevent closure leak)
   const createUserMutation = useMutation({
@@ -309,7 +309,7 @@ function UserManagementContent() {
     setFieldErrors({})
   }
 
-  const handleCreateUser = useCallback(() => {
+  const handleCreateUser = () => {
     if (!formData.Role || !formData.Position) return
 
     const createData: CreateUserData = {
@@ -328,9 +328,9 @@ function UserManagementContent() {
     }
 
     createUserMutation.mutate(createData)
-  }, [formData, createUserMutation])
+  }
 
-  const handleEditUser = useCallback(() => {
+  const handleEditUser = () => {
     if (!selectedUser) return
 
     const updateData: Partial<CreateUserData> = {
@@ -352,15 +352,15 @@ function UserManagementContent() {
     }
 
     updateUserMutation.mutate({ id: selectedUser.ID, data: updateData })
-  }, [formData, selectedUser, updateUserMutation])
+  }
 
-  const handleDeleteUser = useCallback((id: number) => {
+  const handleDeleteUser = (id: number) => {
     if (confirm('Are you sure you want to delete this user?')) {
       deleteUserMutation.mutate(id)
     }
-  }, [deleteUserMutation])
+  }
 
-  const openEditModal = useCallback((user: User) => {
+  const openEditModal = (user: User) => {
     // Clear form data when switching from create to edit modal
     resetForm()
     
@@ -376,10 +376,10 @@ function UserManagementContent() {
       SupervisorID: user.Supervisor?.SupervisorID,
     })
     setIsEditModalOpen(true)
-  }, [resetForm])
+  }
 
   // Export to CSV
-  const exportToCSV = useCallback(() => {
+  const exportToCSV = () => {
     const headers = ['ID', 'Email', 'Role', 'Position', 'Position Level', 'Supervisor']
     const rows = users.map((user) => [
       user.ID,
@@ -402,7 +402,7 @@ function UserManagementContent() {
     a.download = `users_${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     window.URL.revokeObjectURL(url)
-  }, [users])
+  }
 
   // OPTIMIZED: Memoize columns to prevent recreation
   const columns = useMemo<ColumnDef<User>[]>(() => [
@@ -511,7 +511,7 @@ function UserManagementContent() {
         )
       },
     },
-  ], [handleDeleteUser, openEditModal])
+  ], [])
 
   const table = useReactTable({
     data: users,
