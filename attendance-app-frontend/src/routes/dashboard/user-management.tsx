@@ -1,5 +1,5 @@
 ﻿import { createFileRoute } from '@tanstack/react-router'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -163,6 +163,31 @@ function UserManagementContent() {
     if (formData.PositionLevel <= 0) return []
     return users.filter((user) => user.PositionLevel < formData.PositionLevel)
   }, [users, formData.PositionLevel])
+
+  // OPTIMIZED: Memoized handlers untuk prevent memory leak dari inline functions
+  const handleFormChange = useCallback((field: keyof typeof formData, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }, [])
+
+  const handleRoleChange = useCallback((value: string) => {
+    const selectedRole = roles.find((r) => r.Position === value)
+    if (selectedRole) {
+      setFormData(prev => ({
+        ...prev,
+        Role: selectedRole.Name,
+        Position: selectedRole.Position,
+        PositionLevel: selectedRole.PositionLevel,
+        SupervisorID: undefined,
+      }))
+    }
+  }, [roles])
+
+  const handleSupervisorChange = useCallback((value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      SupervisorID: value === 'none' ? undefined : parseInt(value)
+    }))
+  }, [])
 
   // Create user mutation
   const createUserMutation = useMutation({
@@ -576,7 +601,7 @@ function UserManagementContent() {
                   <Input
                     id="username"
                     value={formData.Username}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Username: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Username', e.target.value)}
                     className={fieldErrors.Username ? 'border-red-500 rounded-sm' : 'rounded-sm'}
                   />
                   {fieldErrors.Username && (
@@ -589,7 +614,7 @@ function UserManagementContent() {
                     id="password"
                     type="password"
                     value={formData.Password}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Password: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Password', e.target.value)}
                     className={fieldErrors.Password ? 'border-red-500 rounded-sm' : 'rounded-sm'}
                   />
                   {fieldErrors.Password && (
@@ -602,7 +627,7 @@ function UserManagementContent() {
                     id="email"
                     type="email"
                     value={formData.Email}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Email: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Email', e.target.value)}
                     className={fieldErrors.Email ? 'border-red-500 rounded-sm' : 'rounded-sm'}
                   />
                   {fieldErrors.Email && (
@@ -614,7 +639,7 @@ function UserManagementContent() {
                   <Input
                     id="name"
                     value={formData.Name}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Name: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Name', e.target.value)}
                     className={fieldErrors.Name ? 'border-red-500 rounded-sm' : 'rounded-sm'}
                   />
                   {fieldErrors.Name && (
@@ -625,17 +650,7 @@ function UserManagementContent() {
                   <Label htmlFor="position">Position *</Label>
                   <Select
                     value={formData.Position}
-                    onValueChange={(value) => {
-                      const selectedRole = roles.find((r) => r.Position === value)
-                      if (selectedRole) {
-                        setFormData({
-                          ...formData,
-                          Position: value,
-                          Role: selectedRole.Name,
-                          PositionLevel: selectedRole.PositionLevel,
-                        })
-                      }
-                    }}
+                    onValueChange={handleRoleChange}
                   >
                     <SelectTrigger id="position" className="rounded-sm">
                       <SelectValue placeholder="Select position" />
@@ -653,16 +668,14 @@ function UserManagementContent() {
                   <div className="grid gap-2">
                     <Label htmlFor="supervisor">Supervisor (Optional)</Label>
                     <Select
-                      value={formData.SupervisorID?.toString()}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, SupervisorID: parseInt(value) })
-                      }
+                      value={formData.SupervisorID?.toString() || 'none'}
+                      onValueChange={handleSupervisorChange}
                     >
                       <SelectTrigger id="supervisor" className="rounded-sm">
                         <SelectValue placeholder="Select supervisor" />
                       </SelectTrigger>
                       <SelectContent className="rounded-sm">
-                        <SelectItem value="0">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {supervisors.map((supervisor) => (
                           <SelectItem key={supervisor.ID} value={supervisor.ID.toString()}>
                             {supervisor.Name} - {supervisor.Position} (Level {supervisor.PositionLevel})
@@ -831,7 +844,7 @@ function UserManagementContent() {
               <Input
                 id="edit-username"
                 value={formData.Username}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Username: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Username', e.target.value)}
                 className={fieldErrors.Username ? 'border-red-500 rounded-sm' : 'rounded-sm'}
               />
               {fieldErrors.Username && (
@@ -844,7 +857,7 @@ function UserManagementContent() {
                 id="edit-password"
                 type="password"
                 value={formData.Password}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Password: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Password', e.target.value)}
                 className={fieldErrors.Password ? 'border-red-500 rounded-sm' : 'rounded-sm'}
               />
               {fieldErrors.Password && (
@@ -857,7 +870,7 @@ function UserManagementContent() {
                 id="edit-email"
                 type="email"
                 value={formData.Email}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Email: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Email', e.target.value)}
                 className={fieldErrors.Email ? 'border-red-500 rounded-sm' : 'rounded-sm'}
               />
               {fieldErrors.Email && (
@@ -869,7 +882,7 @@ function UserManagementContent() {
               <Input
                 id="edit-name"
                 value={formData.Name}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Name: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Name', e.target.value)}
                 className={fieldErrors.Name ? 'border-red-500 rounded-sm' : 'rounded-sm'}
               />
               {fieldErrors.Name && (
@@ -880,17 +893,7 @@ function UserManagementContent() {
               <Label htmlFor="edit-position">Position</Label>
               <Select
                 value={formData.Position}
-                onValueChange={(value) => {
-                  const selectedRole = roles.find((r) => r.Position === value)
-                  if (selectedRole) {
-                    setFormData({
-                      ...formData,
-                      Position: value,
-                      Role: selectedRole.Name,
-                      PositionLevel: selectedRole.PositionLevel,
-                    })
-                  }
-                }}
+                onValueChange={handleRoleChange}
               >
                 <SelectTrigger id="edit-position" className="rounded-sm">
                   <SelectValue />
@@ -908,13 +911,8 @@ function UserManagementContent() {
               <div className="grid gap-2">
                 <Label htmlFor="edit-supervisor">Supervisor</Label>
                 <Select
-                  value={formData.SupervisorID?.toString() || '0'}
-                  onValueChange={(value) =>
-                    setFormData({
-                      ...formData,
-                      SupervisorID: value === '0' ? undefined : parseInt(value),
-                    })
-                  }
+                  value={formData.SupervisorID?.toString() || 'none'}
+                  onValueChange={handleSupervisorChange}
                 >
                   <SelectTrigger id="edit-supervisor" className="rounded-sm">
                     <SelectValue />
