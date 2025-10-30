@@ -1,5 +1,5 @@
 ﻿import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -122,25 +122,26 @@ function UserManagementContent() {
     SupervisorID: undefined as number | undefined,
   })
 
-  // Fetch users (both admins and non-admins)
+  // Fetch users (both admins and non-admins) - OPTIMIZED: Single source of truth
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
-      // Fetch non-admin users
-      const nonAdminsResponse = await fetch(`${API_BASE_URL}/admin/users/non-admins`, {
-        headers: getAuthHeaders(),
-      })
-      if (!nonAdminsResponse.ok) throw new Error('Failed to fetch non-admin users')
-      const nonAdmins = (await nonAdminsResponse.json()) as User[]
+      // Parallel fetch untuk performance
+      const [nonAdmins, admins] = await Promise.all([
+        fetch(`${API_BASE_URL}/admin/users/non-admins`, {
+          headers: getAuthHeaders(),
+        }).then(r => {
+          if (!r.ok) throw new Error('Failed to fetch non-admin users')
+          return r.json() as Promise<User[]>
+        }),
+        fetch(`${API_BASE_URL}/admin/users/admins`, {
+          headers: getAuthHeaders(),
+        }).then(r => {
+          if (!r.ok) throw new Error('Failed to fetch admin users')
+          return r.json() as Promise<User[]>
+        })
+      ])
 
-      // Fetch admin users
-      const adminsResponse = await fetch(`${API_BASE_URL}/admin/users/admins`, {
-        headers: getAuthHeaders(),
-      })
-      if (!adminsResponse.ok) throw new Error('Failed to fetch admin users')
-      const admins = (await adminsResponse.json()) as User[]
-
-      // Merge both arrays
       return [...admins, ...nonAdmins]
     },
   })
@@ -157,30 +158,11 @@ function UserManagementContent() {
     },
   })
 
-  // Fetch potential supervisors
-  const { data: supervisors = [] } = useQuery({
-    queryKey: ['supervisors', formData.PositionLevel],
-    queryFn: async () => {
-      // Fetch non-admin users
-      const nonAdminsResponse = await fetch(`${API_BASE_URL}/admin/users/non-admins`, {
-        headers: getAuthHeaders(),
-      })
-      if (!nonAdminsResponse.ok) throw new Error('Failed to fetch non-admin users')
-      const nonAdmins = (await nonAdminsResponse.json()) as User[]
-
-      // Fetch admin users
-      const adminsResponse = await fetch(`${API_BASE_URL}/admin/users/admins`, {
-        headers: getAuthHeaders(),
-      })
-      if (!adminsResponse.ok) throw new Error('Failed to fetch admin users')
-      const admins = (await adminsResponse.json()) as User[]
-
-      // Merge and filter by position level
-      const allUsers = [...admins, ...nonAdmins]
-      return allUsers.filter((user) => user.PositionLevel < formData.PositionLevel)
-    },
-    enabled: formData.PositionLevel > 0,
-  })
+  // OPTIMIZED: Derive supervisors dari cache, bukan fetch ulang
+  const supervisors = useMemo(() => {
+    if (formData.PositionLevel <= 0) return []
+    return users.filter((user) => user.PositionLevel < formData.PositionLevel)
+  }, [users, formData.PositionLevel])
 
   // Create user mutation
   const createUserMutation = useMutation({

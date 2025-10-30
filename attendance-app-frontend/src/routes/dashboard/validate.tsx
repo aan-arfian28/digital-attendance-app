@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -101,6 +101,8 @@ function ValidateAttendance() {
 function ValidateAttendanceContent() {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<'attendance' | 'leave'>('attendance')
+  
+  // OPTIMIZED: Group modal-related state untuk atomic updates
   const [isValidateModalOpen, setIsValidateModalOpen] = useState(false)
   const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | LeaveRequestRecord | null>(null)
   const [validationAction, setValidationAction] = useState<'approve' | 'reject'>('approve')
@@ -108,7 +110,7 @@ function ValidateAttendanceContent() {
   const [validationNote, setValidationNote] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   
-  // Pagination states
+  // OPTIMIZED: Group pagination state untuk atomic updates
   const [attendancePage, setAttendancePage] = useState(0)
   const [attendancePageSize, setAttendancePageSize] = useState(10)
   const [leavePage, setLeavePage] = useState(0)
@@ -167,7 +169,7 @@ function ValidateAttendanceContent() {
     },
   })
 
-  // Validate leave request mutation
+  // Validate leave request mutation - OPTIMIZED: Conditional invalidation
   const validateLeaveMutation = useMutation({
     mutationFn: async ({ id, payload }: { id: number; payload: LeaveValidationPayload }) => {
       const response = await fetch(`${API_BASE_URL}/user/leave/validate/${id}`, {
@@ -181,9 +183,12 @@ function ValidateAttendanceContent() {
       }
       return response.json()
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['subordinate-leave-requests'] })
-      queryClient.invalidateQueries({ queryKey: ['subordinate-attendance'] })
+      // OPTIMIZED: Hanya invalidate attendance jika leave APPROVED (affects attendance records)
+      if (variables.payload.status === 'APPROVED') {
+        queryClient.invalidateQueries({ queryKey: ['subordinate-attendance'] })
+      }
       setIsValidateModalOpen(false)
       setSelectedRecord(null)
       setValidationNote('')
@@ -283,7 +288,7 @@ function ValidateAttendanceContent() {
     return `${baseURL}${relativePath}`
   }
 
-  const openValidateModal = (record: AttendanceRecord | LeaveRequestRecord, action: 'approve' | 'reject') => {
+  const openValidateModal = useCallback((record: AttendanceRecord | LeaveRequestRecord, action: 'approve' | 'reject') => {
     // Only reset form if it's a different record or different action
     // This allows X button to preserve form data when reopening same validation
     const isSameValidation = 
@@ -308,9 +313,9 @@ function ValidateAttendanceContent() {
     }
     
     setIsValidateModalOpen(true)
-  }
+  }, [selectedRecord, validationAction])
 
-  const handleValidate = () => {
+  const handleValidate = useCallback(() => {
     if (!selectedRecord) return
 
     // Validate rejection requires a note
@@ -334,42 +339,17 @@ function ValidateAttendanceContent() {
       }
       validateLeaveMutation.mutate({ id: selectedRecord.ID, payload })
     }
-  }
+  }, [selectedRecord, validationAction, validationNote, validationStatus, validateAttendanceMutation, validateLeaveMutation])
 
-  // Pagination helpers
-  const getCurrentPageData = () => {
-    if (activeTab === 'attendance') {
-      const start = attendancePage * attendancePageSize
-      const end = start + attendancePageSize
-      return attendanceRecords.slice(start, end)
-    } else {
-      const start = leavePage * leavePageSize
-      const end = start + leavePageSize
-      return leaveRequests.slice(start, end)
-    }
-  }
-
-  const getTotalPages = () => {
-    if (activeTab === 'attendance') {
-      return Math.ceil(attendanceRecords.length / attendancePageSize)
-    } else {
-      return Math.ceil(leaveRequests.length / leavePageSize)
-    }
-  }
-
-  const getCurrentPage = () => {
-    return activeTab === 'attendance' ? attendancePage : leavePage
-  }
-
-  const setCurrentPage = (page: number) => {
+  const setCurrentPage = useCallback((page: number) => {
     if (activeTab === 'attendance') {
       setAttendancePage(page)
     } else {
       setLeavePage(page)
     }
-  }
+  }, [activeTab])
 
-  const setCurrentPageSize = (size: number) => {
+  const setCurrentPageSize = useCallback((size: number) => {
     if (activeTab === 'attendance') {
       setAttendancePageSize(size)
       setAttendancePage(0)
@@ -377,6 +357,42 @@ function ValidateAttendanceContent() {
       setLeavePageSize(size)
       setLeavePage(0)
     }
+  }, [activeTab])
+
+  // OPTIMIZED: Memoize pagination data untuk prevent recalculation
+  const paginatedAttendance = useMemo(() => {
+    const start = attendancePage * attendancePageSize
+    const end = start + attendancePageSize
+    return attendanceRecords.slice(start, end)
+  }, [attendanceRecords, attendancePage, attendancePageSize])
+
+  const paginatedLeave = useMemo(() => {
+    const start = leavePage * leavePageSize
+    const end = start + leavePageSize
+    return leaveRequests.slice(start, end)
+  }, [leaveRequests, leavePage, leavePageSize])
+
+  const totalAttendancePages = useMemo(() => 
+    Math.ceil(attendanceRecords.length / attendancePageSize),
+    [attendanceRecords.length, attendancePageSize]
+  )
+
+  const totalLeavePages = useMemo(() =>
+    Math.ceil(leaveRequests.length / leavePageSize),
+    [leaveRequests.length, leavePageSize]
+  )
+
+  // Pagination helpers
+  const getCurrentPageData = () => {
+    return activeTab === 'attendance' ? paginatedAttendance : paginatedLeave
+  }
+
+  const getTotalPages = () => {
+    return activeTab === 'attendance' ? totalAttendancePages : totalLeavePages
+  }
+
+  const getCurrentPage = () => {
+    return activeTab === 'attendance' ? attendancePage : leavePage
   }
 
   const paginatedData = getCurrentPageData()
