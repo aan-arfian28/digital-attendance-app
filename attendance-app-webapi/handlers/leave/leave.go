@@ -42,7 +42,7 @@ type LeaveValidationRequest struct {
 // @Param startDate formData string true "Start date of leave (YYYY-MM-DD)" example:"2025-10-22" format:"date" default:"2025-10-21"
 // @Param endDate formData string true "End date of leave (YYYY-MM-DD)" example:"2025-10-24" format:"date" default:"2025-10-22"
 // @Param reason formData string true "Reason for leave request" example:"Medical appointment and recovery"
-// @Success 200 {object} models.LeaveRequest
+// @Success 200 {object} models.LeaveRequestSwagger
 // @Failure 400 {object} map[string]string "Invalid request payload, dates, or attachment"
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 500 {object} map[string]string "Server error"
@@ -246,7 +246,7 @@ func SubmitLeaveRequest(c *gin.Context) {
 // @Tags leave
 // @Accept json
 // @Produce json
-// @Success 200 {array} models.LeaveRequest
+// @Success 200 {array} models.LeaveRequestSwagger
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 500 {object} map[string]string "Server error"
 // @Router /user/leave/my-requests [get]
@@ -269,7 +269,7 @@ func GetMyLeaveRequests(c *gin.Context) {
 // @Tags leave
 // @Accept json
 // @Produce json
-// @Success 200 {array} models.LeaveRequest
+// @Success 200 {array} models.LeaveRequestSwagger
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 500 {object} map[string]string "Server error"
 // @Router /user/leave/subordinates [get]
@@ -305,7 +305,7 @@ func GetSubordinateLeaveRequests(c *gin.Context) {
 // @Produce json
 // @Param id path string true "Leave request ID"
 // @Param request body LeaveValidationRequest true "Leave validation details"
-// @Success 200 {object} models.LeaveRequest
+// @Success 200 {object} models.LeaveRequestSwagger
 // @Failure 400 {object} map[string]string "Invalid request payload"
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 403 {object} map[string]string "Forbidden - Not the supervisor"
@@ -383,3 +383,4 @@ func ValidateLeaveRequest(c *gin.Context) {
 
 	c.JSON(http.StatusOK, leaveRequest)
 }
+

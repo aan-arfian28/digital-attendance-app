@@ -33,7 +33,7 @@ type CreateUserRequest struct {
 // @Accept json
 // @Produce json
 // @Param user body CreateUserRequest true "User creation data"
-// @Success 201 {object} models.User
+// @Success 201 {object} models.UserSwagger
 // @Failure 400 {object} map[string]string "Validation error or duplicate user"
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 403 {object} map[string]string "Forbidden - Only admins can create users"
@@ -182,7 +182,7 @@ func CreateUser(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path string true "User ID"
-// @Success 200 {object} models.User
+// @Success 200 {object} models.UserSwagger
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 403 {object} map[string]string "Forbidden - Only admins can access"
 // @Failure 404 {object} map[string]string "User not found"
@@ -243,7 +243,7 @@ type UpdateUserRequest struct {
 // @Produce json
 // @Param id path string true "User ID"
 // @Param user body UpdateUserRequest true "User update data"
-// @Success 200 {object} models.User
+// @Success 200 {object} models.UserSwagger
 // @Failure 400 {object} map[string]string "Validation error"
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 403 {object} map[string]string "Forbidden - Only admins can update users"
@@ -650,7 +650,7 @@ func GetAllNonAdminUsers(c *gin.Context) {
 // @Tags roles
 // @Accept json
 // @Produce json
-// @Success 200 {array} models.Role
+// @Success 200 {array} models.RoleSwagger
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 403 {object} map[string]string "Forbidden - Only admins can view roles"
 // @Failure 500 {object} map[string]string "Server error"
@@ -673,7 +673,7 @@ func GetRoles(c *gin.Context) {
 // @Tags roles
 // @Accept json
 // @Produce json
-// @Success 200 {array} models.Role
+// @Success 200 {array} models.RoleSwagger
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 403 {object} map[string]string "Forbidden - Only admins can view roles"
 // @Failure 500 {object} map[string]string "Server error"
@@ -697,7 +697,7 @@ func GetRolesAdmins(c *gin.Context) {
 // @Tags roles
 // @Accept json
 // @Produce json
-// @Success 200 {array} models.Role
+// @Success 200 {array} models.RoleSwagger
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 403 {object} map[string]string "Forbidden - Only admins can view roles"
 // @Failure 500 {object} map[string]string "Server error"
@@ -722,7 +722,7 @@ func GetRolesNonAdmins(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param role body models.Role true "Role creation data"
-// @Success 201 {object} models.Role
+// @Success 201 {object} models.RoleSwagger
 // @Failure 400 {object} map[string]string "Validation error or role already exists"
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 403 {object} map[string]string "Forbidden - Only admins can create roles"
@@ -798,7 +798,7 @@ func CreateRole(c *gin.Context) {
 // @Produce json
 // @Param id path string true "Role ID"
 // @Param role body models.Role true "Updated role data"
-// @Success 200 {object} models.Role
+// @Success 200 {object} models.RoleSwagger
 // @Failure 400 {object} map[string]string "Validation error"
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 403 {object} map[string]string "Forbidden - Only admins can update roles"
@@ -978,7 +978,7 @@ func DeleteRole(c *gin.Context) {
 // @Tags users
 // @Accept json
 // @Produce json
-// @Success 200 {array} models.User "List of subordinate users"
+// @Success 200 {array} models.UserSwagger "List of subordinate users"
 // @Failure 401 {object} map[string]string "Unauthorized or invalid token"
 // @Failure 500 {object} map[string]string "Server error"
 // @Router /admin/users/subordinates [get]
@@ -1041,7 +1041,7 @@ func GetUserSubordinates(c *gin.Context) {
 // @Tags users
 // @Accept json
 // @Produce json
-// @Success 200 {object} models.User "Current user's profile"
+// @Success 200 {object} models.UserSwagger "Current user's profile"
 // @Failure 401 {object} map[string]string "Unauthorized or invalid token"
 // @Failure 404 {object} map[string]string "User not found"
 // @Failure 500 {object} map[string]string "Server error"
@@ -1083,3 +1083,4 @@ func GetMyProfile(c *gin.Context) {
 
 	c.JSON(http.StatusOK, user)
 }
+
