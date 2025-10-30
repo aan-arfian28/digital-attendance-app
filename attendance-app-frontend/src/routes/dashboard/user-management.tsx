@@ -1,5 +1,5 @@
 ﻿import { createFileRoute } from '@tanstack/react-router'
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, memo } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -87,6 +87,71 @@ interface CreateUserData {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
+// OPTIMIZATION: Extract query functions outside component to prevent recreation
+const fetchUsers = async (): Promise<User[]> => {
+  const [nonAdmins, admins] = await Promise.all([
+    fetch(`${API_BASE_URL}/admin/users/non-admins`, {
+      headers: getAuthHeaders(),
+    }).then(r => {
+      if (!r.ok) throw new Error('Failed to fetch non-admin users')
+      return r.json() as Promise<User[]>
+    }),
+    fetch(`${API_BASE_URL}/admin/users/admins`, {
+      headers: getAuthHeaders(),
+    }).then(r => {
+      if (!r.ok) throw new Error('Failed to fetch admin users')
+      return r.json() as Promise<User[]>
+    })
+  ])
+  return [...admins, ...nonAdmins]
+}
+
+const fetchRoles = async (): Promise<Role[]> => {
+  const response = await fetch(`${API_BASE_URL}/admin/users/roles`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to fetch roles')
+  return response.json()
+}
+
+// OPTIMIZATION: Extract mutation functions outside component
+const createUser = async (data: CreateUserData) => {
+  const response = await fetch(`${API_BASE_URL}/admin/users/`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  })
+  
+  if (!response.ok) {
+    const errorData = await response.json()
+    throw errorData
+  }
+  return response.json()
+}
+
+const updateUser = async ({ id, data }: { id: number; data: Partial<CreateUserData> }) => {
+  const response = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  })
+  
+  if (!response.ok) {
+    const errorData = await response.json()
+    throw errorData
+  }
+  return response.json()
+}
+
+const deleteUser = async (id: number) => {
+  const response = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to delete user')
+  return response.json()
+}
+
 function UserManagement() {
   return (
     <RoleGuard adminOnly={true}>
@@ -122,40 +187,22 @@ function UserManagementContent() {
     SupervisorID: undefined as number | undefined,
   })
 
-  // Fetch users (both admins and non-admins) - OPTIMIZED: Single source of truth
+  // OPTIMIZED: Use extracted query functions + disable aggressive refetching
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['users'],
-    queryFn: async () => {
-      // Parallel fetch untuk performance
-      const [nonAdmins, admins] = await Promise.all([
-        fetch(`${API_BASE_URL}/admin/users/non-admins`, {
-          headers: getAuthHeaders(),
-        }).then(r => {
-          if (!r.ok) throw new Error('Failed to fetch non-admin users')
-          return r.json() as Promise<User[]>
-        }),
-        fetch(`${API_BASE_URL}/admin/users/admins`, {
-          headers: getAuthHeaders(),
-        }).then(r => {
-          if (!r.ok) throw new Error('Failed to fetch admin users')
-          return r.json() as Promise<User[]>
-        })
-      ])
-
-      return [...admins, ...nonAdmins]
-    },
+    queryFn: fetchUsers,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   })
 
   // Fetch roles
   const { data: roles = [] } = useQuery({
     queryKey: ['roles'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/admin/users/roles`, {
-        headers: getAuthHeaders(),
-      })
-      if (!response.ok) throw new Error('Failed to fetch roles')
-      return response.json() as Promise<Role[]>
-    },
+    queryFn: fetchRoles,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   })
 
   // OPTIMIZED: Derive supervisors dari cache, bukan fetch ulang
@@ -189,31 +236,18 @@ function UserManagementContent() {
     }))
   }, [])
 
-  // Create user mutation
+  // OPTIMIZED: Use extracted mutation functions + memoize callbacks
   const createUserMutation = useMutation({
-    mutationFn: async (data: CreateUserData) => {
-      const response = await fetch(`${API_BASE_URL}/admin/users/`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(data),
-      })
-      
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw errorData
-      }
-      return response.json()
-    },
-    onSuccess: () => {
+    mutationFn: createUser,
+    onSuccess: useCallback(() => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setIsCreateModalOpen(false)
       resetForm()
       setErrorMessage('')
       setFieldErrors({})
-    },
-    onError: (error: any) => {
+    }, [queryClient]),
+    onError: useCallback((error: any) => {
       if (error.errors) {
-        // Parse field validation errors
         setFieldErrors(error.errors)
         setErrorMessage('Please fix the validation errors below.')
       } else if (error.error) {
@@ -223,35 +257,22 @@ function UserManagementContent() {
         setErrorMessage('Failed to create user. Please try again.')
         setFieldErrors({})
       }
-    },
+    }, []),
   })
 
   // Update user mutation
   const updateUserMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<CreateUserData> }) => {
-      const response = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(data),
-      })
-      
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw errorData
-      }
-      return response.json()
-    },
-    onSuccess: () => {
+    mutationFn: updateUser,
+    onSuccess: useCallback(() => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setIsEditModalOpen(false)
       setSelectedUser(null)
       resetForm()
       setErrorMessage('')
       setFieldErrors({})
-    },
-    onError: (error: any) => {
+    }, [queryClient]),
+    onError: useCallback((error: any) => {
       if (error.errors) {
-        // Parse field validation errors
         setFieldErrors(error.errors)
         setErrorMessage('Please fix the validation errors below.')
       } else if (error.error) {
@@ -261,25 +282,19 @@ function UserManagementContent() {
         setErrorMessage('Failed to update user. Please try again.')
         setFieldErrors({})
       }
-    },
+    }, []),
   })
 
   // Delete user mutation
   const deleteUserMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const response = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      })
-      if (!response.ok) throw new Error('Failed to delete user')
-      return response.json()
-    },
-    onSuccess: () => {
+    mutationFn: deleteUser,
+    onSuccess: useCallback(() => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
-    },
+    }, [queryClient]),
   })
 
-  const resetForm = () => {
+  // OPTIMIZED: Memoize resetForm
+  const resetForm = useCallback(() => {
     setFormData({
       Username: '',
       Password: '',
@@ -292,9 +307,9 @@ function UserManagementContent() {
     })
     setErrorMessage('')
     setFieldErrors({})
-  }
+  }, [])
 
-  const handleCreateUser = () => {
+  const handleCreateUser = useCallback(() => {
     if (!formData.Role || !formData.Position) return
 
     const createData: CreateUserData = {
@@ -313,9 +328,9 @@ function UserManagementContent() {
     }
 
     createUserMutation.mutate(createData)
-  }
+  }, [formData, createUserMutation])
 
-  const handleEditUser = () => {
+  const handleEditUser = useCallback(() => {
     if (!selectedUser) return
 
     const updateData: Partial<CreateUserData> = {
@@ -337,15 +352,15 @@ function UserManagementContent() {
     }
 
     updateUserMutation.mutate({ id: selectedUser.ID, data: updateData })
-  }
+  }, [formData, selectedUser, updateUserMutation])
 
-  const handleDeleteUser = (id: number) => {
+  const handleDeleteUser = useCallback((id: number) => {
     if (confirm('Are you sure you want to delete this user?')) {
       deleteUserMutation.mutate(id)
     }
-  }
+  }, [deleteUserMutation])
 
-  const openEditModal = (user: User) => {
+  const openEditModal = useCallback((user: User) => {
     // Clear form data when switching from create to edit modal
     resetForm()
     
@@ -361,10 +376,10 @@ function UserManagementContent() {
       SupervisorID: user.Supervisor?.SupervisorID,
     })
     setIsEditModalOpen(true)
-  }
+  }, [resetForm])
 
   // Export to CSV
-  const exportToCSV = () => {
+  const exportToCSV = useCallback(() => {
     const headers = ['ID', 'Email', 'Role', 'Position', 'Position Level', 'Supervisor']
     const rows = users.map((user) => [
       user.ID,
@@ -387,10 +402,10 @@ function UserManagementContent() {
     a.download = `users_${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     window.URL.revokeObjectURL(url)
-  }
+  }, [users])
 
-  // Table columns - Part 1
-  const columns: ColumnDef<User>[] = [
+  // OPTIMIZED: Memoize columns to prevent recreation
+  const columns = useMemo<ColumnDef<User>[]>(() => [
     {
       accessorKey: 'ID',
       header: ({ column }) => {
@@ -496,7 +511,7 @@ function UserManagementContent() {
         )
       },
     },
-  ]
+  ], [handleDeleteUser, openEditModal])
 
   const table = useReactTable({
     data: users,
