@@ -1,5 +1,5 @@
 ﻿import { createFileRoute } from '@tanstack/react-router'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -87,7 +87,7 @@ interface CreateUserData {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
-// Extract query functions outside component
+// OPTIMIZATION: Extract query functions outside component to prevent recreation
 const fetchUsers = async (): Promise<User[]> => {
   const [nonAdmins, admins] = await Promise.all([
     fetch(`${API_BASE_URL}/admin/users/non-admins`, {
@@ -114,7 +114,7 @@ const fetchRoles = async (): Promise<Role[]> => {
   return response.json()
 }
 
-// Extract mutation functions outside component
+// OPTIMIZATION: Extract mutation functions outside component
 const createUser = async (data: CreateUserData) => {
   const response = await fetch(`${API_BASE_URL}/admin/users/`, {
     method: 'POST',
@@ -165,10 +165,6 @@ function UserManagementContent() {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: 10,
-  })
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
@@ -187,38 +183,31 @@ function UserManagementContent() {
     SupervisorID: undefined as number | undefined,
   })
 
-  // FIX 1: Add cleanup effect for error states
-  useEffect(() => {
-    return () => {
-      setErrorMessage('')
-      setFieldErrors({})
-    }
-  }, [])
-
-  // Queries with proper cache configuration
+  // OPTIMIZED: Use extracted query functions + disable aggressive refetching
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: fetchUsers,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000, // FIX 2: Add garbage collection time
+    staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
+    // Remove refetchOnMount: false to ensure data loads on mount
   })
 
+  // Fetch roles
   const { data: roles = [] } = useQuery({
     queryKey: ['roles'],
     queryFn: fetchRoles,
-    staleTime: 10 * 60 * 1000,
-    gcTime: 15 * 60 * 1000, // FIX 2: Add garbage collection time
+    staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
+    // Remove refetchOnMount: false to ensure data loads on mount
   })
 
-  // Derive supervisors from cache
+  // OPTIMIZED: Derive supervisors dari cache, bukan fetch ulang
   const supervisors = useMemo(() => {
     if (formData.PositionLevel <= 0) return []
     return users.filter((user) => user.PositionLevel < formData.PositionLevel)
   }, [users, formData.PositionLevel])
 
-  // Form handlers
+  // Form handlers - simplified without unnecessary useCallback
   const handleFormChange = (field: keyof typeof formData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
@@ -237,10 +226,70 @@ function UserManagementContent() {
   }
 
   const handleSupervisorChange = (value: string) => {
-    const supervisorID = value === '0' || value === 'none' ? undefined : Number(value)
-    setFormData(prev => ({ ...prev, SupervisorID: supervisorID }))
+    setFormData(prev => ({
+      ...prev,
+      SupervisorID: value === 'none' ? undefined : parseInt(value)
+    }))
   }
 
+  // OPTIMIZED: Use extracted mutation functions (remove useCallback from options to prevent closure leak)
+  const createUserMutation = useMutation({
+    mutationFn: createUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      setIsCreateModalOpen(false)
+      resetForm()
+      setErrorMessage('')
+      setFieldErrors({})
+    },
+    onError: (error: any) => {
+      if (error.errors) {
+        setFieldErrors(error.errors)
+        setErrorMessage('Please fix the validation errors below.')
+      } else if (error.error) {
+        setErrorMessage(error.error)
+        setFieldErrors({})
+      } else {
+        setErrorMessage('Failed to create user. Please try again.')
+        setFieldErrors({})
+      }
+    },
+  })
+
+  // Update user mutation
+  const updateUserMutation = useMutation({
+    mutationFn: updateUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      setIsEditModalOpen(false)
+      setSelectedUser(null)
+      resetForm()
+      setErrorMessage('')
+      setFieldErrors({})
+    },
+    onError: (error: any) => {
+      if (error.errors) {
+        setFieldErrors(error.errors)
+        setErrorMessage('Please fix the validation errors below.')
+      } else if (error.error) {
+        setErrorMessage(error.error)
+        setFieldErrors({})
+      } else {
+        setErrorMessage('Failed to update user. Please try again.')
+        setFieldErrors({})
+      }
+    },
+  })
+
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: deleteUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
+  })
+
+  // Reset form (no useCallback to avoid circular dependencies)
   const resetForm = () => {
     setFormData({
       Username: '',
@@ -256,8 +305,61 @@ function UserManagementContent() {
     setFieldErrors({})
   }
 
-  // FIX 3: Memoize column handlers to prevent recreation
-  const handleEditClick = useMemo(() => (user: User) => {
+  const handleCreateUser = () => {
+    if (!formData.Role || !formData.Position) return
+
+    const createData: CreateUserData = {
+      Username: formData.Username,
+      Password: formData.Password,
+      Email: formData.Email,
+      SupervisorID: formData.SupervisorID,
+      Role: {
+        Name: formData.Role,
+        Position: formData.Position,
+        PositionLevel: formData.PositionLevel,
+      },
+      UserDetail: {
+        Name: formData.Name,
+      },
+    }
+
+    createUserMutation.mutate(createData)
+  }
+
+  const handleEditUser = () => {
+    if (!selectedUser) return
+
+    const updateData: Partial<CreateUserData> = {
+      Username: formData.Username,
+      Email: formData.Email,
+      SupervisorID: formData.SupervisorID,
+      Role: {
+        Name: formData.Role as 'admin' | 'user',
+        Position: formData.Position,
+        PositionLevel: formData.PositionLevel,
+      },
+      UserDetail: {
+        Name: formData.Name,
+      },
+    }
+
+    if (formData.Password) {
+      updateData.Password = formData.Password
+    }
+
+    updateUserMutation.mutate({ id: selectedUser.ID, data: updateData })
+  }
+
+  const handleDeleteUser = (id: number) => {
+    if (confirm('Are you sure you want to delete this user?')) {
+      deleteUserMutation.mutate(id)
+    }
+  }
+
+  const openEditModal = (user: User) => {
+    // Clear form data when switching from create to edit modal
+    resetForm()
+    
     setSelectedUser(user)
     setFormData({
       Username: user.Username,
@@ -269,54 +371,56 @@ function UserManagementContent() {
       PositionLevel: user.PositionLevel,
       SupervisorID: user.Supervisor?.SupervisorID,
     })
-    setErrorMessage('')
-    setFieldErrors({})
     setIsEditModalOpen(true)
-  }, [])
+  }
 
-  const handleDeleteClick = useMemo(() => (user: User) => {
-    if (window.confirm(`Are you sure you want to delete ${user.Name}?`)) {
-      deleteUserMutation.mutate(user.ID)
-    }
-  }, [])
+  // Export to CSV
+  const exportToCSV = () => {
+    const headers = ['ID', 'Email', 'Role', 'Position', 'Position Level', 'Supervisor']
+    const rows = users.map((user) => [
+      user.ID,
+      user.Email,
+      user.Role,
+      user.Position,
+      user.PositionLevel,
+      user.Supervisor?.SupervisorName || 'N/A',
+    ])
 
-  // FIX 4: Wrap columns in useMemo with stable dependencies
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.join(',')),
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `users_${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+  }
+
+  // OPTIMIZED: Memoize columns to prevent recreation
   const columns = useMemo<ColumnDef<User>[]>(() => [
     {
-      accessorKey: 'Username',
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className="flex items-center gap-2 hover:text-gray-900"
-        >
-          Username
-          {column.getIsSorted() === 'asc' ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : column.getIsSorted() === 'desc' ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronsUpDown className="h-4 w-4" />
-          )}
-        </button>
-      ),
-    },
-    {
-      accessorKey: 'Name',
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className="flex items-center gap-2 hover:text-gray-900"
-        >
-          Name
-          {column.getIsSorted() === 'asc' ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : column.getIsSorted() === 'desc' ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronsUpDown className="h-4 w-4" />
-          )}
-        </button>
-      ),
+      accessorKey: 'ID',
+      header: ({ column }) => {
+        return (
+          <button
+            className="flex items-center gap-2 font-semibold"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            ID
+            {column.getIsSorted() === 'asc' ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : column.getIsSorted() === 'desc' ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronsUpDown className="h-4 w-4" />
+            )}
+          </button>
+        )
+      },
     },
     {
       accessorKey: 'Email',
@@ -324,261 +428,167 @@ function UserManagementContent() {
     },
     {
       accessorKey: 'Role',
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className="flex items-center gap-2 hover:text-gray-900"
-        >
-          Role
-          {column.getIsSorted() === 'asc' ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : column.getIsSorted() === 'desc' ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronsUpDown className="h-4 w-4" />
-          )}
-        </button>
-      ),
-      cell: ({ row }) => (
-        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-          row.original.Role === 'admin' 
-            ? 'bg-purple-100 text-purple-800' 
-            : 'bg-blue-100 text-blue-800'
-        }`}>
-          {row.original.Role}
-        </span>
-      ),
+      header: ({ column }) => {
+        return (
+          <button
+            className="flex items-center gap-2 font-semibold"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Role
+            {column.getIsSorted() === 'asc' ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : column.getIsSorted() === 'desc' ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronsUpDown className="h-4 w-4" />
+            )}
+          </button>
+        )
+      },
     },
     {
       accessorKey: 'Position',
       header: 'Position',
+      enableSorting: false,
     },
     {
       accessorKey: 'PositionLevel',
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className="flex items-center gap-2 hover:text-gray-900"
-        >
-          Level
-          {column.getIsSorted() === 'asc' ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : column.getIsSorted() === 'desc' ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronsUpDown className="h-4 w-4" />
-          )}
-        </button>
-      ),
+      header: ({ column }) => {
+        return (
+          <button
+            className="flex items-center gap-2 font-semibold"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Position Level
+            {column.getIsSorted() === 'asc' ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : column.getIsSorted() === 'desc' ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronsUpDown className="h-4 w-4" />
+            )}
+          </button>
+        )
+      },
     },
     {
-      accessorKey: 'Supervisor',
+      id: 'supervisor',
+      accessorFn: (row) => row.Supervisor?.SupervisorName || 'N/A',
       header: 'Supervisor',
-      cell: ({ row }) => row.original.Supervisor?.SupervisorName || '-',
     },
     {
       id: 'actions',
       header: 'Actions',
-      cell: ({ row }) => (
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleEditClick(row.original)}
-            className="h-8 w-8 p-0 rounded-sm"
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleDeleteClick(row.original)}
-            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-sm"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
-    },
-  ], [handleEditClick, handleDeleteClick]) // FIX 4: Stable dependencies
-
-  // Mutations with proper cleanup
-  const createUserMutation = useMutation({
-    mutationFn: createUser,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-      setIsCreateModalOpen(false)
-      resetForm()
-    },
-    onError: (error: any) => {
-      if (error.errors) {
-        const errors: Record<string, string> = {}
-        Object.keys(error.errors).forEach((key) => {
-          errors[key] = error.errors[key]
-        })
-        setFieldErrors(errors)
-      }
-      setErrorMessage(error.message || 'Failed to create user')
-    },
-    // FIX 5: Reset mutation state when component unmounts
-    gcTime: 0,
-  })
-
-  const updateUserMutation = useMutation({
-    mutationFn: updateUser,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-      setIsEditModalOpen(false)
-      setSelectedUser(null)
-      resetForm()
-    },
-    onError: (error: any) => {
-      if (error.errors) {
-        const errors: Record<string, string> = {}
-        Object.keys(error.errors).forEach((key) => {
-          errors[key] = error.errors[key]
-        })
-        setFieldErrors(errors)
-      }
-      setErrorMessage(error.message || 'Failed to update user')
-    },
-    // FIX 5: Reset mutation state when component unmounts
-    gcTime: 0,
-  })
-
-  const deleteUserMutation = useMutation({
-    mutationFn: deleteUser,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-    },
-    onError: () => {
-      alert('Failed to delete user')
-    },
-    // FIX 5: Reset mutation state when component unmounts
-    gcTime: 0,
-  })
-
-  const handleCreateUser = () => {
-    if (!formData.Role || !formData.Position) {
-      setErrorMessage('Please select a position')
-      return
-    }
-
-    const userData: CreateUserData = {
-      Username: formData.Username,
-      Password: formData.Password,
-      Email: formData.Email,
-      Role: {
-        Name: formData.Role,
-        Position: formData.Position,
-        PositionLevel: formData.PositionLevel,
+      cell: ({ row }) => {
+        const user = row.original
+        return (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => openEditModal(user)}
+              className="bg-blue-50 border-blue-300 text-blue-600 hover:bg-blue-100 rounded-sm"
+              title="Edit"
+            >
+              <Edit className="h-4 w-4" />
+              Edit
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleDeleteUser(user.ID)}
+              className="bg-red-50 border-red-300 text-red-600 hover:bg-red-100 rounded-sm"
+              title="Delete"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
+            </Button>
+          </div>
+        )
       },
-      UserDetail: {
-        Name: formData.Name,
-      },
-      ...(formData.SupervisorID && { SupervisorID: formData.SupervisorID }),
-    }
+    },
+  ], [])
 
-    createUserMutation.mutate(userData)
-  }
-
-  const handleEditUser = () => {
-    if (!selectedUser) return
-
-    const updateData: Partial<CreateUserData> = {
-      Username: formData.Username,
-      Email: formData.Email,
-      Role: {
-        Name: formData.Role as 'admin' | 'user',
-        Position: formData.Position,
-        PositionLevel: formData.PositionLevel,
-      },
-      UserDetail: {
-        Name: formData.Name,
-      },
-      ...(formData.SupervisorID && { SupervisorID: formData.SupervisorID }),
-    }
-
-    if (formData.Password) {
-      updateData.Password = formData.Password
-    }
-
-    updateUserMutation.mutate({ id: selectedUser.ID, data: updateData })
-  }
-
-  const exportToCSV = () => {
-    const headers = ['Username', 'Name', 'Email', 'Role', 'Position', 'Level', 'Supervisor']
-    const rows = users.map(user => [
-      user.Username,
-      user.Name,
-      user.Email,
-      user.Role,
-      user.Position,
-      user.PositionLevel.toString(),
-      user.Supervisor?.SupervisorName || '-'
-    ])
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n')
-
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'users.csv'
-    a.click()
-    // FIX 6: Cleanup blob URL to prevent memory leak
-    window.URL.revokeObjectURL(url)
-  }
-
-  // FIX 7: Memoize table instance with stable dependencies
   const table = useReactTable({
     data: users,
     columns,
-    state: {
-      sorting,
-      columnFilters,
-      globalFilter,
-      pagination,
-    },
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    onGlobalFilterChange: setGlobalFilter,
-    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: (row, _columnId, filterValue) => {
+      const search = filterValue.toLowerCase()
+      const user = row.original
+      
+      // Search only in email, role, and position
+      return (
+        user.Email.toLowerCase().includes(search) ||
+        user.Role.toLowerCase().includes(search) ||
+        user.Position.toLowerCase().includes(search)
+      )
+    },
+    initialState: {
+      pagination: {
+        pageIndex: 0,
+        pageSize: 10,
+      },
+    },
+    state: {
+      sorting,
+      columnFilters,
+      globalFilter,
+    },
   })
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-          <p className="text-gray-600 mt-1">Manage system users and their roles</p>
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">User Management</h1>
+        <p className="text-gray-600">Manage user accounts and permissions</p>
+      </div>
+
+      {/* Action Bar */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        {/* Search */}
+        <div className="relative w-full md:w-96">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder="Search by email, role, or position..."
+            value={globalFilter ?? ''}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGlobalFilter(e.target.value)}
+            className="pl-10 rounded-sm"
+          />
         </div>
+
+        {/* Actions */}
         <div className="flex gap-3">
           <Button
             variant="outline"
             onClick={exportToCSV}
-            className="rounded-sm"
+            className="border-gray-300 rounded-sm"
           >
             <Download className="h-4 w-4 mr-2" />
-            Export
+            Export CSV
           </Button>
-          <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+          
+          <Dialog open={isCreateModalOpen} onOpenChange={(open) => {
+            // Don't auto-close on outside click - only handle explicit close
+            if (!open) {
+              setIsCreateModalOpen(false)
+            }
+          }}>
             <DialogTrigger asChild>
               <Button 
-                className="bg-[#428bff] hover:bg-[#3b7ee6] rounded-sm"
+                className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm"
                 onClick={() => {
-                  resetForm()
                   setIsCreateModalOpen(true)
+                  // Don't clear form - keep prefilled data if exists
                 }}
               >
-                Add New User
+                Create User
               </Button>
             </DialogTrigger>
             <DialogContent 
@@ -589,7 +599,7 @@ function UserManagementContent() {
               <DialogHeader>
                 <DialogTitle>Create New User</DialogTitle>
                 <DialogDescription>
-                  Add a new user to the system with their role and details
+                  Add a new user to the system. Fill in all required fields.
                 </DialogDescription>
               </DialogHeader>
               
@@ -602,11 +612,11 @@ function UserManagementContent() {
               
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="username">Username</Label>
+                  <Label htmlFor="username">Username *</Label>
                   <Input
                     id="username"
                     value={formData.Username}
-                    onChange={(e) => handleFormChange('Username', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Username', e.target.value)}
                     className={fieldErrors.Username ? 'border-red-500 rounded-sm' : 'rounded-sm'}
                   />
                   {fieldErrors.Username && (
@@ -614,12 +624,12 @@ function UserManagementContent() {
                   )}
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">Password *</Label>
                   <Input
                     id="password"
                     type="password"
                     value={formData.Password}
-                    onChange={(e) => handleFormChange('Password', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Password', e.target.value)}
                     className={fieldErrors.Password ? 'border-red-500 rounded-sm' : 'rounded-sm'}
                   />
                   {fieldErrors.Password && (
@@ -627,12 +637,12 @@ function UserManagementContent() {
                   )}
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">Email *</Label>
                   <Input
                     id="email"
                     type="email"
                     value={formData.Email}
-                    onChange={(e) => handleFormChange('Email', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Email', e.target.value)}
                     className={fieldErrors.Email ? 'border-red-500 rounded-sm' : 'rounded-sm'}
                   />
                   {fieldErrors.Email && (
@@ -640,11 +650,11 @@ function UserManagementContent() {
                   )}
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="name">Full Name *</Label>
                   <Input
                     id="name"
                     value={formData.Name}
-                    onChange={(e) => handleFormChange('Name', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Name', e.target.value)}
                     className={fieldErrors.Name ? 'border-red-500 rounded-sm' : 'rounded-sm'}
                   />
                   {fieldErrors.Name && (
@@ -652,13 +662,13 @@ function UserManagementContent() {
                   )}
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="position">Position</Label>
+                  <Label htmlFor="position">Position *</Label>
                   <Select
                     value={formData.Position}
                     onValueChange={handleRoleChange}
                   >
                     <SelectTrigger id="position" className="rounded-sm">
-                      <SelectValue placeholder="Select a position" />
+                      <SelectValue placeholder="Select position" />
                     </SelectTrigger>
                     <SelectContent className="rounded-sm">
                       {[...roles].sort((a, b) => a.PositionLevel - b.PositionLevel).map((role) => (
@@ -671,16 +681,16 @@ function UserManagementContent() {
                 </div>
                 {formData.PositionLevel > 0 && supervisors.length > 0 && (
                   <div className="grid gap-2">
-                    <Label htmlFor="supervisor">Supervisor</Label>
+                    <Label htmlFor="supervisor">Supervisor (Optional)</Label>
                     <Select
                       value={formData.SupervisorID?.toString() || 'none'}
                       onValueChange={handleSupervisorChange}
                     >
                       <SelectTrigger id="supervisor" className="rounded-sm">
-                        <SelectValue placeholder="Select a supervisor" />
+                        <SelectValue placeholder="Select supervisor" />
                       </SelectTrigger>
                       <SelectContent className="rounded-sm">
-                        <SelectItem value="0">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {supervisors.map((supervisor) => (
                           <SelectItem key={supervisor.ID} value={supervisor.ID.toString()}>
                             {supervisor.Name} - {supervisor.Position} (Level {supervisor.PositionLevel})
@@ -695,8 +705,8 @@ function UserManagementContent() {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    resetForm()
-                    setIsCreateModalOpen(false)
+                    resetForm() // Clear form data
+                    setIsCreateModalOpen(false) // Close modal
                   }}
                   className="rounded-sm"
                 >
@@ -715,35 +725,19 @@ function UserManagementContent() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-            <Input
-              placeholder="Search users..."
-              value={globalFilter ?? ''}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              className="pl-10 rounded-sm"
-            />
-          </div>
-        </div>
-
+      {/* Continuing in next part... */}
+      {/* Table */}
+      <div className="border rounded-sm overflow-hidden bg-white">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 border-b">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
+                    <th key={header.id} className="px-6 py-3 text-left text-sm">
                       {header.isPlaceholder
                         ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                        : flexRender(header.column.columnDef.header, header.getContext())}
                     </th>
                   ))}
                 </tr>
@@ -777,11 +771,12 @@ function UserManagementContent() {
           </table>
         </div>
 
+        {/* Pagination */}
         <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-700">Rows per page:</span>
             <Select
-              value={pagination.pageSize.toString()}
+              value={table.getState().pagination.pageSize.toString()}
               onValueChange={(value) => {
                 table.setPageSize(Number(value))
               }}
@@ -829,17 +824,20 @@ function UserManagementContent() {
 
       {/* Edit Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={(open) => {
+        // Don't auto-close on outside click - only handle explicit close
         if (!open) {
           setIsEditModalOpen(false)
-          // FIX 8: Clean up state when modal closes
-          resetForm()
-          setSelectedUser(null)
         }
       }}>
         <DialogContent 
           className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-sm"
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
+          onCloseAutoFocus={() => {
+            // Clear form when X button is clicked (modal closes)
+            resetForm()
+            setSelectedUser(null)
+          }}
         >
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
@@ -861,7 +859,7 @@ function UserManagementContent() {
               <Input
                 id="edit-username"
                 value={formData.Username}
-                onChange={(e) => handleFormChange('Username', e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Username', e.target.value)}
                 className={fieldErrors.Username ? 'border-red-500 rounded-sm' : 'rounded-sm'}
               />
               {fieldErrors.Username && (
@@ -874,7 +872,7 @@ function UserManagementContent() {
                 id="edit-password"
                 type="password"
                 value={formData.Password}
-                onChange={(e) => handleFormChange('Password', e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Password', e.target.value)}
                 className={fieldErrors.Password ? 'border-red-500 rounded-sm' : 'rounded-sm'}
               />
               {fieldErrors.Password && (
@@ -887,7 +885,7 @@ function UserManagementContent() {
                 id="edit-email"
                 type="email"
                 value={formData.Email}
-                onChange={(e) => handleFormChange('Email', e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Email', e.target.value)}
                 className={fieldErrors.Email ? 'border-red-500 rounded-sm' : 'rounded-sm'}
               />
               {fieldErrors.Email && (
@@ -899,7 +897,7 @@ function UserManagementContent() {
               <Input
                 id="edit-name"
                 value={formData.Name}
-                onChange={(e) => handleFormChange('Name', e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Name', e.target.value)}
                 className={fieldErrors.Name ? 'border-red-500 rounded-sm' : 'rounded-sm'}
               />
               {fieldErrors.Name && (
@@ -950,9 +948,9 @@ function UserManagementContent() {
             <Button
               variant="outline"
               onClick={() => {
-                resetForm()
+                resetForm() // Clear form data
                 setSelectedUser(null)
-                setIsEditModalOpen(false)
+                setIsEditModalOpen(false) // Close modal
               }}
               className="rounded-sm"
             >
