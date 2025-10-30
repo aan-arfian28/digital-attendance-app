@@ -1,5 +1,5 @@
 ﻿import { createFileRoute } from '@tanstack/react-router'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, memo } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -10,6 +10,8 @@ import {
   type ColumnDef,
   type SortingState,
   type ColumnFiltersState,
+  type Row,
+  type Cell,
 } from '@tanstack/react-table'
 import { Search, Download, ChevronUp, ChevronDown, ChevronsUpDown, AlertCircle, Edit, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -151,6 +153,30 @@ const deleteUser = async (id: number) => {
   if (!response.ok) throw new Error('Failed to delete user')
   return response.json()
 }
+
+// Memoized table cell component to prevent re-renders
+const TableCell = memo<{ cell: Cell<User, unknown> }>(({ cell }) => {
+  return (
+    <td className="px-6 py-4 text-sm text-gray-900">
+      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+    </td>
+  )
+}, (prev, next) => prev.cell.id === next.cell.id)
+
+TableCell.displayName = 'TableCell'
+
+// Memoized table row component to prevent re-renders
+const TableRow = memo<{ row: Row<User> }>(({ row }) => {
+  return (
+    <tr className="hover:bg-gray-50">
+      {row.getVisibleCells().map((cell) => (
+        <TableCell key={cell.id} cell={cell} />
+      ))}
+    </tr>
+  )
+}, (prev, next) => prev.row.id === next.row.id)
+
+TableRow.displayName = 'TableRow'
 
 function UserManagement() {
   return (
@@ -479,14 +505,15 @@ function UserManagementContent() {
     {
       id: 'actions',
       header: 'Actions',
-      cell: ({ row }) => {
+      cell: ({ row, table }) => {
         const user = row.original
+        const meta = table.options.meta as { onEdit: (user: User) => void; onDelete: (id: number) => void }
         return (
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => openEditModal(user)}
+              onClick={() => meta.onEdit(user)}
               className="bg-blue-50 border-blue-300 text-blue-600 hover:bg-blue-100 rounded-sm"
               title="Edit"
             >
@@ -496,7 +523,7 @@ function UserManagementContent() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handleDeleteUser(user.ID)}
+              onClick={() => meta.onDelete(user.ID)}
               className="bg-red-50 border-red-300 text-red-600 hover:bg-red-100 rounded-sm"
               title="Delete"
             >
@@ -540,6 +567,10 @@ function UserManagementContent() {
       sorting,
       columnFilters,
       globalFilter,
+    },
+    meta: {
+      onEdit: openEditModal,
+      onDelete: handleDeleteUser,
     },
   })
 
@@ -758,13 +789,7 @@ function UserManagementContent() {
                 </tr>
               ) : (
                 table.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-gray-50">
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-6 py-4 text-sm text-gray-900">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
+                  <TableRow key={row.id} row={row} />
                 ))
               )}
             </tbody>
