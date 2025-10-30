@@ -42,6 +42,11 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 	api.Use(middleware.DBMiddleware(DB))
 	api.Use(middleware.XSSProtection())
 	{
+		// Health check endpoint (supports both GET and HEAD for Docker health checks)
+		api.Any("/health", func(c *gin.Context) {
+			c.JSON(200, gin.H{"status": "ok"})
+		})
+
 		api.POST("/login", handlers.Login)
 
 		// Auth required routes

@@ -18,7 +18,7 @@ const config = defineConfig({
     }),
     viteReact(),
   ],
-  
+
   // Build optimizations
   build: {
     target: 'esnext',

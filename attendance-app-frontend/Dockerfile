@@ -23,13 +23,8 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY --from=builder /app/package.json /app/package-lock.json ./
-
-# Copy node_modules from builder (includes all dependencies)
-COPY --from=builder /app/node_modules ./node_modules
-
 # Copy built application from builder (.output folder from Nitro build)
+# Nitro build sudah standalone, tidak perlu node_modules lengkap
 COPY --from=builder /app/.output ./.output
 
 # Copy public folder for assets
@@ -52,5 +47,5 @@ ENV PORT=3000
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
-# Start the application using npm start (runs: node .output/server/index.mjs)
-CMD ["npm", "run", "start"]
+# Start the application directly (Nitro server sudah standalone)
+CMD ["node", ".output/server/index.mjs"]
