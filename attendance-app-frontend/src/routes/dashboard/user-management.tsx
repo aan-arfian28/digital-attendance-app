@@ -1,5 +1,5 @@
-﻿import { createFileRoute } from '@tanstack/react-router'
-import { useState, useMemo, memo } from 'react'
+import { createFileRoute } from '@tanstack/react-router'
+import { useState } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -10,10 +10,8 @@ import {
   type ColumnDef,
   type SortingState,
   type ColumnFiltersState,
-  type Row,
-  type Cell,
 } from '@tanstack/react-table'
-import { Search, Download, ChevronUp, ChevronDown, ChevronsUpDown, AlertCircle, Edit, Trash2 } from 'lucide-react'
+import { Search, Download, ChevronUp, ChevronDown, ChevronsUpDown, AlertCircle, Trash2, Edit } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -37,7 +35,6 @@ import {
 import { Label } from '@/components/ui/label'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
-// Helper to get auth token
 const getAuthHeaders = () => {
   const token = localStorage.getItem('auth_token')
   return {
@@ -50,13 +47,12 @@ export const Route = createFileRoute('/dashboard/user-management')({
   component: UserManagement,
 })
 
-// Types
 interface User {
   ID: number
   Username: string
   Name: string
   Email: string
-  Role: 'admin' | 'user'
+  Role: string
   Position: string
   PositionLevel: number
   Supervisor: {
@@ -65,20 +61,13 @@ interface User {
   } | null
 }
 
-interface Role {
-  ID: number
-  Name: 'admin' | 'user'
-  Position: string
-  PositionLevel: number
-}
-
 interface CreateUserData {
   Username: string
   Password: string
   Email: string
   SupervisorID?: number
   Role: {
-    Name: 'admin' | 'user'
+    Name: string
     Position: string
     PositionLevel: number
   }
@@ -88,95 +77,6 @@ interface CreateUserData {
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
-
-// OPTIMIZATION: Extract query functions outside component to prevent recreation
-const fetchUsers = async (): Promise<User[]> => {
-  const [nonAdmins, admins] = await Promise.all([
-    fetch(`${API_BASE_URL}/admin/users/non-admins`, {
-      headers: getAuthHeaders(),
-    }).then(r => {
-      if (!r.ok) throw new Error('Failed to fetch non-admin users')
-      return r.json() as Promise<User[]>
-    }),
-    fetch(`${API_BASE_URL}/admin/users/admins`, {
-      headers: getAuthHeaders(),
-    }).then(r => {
-      if (!r.ok) throw new Error('Failed to fetch admin users')
-      return r.json() as Promise<User[]>
-    })
-  ])
-  return [...admins, ...nonAdmins]
-}
-
-const fetchRoles = async (): Promise<Role[]> => {
-  const response = await fetch(`${API_BASE_URL}/admin/users/roles`, {
-    headers: getAuthHeaders(),
-  })
-  if (!response.ok) throw new Error('Failed to fetch roles')
-  return response.json()
-}
-
-// OPTIMIZATION: Extract mutation functions outside component
-const createUser = async (data: CreateUserData) => {
-  const response = await fetch(`${API_BASE_URL}/admin/users/`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(data),
-  })
-  
-  if (!response.ok) {
-    const errorData = await response.json()
-    throw errorData
-  }
-  return response.json()
-}
-
-const updateUser = async ({ id, data }: { id: number; data: Partial<CreateUserData> }) => {
-  const response = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
-    method: 'PUT',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(data),
-  })
-  
-  if (!response.ok) {
-    const errorData = await response.json()
-    throw errorData
-  }
-  return response.json()
-}
-
-const deleteUser = async (id: number) => {
-  const response = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
-    method: 'DELETE',
-    headers: getAuthHeaders(),
-  })
-  if (!response.ok) throw new Error('Failed to delete user')
-  return response.json()
-}
-
-// Memoized table cell component to prevent re-renders
-const TableCell = memo<{ cell: Cell<User, unknown> }>(({ cell }) => {
-  return (
-    <td className="px-6 py-4 text-sm text-gray-900">
-      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-    </td>
-  )
-}, (prev, next) => prev.cell.id === next.cell.id)
-
-TableCell.displayName = 'TableCell'
-
-// Memoized table row component to prevent re-renders
-const TableRow = memo<{ row: Row<User> }>(({ row }) => {
-  return (
-    <tr className="hover:bg-gray-50">
-      {row.getVisibleCells().map((cell) => (
-        <TableCell key={cell.id} cell={cell} />
-      ))}
-    </tr>
-  )
-}, (prev, next) => prev.row.id === next.row.id)
-
-TableRow.displayName = 'TableRow'
 
 function UserManagement() {
   return (
@@ -191,350 +91,301 @@ function UserManagementContent() {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
+  
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [errorMessage, setErrorMessage] = useState<string>('')
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-
-  // Form state
-  const [formData, setFormData] = useState({
+  const [editingUser, setEditingUser] = useState<User | null>(null)
+  
+  const [formData, setFormData] = useState<CreateUserData>({
     Username: '',
     Password: '',
     Email: '',
-    Name: '',
-    Role: '' as 'admin' | 'user' | '',
-    Position: '',
-    PositionLevel: 0,
-    SupervisorID: undefined as number | undefined,
+    Role: {
+      Name: '',
+      Position: '',
+      PositionLevel: 1,
+    },
+    UserDetail: {
+      Name: '',
+    },
   })
+  
+  const [errorMessage, setErrorMessage] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof CreateUserData, string>>>({})
 
-  // OPTIMIZED: Use extracted query functions + disable aggressive refetching
-  const { data: users = [], isLoading } = useQuery({
+  const { data: users = [], isLoading, error } = useQuery({
     queryKey: ['users'],
-    queryFn: fetchUsers,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
-    // Remove refetchOnMount: false to ensure data loads on mount
+    queryFn: async (): Promise<User[]> => {
+      const [nonAdminsRes, adminsRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/admin/users/non-admins`, { headers: getAuthHeaders() }),
+        fetch(`${API_BASE_URL}/admin/users/admins`, { headers: getAuthHeaders() }),
+      ])
+      
+      if (!nonAdminsRes.ok || !adminsRes.ok) {
+        throw new Error('Failed to fetch users')
+      }
+      
+      const nonAdminsData = await nonAdminsRes.json()
+      const adminsData = await adminsRes.json()
+      
+      // CRITICAL FIX: Handle null responses from API
+      const nonAdmins = Array.isArray(nonAdminsData) ? nonAdminsData : []
+      const admins = Array.isArray(adminsData) ? adminsData : []
+      
+      const allUsers = [...nonAdmins, ...admins].sort((a: User, b: User) => a.PositionLevel - b.PositionLevel)
+      return allUsers
+    },
   })
 
-  // Fetch roles
-  const { data: roles = [] } = useQuery({
-    queryKey: ['roles'],
-    queryFn: fetchRoles,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    refetchOnWindowFocus: false,
-    // Remove refetchOnMount: false to ensure data loads on mount
-  })
-
-  // OPTIMIZED: Derive supervisors dari cache, bukan fetch ulang
-  const supervisors = useMemo(() => {
-    if (formData.PositionLevel <= 0) return []
-    return users.filter((user) => user.PositionLevel < formData.PositionLevel)
-  }, [users, formData.PositionLevel])
-
-  // Form handlers - simplified without unnecessary useCallback
-  const handleFormChange = (field: keyof typeof formData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-  }
-
-  const handleRoleChange = (value: string) => {
-    const selectedRole = roles.find((r) => r.Position === value)
-    if (selectedRole) {
-      setFormData(prev => ({
-        ...prev,
-        Role: selectedRole.Name,
-        Position: selectedRole.Position,
-        PositionLevel: selectedRole.PositionLevel,
-        SupervisorID: undefined,
-      }))
-    }
-  }
-
-  const handleSupervisorChange = (value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      SupervisorID: value === 'none' ? undefined : parseInt(value)
-    }))
-  }
-
-  // OPTIMIZED: Use extracted mutation functions (remove useCallback from options to prevent closure leak)
   const createUserMutation = useMutation({
-    mutationFn: createUser,
+    mutationFn: async (userData: CreateUserData): Promise<User> => {
+      const response = await fetch(`${API_BASE_URL}/admin/users/`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(userData),
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to create user')
+      }
+      return response.json()
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setIsCreateModalOpen(false)
       resetForm()
-      setErrorMessage('')
-      setFieldErrors({})
     },
-    onError: (error: any) => {
-      if (error.errors) {
-        setFieldErrors(error.errors)
-        setErrorMessage('Please fix the validation errors below.')
-      } else if (error.error) {
-        setErrorMessage(error.error)
-        setFieldErrors({})
-      } else {
-        setErrorMessage('Failed to create user. Please try again.')
-        setFieldErrors({})
-      }
+    onError: (error: Error) => {
+      setErrorMessage(error.message)
     },
   })
 
-  // Update user mutation
   const updateUserMutation = useMutation({
-    mutationFn: updateUser,
+    mutationFn: async ({ id, userData }: { id: number; userData: CreateUserData }): Promise<User> => {
+      const response = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(userData),
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to update user')
+      }
+      return response.json()
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setIsEditModalOpen(false)
-      setSelectedUser(null)
+      setEditingUser(null)
       resetForm()
-      setErrorMessage('')
-      setFieldErrors({})
     },
-    onError: (error: any) => {
-      if (error.errors) {
-        setFieldErrors(error.errors)
-        setErrorMessage('Please fix the validation errors below.')
-      } else if (error.error) {
-        setErrorMessage(error.error)
-        setFieldErrors({})
-      } else {
-        setErrorMessage('Failed to update user. Please try again.')
-        setFieldErrors({})
-      }
+    onError: (error: Error) => {
+      setErrorMessage(error.message)
     },
   })
 
-  // Delete user mutation
   const deleteUserMutation = useMutation({
-    mutationFn: deleteUser,
+    mutationFn: async (id: number): Promise<void> => {
+      const response = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to delete user')
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
     },
+    onError: (error: Error) => {
+      setErrorMessage(error.message)
+    },
   })
 
-  // Reset form (no useCallback to avoid circular dependencies)
+  const validateField = (name: keyof CreateUserData, value: any): string => {
+    if (name === 'Username' && !value.trim()) return 'Username is required'
+    if (name === 'Password' && !editingUser && !value.trim()) return 'Password is required'
+    if (name === 'Email' && !value.trim()) return 'Email is required'
+    if (name === 'UserDetail' && !value.Name?.trim()) return 'Name is required'
+    if (name === 'Role' && !value.Position?.trim()) return 'Position is required'
+    return ''
+  }
+
+  const validateForm = (): boolean => {
+    const errors: Partial<Record<keyof CreateUserData, string>> = {}
+    
+    Object.keys(formData).forEach((key) => {
+      const error = validateField(key as keyof CreateUserData, formData[key as keyof CreateUserData])
+      if (error) {
+        errors[key as keyof CreateUserData] = error
+      }
+    })
+
+    const isDuplicate = users.some((user) =>
+      user.Username.toLowerCase() === formData.Username.toLowerCase() &&
+      (!editingUser || user.ID !== editingUser.ID)
+    )
+    
+    if (isDuplicate) {
+      errors.Username = 'Username already exists'
+    }
+
+    setFieldErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
   const resetForm = () => {
     setFormData({
       Username: '',
       Password: '',
       Email: '',
-      Name: '',
-      Role: '',
-      Position: '',
-      PositionLevel: 0,
-      SupervisorID: undefined,
+      Role: {
+        Name: '',
+        Position: '',
+        PositionLevel: 1,
+      },
+      UserDetail: {
+        Name: '',
+      },
     })
-    setErrorMessage('')
     setFieldErrors({})
+    setErrorMessage('')
   }
 
-  const handleCreateUser = () => {
-    if (!formData.Role || !formData.Position) return
-
-    const createData: CreateUserData = {
-      Username: formData.Username,
-      Password: formData.Password,
-      Email: formData.Email,
-      SupervisorID: formData.SupervisorID,
-      Role: {
-        Name: formData.Role,
-        Position: formData.Position,
-        PositionLevel: formData.PositionLevel,
-      },
-      UserDetail: {
-        Name: formData.Name,
-      },
-    }
-
-    createUserMutation.mutate(createData)
-  }
-
-  const handleEditUser = () => {
-    if (!selectedUser) return
-
-    const updateData: Partial<CreateUserData> = {
-      Username: formData.Username,
-      Email: formData.Email,
-      SupervisorID: formData.SupervisorID,
-      Role: {
-        Name: formData.Role as 'admin' | 'user',
-        Position: formData.Position,
-        PositionLevel: formData.PositionLevel,
-      },
-      UserDetail: {
-        Name: formData.Name,
-      },
-    }
-
-    if (formData.Password) {
-      updateData.Password = formData.Password
-    }
-
-    updateUserMutation.mutate({ id: selectedUser.ID, data: updateData })
-  }
-
-  const handleDeleteUser = (id: number) => {
-    if (confirm('Are you sure you want to delete this user?')) {
-      deleteUserMutation.mutate(id)
-    }
-  }
-
-  const openEditModal = (user: User) => {
-    // Clear form data when switching from create to edit modal
+  const handleOpenCreateModal = () => {
     resetForm()
-    
-    setSelectedUser(user)
+    setEditingUser(null)
+    setIsCreateModalOpen(true)
+  }
+
+  const handleOpenEditModal = (user: User) => {
+    setEditingUser(user)
     setFormData({
       Username: user.Username,
       Password: '',
       Email: user.Email,
-      Name: user.Name,
-      Role: user.Role,
-      Position: user.Position,
-      PositionLevel: user.PositionLevel,
       SupervisorID: user.Supervisor?.SupervisorID,
+      Role: {
+        Name: user.Role,
+        Position: user.Position,
+        PositionLevel: user.PositionLevel,
+      },
+      UserDetail: {
+        Name: user.Name,
+      },
     })
+    setFieldErrors({})
+    setErrorMessage('')
     setIsEditModalOpen(true)
   }
 
-  // Export to CSV
+  const handleCreateUser = () => {
+    if (!validateForm()) return
+    createUserMutation.mutate(formData)
+  }
+
+  const handleUpdateUser = () => {
+    if (!editingUser) return
+    if (!validateForm()) return
+    updateUserMutation.mutate({ id: editingUser.ID, userData: formData })
+  }
+
+  const handleDeleteUser = (user: User) => {
+    if (confirm(`Delete user ${user.Username}?`)) {
+      deleteUserMutation.mutate(user.ID)
+    }
+  }
+
   const exportToCSV = () => {
-    const headers = ['ID', 'Email', 'Role', 'Position', 'Position Level', 'Supervisor']
-    const rows = users.map((user) => [
-      user.ID,
-      user.Email,
-      user.Role,
-      user.Position,
-      user.PositionLevel,
-      user.Supervisor?.SupervisorName || 'N/A',
-    ])
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) => row.join(',')),
-    ].join('\n')
-
+    const headers = ['ID', 'Username', 'Name', 'Email', 'Role', 'Position', 'Level', 'Supervisor']
+    const csvData = [
+      headers,
+      ...users.map(user => [
+        user.ID.toString(),
+        user.Username,
+        user.Name,
+        user.Email,
+        user.Role,
+        user.Position,
+        user.PositionLevel.toString(),
+        user.Supervisor?.SupervisorName || 'None'
+      ])
+    ]
+    const csvContent = csvData.map(row => row.join(',')).join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv' })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `users_${new Date().toISOString().split('T')[0]}.csv`
+    a.download = 'users.csv'
     a.click()
     window.URL.revokeObjectURL(url)
   }
 
-  // OPTIMIZED: Memoize columns to prevent recreation
-  const columns = useMemo<ColumnDef<User>[]>(() => [
+  // Define columns - IMPORTANT: This must be stable across renders
+  const columns: ColumnDef<User>[] = [
     {
-      accessorKey: 'ID',
+      accessorKey: 'Username',
       header: ({ column }) => {
         return (
-          <button
-            className="flex items-center gap-2 font-semibold"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          >
-            ID
-            {column.getIsSorted() === 'asc' ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : column.getIsSorted() === 'desc' ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronsUpDown className="h-4 w-4" />
-            )}
-          </button>
+          <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+            Username
+            {column.getIsSorted() === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> :
+             column.getIsSorted() === 'desc' ? <ChevronDown className="ml-2 h-4 w-4" /> :
+             <ChevronsUpDown className="ml-2 h-4 w-4" />}
+          </Button>
         )
       },
+    },
+    {
+      accessorKey: 'Name',
+      header: 'Name',
     },
     {
       accessorKey: 'Email',
       header: 'Email',
     },
     {
-      accessorKey: 'Role',
+      accessorKey: 'Position',
       header: ({ column }) => {
         return (
-          <button
-            className="flex items-center gap-2 font-semibold"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          >
-            Role
-            {column.getIsSorted() === 'asc' ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : column.getIsSorted() === 'desc' ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronsUpDown className="h-4 w-4" />
-            )}
-          </button>
+          <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+            Position
+            {column.getIsSorted() === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> :
+             column.getIsSorted() === 'desc' ? <ChevronDown className="ml-2 h-4 w-4" /> :
+             <ChevronsUpDown className="ml-2 h-4 w-4" />}
+          </Button>
         )
       },
-    },
-    {
-      accessorKey: 'Position',
-      header: 'Position',
-      enableSorting: false,
     },
     {
       accessorKey: 'PositionLevel',
-      header: ({ column }) => {
-        return (
-          <button
-            className="flex items-center gap-2 font-semibold"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          >
-            Position Level
-            {column.getIsSorted() === 'asc' ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : column.getIsSorted() === 'desc' ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronsUpDown className="h-4 w-4" />
-            )}
-          </button>
-        )
-      },
+      header: 'Level',
     },
     {
       id: 'supervisor',
-      accessorFn: (row) => row.Supervisor?.SupervisorName || 'N/A',
       header: 'Supervisor',
+      cell: ({ row }) => {
+        return row.original.Supervisor?.SupervisorName || 'None'
+      },
     },
     {
       id: 'actions',
       header: 'Actions',
-      cell: ({ row, table }) => {
-        const user = row.original
-        const meta = table.options.meta as { onEdit: (user: User) => void; onDelete: (id: number) => void }
+      cell: ({ row }) => {
         return (
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => meta.onEdit(user)}
-              className="bg-blue-50 border-blue-300 text-blue-600 hover:bg-blue-100 rounded-sm"
-              title="Edit"
-            >
+            <Button variant="ghost" size="sm" onClick={() => handleOpenEditModal(row.original)}>
               <Edit className="h-4 w-4" />
-              Edit
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => meta.onDelete(user.ID)}
-              className="bg-red-50 border-red-300 text-red-600 hover:bg-red-100 rounded-sm"
-              title="Delete"
-            >
+            <Button variant="ghost" size="sm" onClick={() => handleDeleteUser(row.original)}>
               <Trash2 className="h-4 w-4" />
-              Delete
             </Button>
           </div>
         )
       },
     },
-  ], [])
+  ]
 
   const table = useReactTable({
     data: users,
@@ -546,448 +397,276 @@ function UserManagementContent() {
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: (row, _columnId, filterValue) => {
-      const search = filterValue.toLowerCase()
-      const user = row.original
-      
-      // Search only in email, role, and position
-      return (
-        user.Email.toLowerCase().includes(search) ||
-        user.Role.toLowerCase().includes(search) ||
-        user.Position.toLowerCase().includes(search)
-      )
-    },
-    initialState: {
-      pagination: {
-        pageIndex: 0,
-        pageSize: 10,
-      },
-    },
     state: {
       sorting,
       columnFilters,
       globalFilter,
     },
-    meta: {
-      onEdit: openEditModal,
-      onDelete: handleDeleteUser,
+    initialState: {
+      pagination: {
+        pageSize: 10,
+      },
     },
   })
 
+  if (isLoading) {
+    return <div className="p-6">Loading users...</div>
+  }
+  
+  if (error) {
+    return (
+      <div className="p-6">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Error: {error.message}</AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">User Management</h1>
-        <p className="text-gray-600">Manage user accounts and permissions</p>
-      </div>
-
-      {/* Action Bar */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        {/* Search */}
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            placeholder="Search by email, role, or position..."
-            value={globalFilter ?? ''}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGlobalFilter(e.target.value)}
-            className="pl-10 rounded-sm"
-          />
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-3">
-          <Button
-            variant="outline"
-            onClick={exportToCSV}
-            className="border-gray-300 rounded-sm"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
-          
-          <Dialog open={isCreateModalOpen} onOpenChange={(open) => {
-            // Don't auto-close on outside click - only handle explicit close
-            if (!open) {
-              setIsCreateModalOpen(false)
-            }
-          }}>
-            <DialogTrigger asChild>
-              <Button 
-                className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm"
-                onClick={() => {
-                  setIsCreateModalOpen(true)
-                  // Don't clear form - keep prefilled data if exists
-                }}
-              >
-                Create User
-              </Button>
-            </DialogTrigger>
-            <DialogContent 
-              className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-sm"
-              onInteractOutside={(e) => e.preventDefault()}
-              onEscapeKeyDown={(e) => e.preventDefault()}
-            >
-              <DialogHeader>
-                <DialogTitle>Create New User</DialogTitle>
-                <DialogDescription>
-                  Add a new user to the system. Fill in all required fields.
-                </DialogDescription>
-              </DialogHeader>
-              
-              {errorMessage && (
-                <Alert variant="destructive" className="mt-4 rounded-sm">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{errorMessage}</AlertDescription>
-                </Alert>
-              )}
-              
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="username">Username *</Label>
-                  <Input
-                    id="username"
-                    value={formData.Username}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Username', e.target.value)}
-                    className={fieldErrors.Username ? 'border-red-500 rounded-sm' : 'rounded-sm'}
-                  />
-                  {fieldErrors.Username && (
-                    <p className="text-sm text-red-500">{fieldErrors.Username}</p>
-                  )}
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="password">Password *</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={formData.Password}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Password', e.target.value)}
-                    className={fieldErrors.Password ? 'border-red-500 rounded-sm' : 'rounded-sm'}
-                  />
-                  {fieldErrors.Password && (
-                    <p className="text-sm text-red-500">{fieldErrors.Password}</p>
-                  )}
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Email *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.Email}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Email', e.target.value)}
-                    className={fieldErrors.Email ? 'border-red-500 rounded-sm' : 'rounded-sm'}
-                  />
-                  {fieldErrors.Email && (
-                    <p className="text-sm text-red-500">{fieldErrors.Email}</p>
-                  )}
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Full Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.Name}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Name', e.target.value)}
-                    className={fieldErrors.Name ? 'border-red-500 rounded-sm' : 'rounded-sm'}
-                  />
-                  {fieldErrors.Name && (
-                    <p className="text-sm text-red-500">{fieldErrors.Name}</p>
-                  )}
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="position">Position *</Label>
-                  <Select
-                    value={formData.Position}
-                    onValueChange={handleRoleChange}
-                  >
-                    <SelectTrigger id="position" className="rounded-sm">
-                      <SelectValue placeholder="Select position" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-sm">
-                      {[...roles].sort((a, b) => a.PositionLevel - b.PositionLevel).map((role) => (
-                        <SelectItem key={role.ID} value={role.Position}>
-                          {role.Position} - {role.PositionLevel}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {formData.PositionLevel > 0 && supervisors.length > 0 && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="supervisor">Supervisor (Optional)</Label>
-                    <Select
-                      value={formData.SupervisorID?.toString() || 'none'}
-                      onValueChange={handleSupervisorChange}
-                    >
-                      <SelectTrigger id="supervisor" className="rounded-sm">
-                        <SelectValue placeholder="Select supervisor" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-sm">
-                        <SelectItem value="none">None</SelectItem>
-                        {supervisors.map((supervisor) => (
-                          <SelectItem key={supervisor.ID} value={supervisor.ID.toString()}>
-                            {supervisor.Name} - {supervisor.Position} (Level {supervisor.PositionLevel})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">User Management</h1>
+        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={handleOpenCreateModal}>Add User</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create User</DialogTitle>
+              <DialogDescription>Add a new user to the system</DialogDescription>
+            </DialogHeader>
+            {errorMessage && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{errorMessage}</AlertDescription>
+              </Alert>
+            )}
+            <div className="grid gap-4 py-4">
+              <div>
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  value={formData.Username}
+                  onChange={(e) => setFormData({ ...formData, Username: e.target.value })}
+                />
+                {fieldErrors.Username && <span className="text-sm text-red-500">{fieldErrors.Username}</span>}
               </div>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    resetForm() // Clear form data
-                    setIsCreateModalOpen(false) // Close modal
-                  }}
-                  className="rounded-sm"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleCreateUser}
-                  disabled={createUserMutation.isPending}
-                  className="bg-[#428bff] hover:bg-[#3b7ee6] rounded-sm"
-                >
-                  {createUserMutation.isPending ? 'Creating...' : 'Create User'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
-
-      {/* Continuing in next part... */}
-      {/* Table */}
-      <div className="border rounded-sm overflow-hidden bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th key={header.id} className="px-6 py-3 text-left text-sm">
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={columns.length} className="px-6 py-12 text-center text-gray-500">
-                    Loading users...
-                  </td>
-                </tr>
-              ) : table.getRowModel().rows.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length} className="px-6 py-12 text-center text-gray-500">
-                    No users found
-                  </td>
-                </tr>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id} row={row} />
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-700">Rows per page:</span>
-            <Select
-              value={table.getState().pagination.pageSize.toString()}
-              onValueChange={(value) => {
-                table.setPageSize(Number(value))
-              }}
-            >
-              <SelectTrigger className="w-20 rounded-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="rounded-sm">
-                {[10, 20, 50].map((size) => (
-                  <SelectItem key={size} value={size.toString()}>
-                    {size}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-700">
-              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
-            </span>
-            <div className="flex gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-                className="rounded-sm"
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-                className="rounded-sm"
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Edit Modal */}
-      <Dialog open={isEditModalOpen} onOpenChange={(open) => {
-        // Don't auto-close on outside click - only handle explicit close
-        if (!open) {
-          setIsEditModalOpen(false)
-        }
-      }}>
-        <DialogContent 
-          className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-sm"
-          onInteractOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-          onCloseAutoFocus={() => {
-            // Clear form when X button is clicked (modal closes)
-            resetForm()
-            setSelectedUser(null)
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
-            <DialogDescription>
-              Update user information. Leave password empty to keep current password.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {errorMessage && (
-            <Alert variant="destructive" className="mt-4 rounded-sm">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{errorMessage}</AlertDescription>
-            </Alert>
-          )}
-          
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="edit-username">Username</Label>
-              <Input
-                id="edit-username"
-                value={formData.Username}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Username', e.target.value)}
-                className={fieldErrors.Username ? 'border-red-500 rounded-sm' : 'rounded-sm'}
-              />
-              {fieldErrors.Username && (
-                <p className="text-sm text-red-500">{fieldErrors.Username}</p>
-              )}
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-password">Password (leave empty to keep current)</Label>
-              <Input
-                id="edit-password"
-                type="password"
-                value={formData.Password}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Password', e.target.value)}
-                className={fieldErrors.Password ? 'border-red-500 rounded-sm' : 'rounded-sm'}
-              />
-              {fieldErrors.Password && (
-                <p className="text-sm text-red-500">{fieldErrors.Password}</p>
-              )}
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-email">Email</Label>
-              <Input
-                id="edit-email"
-                type="email"
-                value={formData.Email}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Email', e.target.value)}
-                className={fieldErrors.Email ? 'border-red-500 rounded-sm' : 'rounded-sm'}
-              />
-              {fieldErrors.Email && (
-                <p className="text-sm text-red-500">{fieldErrors.Email}</p>
-              )}
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-name">Full Name</Label>
-              <Input
-                id="edit-name"
-                value={formData.Name}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('Name', e.target.value)}
-                className={fieldErrors.Name ? 'border-red-500 rounded-sm' : 'rounded-sm'}
-              />
-              {fieldErrors.Name && (
-                <p className="text-sm text-red-500">{fieldErrors.Name}</p>
-              )}
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-position">Position</Label>
-              <Select
-                value={formData.Position}
-                onValueChange={handleRoleChange}
-              >
-                <SelectTrigger id="edit-position" className="rounded-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="rounded-sm">
-                  {[...roles].sort((a, b) => a.PositionLevel - b.PositionLevel).map((role) => (
-                    <SelectItem key={role.ID} value={role.Position}>
-                      {role.Position} - {role.PositionLevel}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {formData.PositionLevel > 0 && supervisors.length > 0 && (
-              <div className="grid gap-2">
-                <Label htmlFor="edit-supervisor">Supervisor</Label>
+              <div>
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.Password}
+                  onChange={(e) => setFormData({ ...formData, Password: e.target.value })}
+                />
+                {fieldErrors.Password && <span className="text-sm text-red-500">{fieldErrors.Password}</span>}
+              </div>
+              <div>
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={formData.UserDetail.Name}
+                  onChange={(e) => setFormData({ ...formData, UserDetail: { Name: e.target.value } })}
+                />
+                {fieldErrors.UserDetail && <span className="text-sm text-red-500">{fieldErrors.UserDetail}</span>}
+              </div>
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  value={formData.Email}
+                  onChange={(e) => setFormData({ ...formData, Email: e.target.value })}
+                />
+                {fieldErrors.Email && <span className="text-sm text-red-500">{fieldErrors.Email}</span>}
+              </div>
+              <div>
+                <Label htmlFor="position">Position</Label>
+                <Input
+                  id="position"
+                  value={formData.Role.Position}
+                  onChange={(e) => setFormData({ ...formData, Role: { ...formData.Role, Position: e.target.value } })}
+                />
+                {fieldErrors.Role && <span className="text-sm text-red-500">{fieldErrors.Role}</span>}
+              </div>
+              <div>
+                <Label htmlFor="level">Level</Label>
                 <Select
-                  value={formData.SupervisorID?.toString() || 'none'}
-                  onValueChange={handleSupervisorChange}
+                  value={formData.Role.PositionLevel.toString()}
+                  onValueChange={(value) => setFormData({ ...formData, Role: { ...formData.Role, PositionLevel: parseInt(value) } })}
                 >
-                  <SelectTrigger id="edit-supervisor" className="rounded-sm">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="rounded-sm">
-                    <SelectItem value="0">None</SelectItem>
-                    {supervisors.map((supervisor) => (
-                      <SelectItem key={supervisor.ID} value={supervisor.ID.toString()}>
-                        {supervisor.Name} - {supervisor.Position} (Level {supervisor.PositionLevel})
-                      </SelectItem>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5].map((level) => (
+                      <SelectItem key={level} value={level.toString()}>{level}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-            )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>Cancel</Button>
+              <Button onClick={handleCreateUser}>Create</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Error loading users</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search users..."
+            value={globalFilter ?? ''}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        <Button variant="outline" onClick={exportToCSV}>
+          <Download className="mr-2 h-4 w-4" />
+          Export
+        </Button>
+      </div>
+
+      <div className="rounded-md border">
+        <table className="w-full">
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id} className="border-b bg-muted/50">
+                {headerGroup.headers.map((header) => (
+                  <th key={header.id} className="px-4 py-3 text-left font-medium">
+                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map((row) => (
+              <tr key={row.id} className="border-b">
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id} className="px-4 py-3">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>Update user information</DialogDescription>
+          </DialogHeader>
+          {errorMessage && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{errorMessage}</AlertDescription>
+            </Alert>
+          )}
+          <div className="grid gap-4 py-4">
+            <div>
+              <Label htmlFor="edit-username">Username</Label>
+              <Input
+                id="edit-username"
+                value={formData.Username}
+                onChange={(e) => setFormData({ ...formData, Username: e.target.value })}
+              />
+              {fieldErrors.Username && <span className="text-sm text-red-500">{fieldErrors.Username}</span>}
+            </div>
+            <div>
+              <Label htmlFor="edit-password">Password (leave blank to keep current)</Label>
+              <Input
+                id="edit-password"
+                type="password"
+                value={formData.Password}
+                onChange={(e) => setFormData({ ...formData, Password: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-name">Name</Label>
+              <Input
+                id="edit-name"
+                value={formData.UserDetail.Name}
+                onChange={(e) => setFormData({ ...formData, UserDetail: { Name: e.target.value } })}
+              />
+              {fieldErrors.UserDetail && <span className="text-sm text-red-500">{fieldErrors.UserDetail}</span>}
+            </div>
+            <div>
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                value={formData.Email}
+                onChange={(e) => setFormData({ ...formData, Email: e.target.value })}
+              />
+              {fieldErrors.Email && <span className="text-sm text-red-500">{fieldErrors.Email}</span>}
+            </div>
+            <div>
+              <Label htmlFor="edit-position">Position</Label>
+              <Input
+                id="edit-position"
+                value={formData.Role.Position}
+                onChange={(e) => setFormData({ ...formData, Role: { ...formData.Role, Position: e.target.value } })}
+              />
+              {fieldErrors.Role && <span className="text-sm text-red-500">{fieldErrors.Role}</span>}
+            </div>
+            <div>
+              <Label htmlFor="edit-level">Level</Label>
+              <Select
+                value={formData.Role.PositionLevel.toString()}
+                onValueChange={(value) => setFormData({ ...formData, Role: { ...formData.Role, PositionLevel: parseInt(value) } })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 2, 3, 4, 5].map((level) => (
+                    <SelectItem key={level} value={level.toString()}>{level}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                resetForm() // Clear form data
-                setSelectedUser(null)
-                setIsEditModalOpen(false) // Close modal
-              }}
-              className="rounded-sm"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleEditUser}
-              disabled={updateUserMutation.isPending}
-              className="bg-[#428bff] hover:bg-[#3b7ee6] rounded-sm"
-            >
-              {updateUserMutation.isPending ? 'Updating...' : 'Update User'}
-            </Button>
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateUser}>Update</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

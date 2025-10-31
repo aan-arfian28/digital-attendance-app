@@ -20,14 +20,7 @@ const config = defineConfig({
 
   build: {
     target: 'esnext',
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-        pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.trace'],
-      },
-    },
+    minify: false, // TEMPORARY: Disable minification for debugging
     chunkSizeWarningLimit: 600,
     reportCompressedSize: false,
   },

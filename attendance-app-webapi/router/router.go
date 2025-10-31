@@ -21,11 +21,13 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 	config.AllowOrigins = []string{
 		"http://localhost:3000",
 		"http://localhost:3001",
+		"http://localhost:8081", // Docker frontend port
 		"http://127.0.0.1:3000",
 		"http://127.0.0.1:3001",
+		"http://127.0.0.1:8081", // Docker frontend port
 		"http://192.168.1.11:3000",
 		"http://192.168.1.11:3001",
-		"http://10.209.125.240:3000",
+		"http://10.60.208.240:3000",
 		"http://10.209.125.240:3001",
 		"https://cluster-gotten-sciences-marathon.trycloudflare.com", // Cloudflared tunnel
 	}
