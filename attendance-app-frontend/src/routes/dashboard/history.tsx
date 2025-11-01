@@ -78,8 +78,8 @@ function AttendanceHistoryContent() {
   const [attendancePageSize, setAttendancePageSize] = useState(10)
   const [leavePage, setLeavePage] = useState(0)
   const [leavePageSize, setLeavePageSize] = useState(10)
-  const [attendanceSortOrder, setAttendanceSortOrder] = useState<'asc' | 'desc' | null>(null)
-  const [leaveSortOrder, setLeaveSortOrder] = useState<'asc' | 'desc' | null>(null)
+  const [attendanceSortOrder, setAttendanceSortOrder] = useState<'asc' | 'desc' | null>('desc') // Default: newest first
+  const [leaveSortOrder, setLeaveSortOrder] = useState<'asc' | 'desc' | null>('desc') // Default: newest first
 
   const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery({
     queryKey: ['my-attendance'],
@@ -202,22 +202,22 @@ function AttendanceHistoryContent() {
   }
 
   const toggleAttendanceSort = () => {
-    if (!attendanceSortOrder) {
+    if (attendanceSortOrder === 'desc') {
       setAttendanceSortOrder('asc')
     } else if (attendanceSortOrder === 'asc') {
       setAttendanceSortOrder('desc')
     } else {
-      setAttendanceSortOrder(null)
+      setAttendanceSortOrder('desc')
     }
   }
 
   const toggleLeaveSort = () => {
-    if (!leaveSortOrder) {
+    if (leaveSortOrder === 'desc') {
       setLeaveSortOrder('asc')
     } else if (leaveSortOrder === 'asc') {
       setLeaveSortOrder('desc')
     } else {
-      setLeaveSortOrder(null)
+      setLeaveSortOrder('desc')
     }
   }
 

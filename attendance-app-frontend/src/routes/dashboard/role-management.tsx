@@ -74,7 +74,12 @@ function RoleManagement() {
 
 function RoleManagementContent() {
   const queryClient = useQueryClient()
-  const [sorting, setSorting] = useState<SortingState>([])
+  const [sorting, setSorting] = useState<SortingState>([
+    {
+      id: 'PositionLevel',
+      desc: false,
+    },
+  ])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   
@@ -347,6 +352,12 @@ function RoleManagementContent() {
       globalFilter,
     },
     initialState: {
+      sorting: [
+        {
+          id: 'PositionLevel',
+          desc: false,
+        },
+      ],
       pagination: {
         pageSize: 10,
       },

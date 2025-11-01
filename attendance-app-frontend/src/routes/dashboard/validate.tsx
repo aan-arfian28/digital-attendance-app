@@ -384,15 +384,25 @@ function ValidateAttendanceContent() {
 
   // OPTIMIZED: Memoize pagination data untuk prevent recalculation
   const paginatedAttendance = useMemo(() => {
+    const sortedRecords = [...attendanceRecords].sort((a, b) => {
+      const dateA = new Date(a.CheckInTime || 0).getTime()
+      const dateB = new Date(b.CheckInTime || 0).getTime()
+      return dateB - dateA // Newest first
+    })
     const start = attendancePage * attendancePageSize
     const end = start + attendancePageSize
-    return attendanceRecords.slice(start, end)
+    return sortedRecords.slice(start, end)
   }, [attendanceRecords, attendancePage, attendancePageSize])
 
   const paginatedLeave = useMemo(() => {
+    const sortedRequests = [...leaveRequests].sort((a, b) => {
+      const dateA = new Date(a.StartDate).getTime()
+      const dateB = new Date(b.StartDate).getTime()
+      return dateB - dateA // Newest first
+    })
     const start = leavePage * leavePageSize
     const end = start + leavePageSize
-    return leaveRequests.slice(start, end)
+    return sortedRequests.slice(start, end)
   }, [leaveRequests, leavePage, leavePageSize])
 
   const totalAttendancePages = useMemo(() => 
