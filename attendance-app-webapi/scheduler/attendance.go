@@ -22,12 +22,9 @@ func NewAttendanceScheduler(db *gorm.DB) *AttendanceScheduler {
 }
 
 func (s *AttendanceScheduler) Start() {
-	// Schedule create pending records at midnight (00:00) every day
-	s.cron.AddFunc("0 0 * * *", func() {
-		s.createPendingRecords()
-	})
-
 	// Schedule marking absent and didn't checkout at 17:00 every day
+	// NOTE: We no longer auto-create pending records at midnight
+	// Users must manually check-in, which creates PRESENT status by default
 	s.cron.AddFunc("0 17 * * *", func() {
 		s.markAbsentRecords()
 		s.markDidntCheckout()
@@ -40,6 +37,10 @@ func (s *AttendanceScheduler) Stop() {
 	s.cron.Stop()
 }
 
+// createPendingRecords is DEPRECATED and no longer used
+// Users must manually check-in to create attendance records
+// Records are created with PRESENT status by default
+// Keeping this function for reference but it's not called anymore
 func (s *AttendanceScheduler) createPendingRecords() {
 	var users []models.User
 	if err := s.db.Find(&users).Error; err != nil {
@@ -97,21 +98,57 @@ func (s *AttendanceScheduler) createPendingRecords() {
 func (s *AttendanceScheduler) markAbsentRecords() {
 	now := time.Now()
 
-	// Update all pending records to absent
-	result := s.db.Model(&models.Attendance{}).
-		Where("DATE(check_in_time) = DATE(?) AND validation_status = ?", now, models.Pending).
-		Updates(map[string]interface{}{
-			"status":            "ABSENT",
-			"validation_status": models.Absent,
-			"notes":             "Automatically marked as absent at 17:00",
-		})
-
-	if result.Error != nil {
-		log.Printf("Error marking absent records: %v", result.Error)
+	// Mark users who didn't check-in at all today as ABSENT
+	// We need to create records for users who have no attendance today
+	var users []models.User
+	if err := s.db.Find(&users).Error; err != nil {
+		log.Printf("Error fetching users: %v", err)
 		return
 	}
 
-	log.Printf("Marked %d records as absent", result.RowsAffected)
+	tx := s.db.Begin()
+	absentCount := 0
+
+	for _, user := range users {
+		// Check if user has any attendance record for today
+		var exists bool
+		err := tx.Model(&models.Attendance{}).
+			Where("user_id = ? AND DATE(check_in_time) = DATE(?)", user.ID, now).
+			Select("1").
+			Limit(1).
+			Scan(&exists).Error
+
+		if err != nil {
+			log.Printf("Error checking attendance for user %d: %v", user.ID, err)
+			continue
+		}
+
+		// If no record exists, create an ABSENT record
+		if !exists {
+			checkInTime := time.Date(now.Year(), now.Month(), now.Day(), 7, 30, 0, 0, now.Location())
+			attendance := models.Attendance{
+				UserID:           user.ID,
+				CheckInTime:      &checkInTime,
+				Status:           "ABSENT",
+				ValidationStatus: models.Absent,
+				Notes:            "Automatically marked as absent - no check-in recorded",
+			}
+
+			if err := tx.Create(&attendance).Error; err != nil {
+				log.Printf("Error creating absent record for user %d: %v", user.ID, err)
+				continue
+			}
+			absentCount++
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		log.Printf("Error committing absent records: %v", err)
+		tx.Rollback()
+		return
+	}
+
+	log.Printf("Marked %d users as absent (no check-in)", absentCount)
 }
 
 func (s *AttendanceScheduler) markDidntCheckout() {

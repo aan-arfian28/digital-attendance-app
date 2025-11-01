@@ -369,6 +369,11 @@ func UpdateSubordinateAttendanceRecord(c *gin.Context) {
 	}
 
 	// Update the record with new status
+	// NOTE: Supervisor can update validation status at any time:
+	// - Default status is PRESENT (set during check-in)
+	// - Supervisor can change PRESENT to REJECTED with reason
+	// - Supervisor can also change REJECTED back to PRESENT if needed
+	// - No restrictions on when validation can be performed
 	attendance.ValidationStatus = req.ValidationStatus
 	attendance.ValidatorID = &supervisorId
 	attendance.Notes = req.Notes
@@ -393,5 +398,3 @@ func UpdateSubordinateAttendanceRecord(c *gin.Context) {
 
 	c.JSON(http.StatusOK, attendance)
 }
-
-
