@@ -124,7 +124,7 @@ function ValidateAttendanceContent() {
   // OPTIMIZED: Group modal-related state untuk atomic updates
   const [isValidateModalOpen, setIsValidateModalOpen] = useState(false)
   const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | LeaveRequestRecord | null>(null)
-  const [validationAction, setValidationAction] = useState<'approve' | 'reject'>('approve')
+  const [validationAction, setValidationAction] = useState<'approve' | 'reject' | 'detail'>('approve')
   const [validationStatus, setValidationStatus] = useState<string>('')
   const [validationNote, setValidationNote] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -311,7 +311,7 @@ function ValidateAttendanceContent() {
     return `${baseURL}${relativePath}`
   }
 
-  const openValidateModal = useCallback((record: AttendanceRecord | LeaveRequestRecord, action: 'approve' | 'reject') => {
+  const openValidateModal = useCallback((record: AttendanceRecord | LeaveRequestRecord, action: 'approve' | 'reject' | 'detail') => {
     // Only reset form if it's a different record or different action
     // This allows X button to preserve form data when reopening same validation
     const isSameValidation = 
@@ -329,7 +329,13 @@ function ValidateAttendanceContent() {
     // Set default validation status based on action and record type
     if ('CheckInTime' in record) {
       // Attendance record
-      setValidationStatus(action === 'approve' ? 'PRESENT' : 'REJECTED')
+      if (action === 'detail') {
+        setValidationStatus(record.ValidationStatus)
+      } else if (action === 'approve') {
+        setValidationStatus('PRESENT')
+      } else {
+        setValidationStatus('REJECTED')
+      }
     } else {
       // Leave request
       setValidationStatus(action === 'approve' ? 'APPROVED' : 'REJECTED')
@@ -341,9 +347,15 @@ function ValidateAttendanceContent() {
   const handleValidate = useCallback(() => {
     if (!selectedRecord) return
 
+    // For attendance detail view, just close the modal
+    if (validationAction === 'detail') {
+      setIsValidateModalOpen(false)
+      return
+    }
+
     // Validate rejection requires a note
     if (validationAction === 'reject' && !validationNote.trim()) {
-      setErrorMessage('Please provide a reason for rejection')
+      setErrorMessage('Silakan berikan alasan penolakan')
       return
     }
 
@@ -516,22 +528,21 @@ function ValidateAttendanceContent() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => openValidateModal(record, 'reject')}
-                            className="bg-red-50 border-red-300 text-red-600 hover:bg-red-100 rounded-sm"
-                            title="Reject"
-                            disabled={record.ValidationStatus !== 'PENDING'}
+                            onClick={() => openValidateModal(record, 'detail')}
+                            className="bg-blue-50 border-blue-300 text-blue-600 hover:bg-blue-100 rounded-sm"
+                            title="Detail"
                           >
-                            Tolak
+                            Detail
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => openValidateModal(record, 'approve')}
-                            className="bg-green-50 border-green-300 text-green-600 hover:bg-green-100 rounded-sm"
-                            title="Approve"
-                            disabled={record.ValidationStatus !== 'PENDING'}
+                            onClick={() => openValidateModal(record, 'reject')}
+                            className="bg-red-50 border-red-300 text-red-600 hover:bg-red-100 rounded-sm"
+                            title="Reject"
+                            disabled={record.ValidationStatus !== 'PRESENT'}
                           >
-                            Setujui
+                            Tolak
                           </Button>
                         </div>
                       </td>
@@ -643,6 +654,15 @@ function ValidateAttendanceContent() {
                           <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => openValidateModal(request, 'detail')}
+                            className="bg-blue-50 border-blue-300 text-blue-600 hover:bg-blue-100 rounded-sm"
+                            title="Detail"
+                          >
+                            Detail
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => openValidateModal(request, 'reject')}
                             className="bg-red-50 border-red-300 text-red-600 hover:bg-red-100 rounded-sm"
                             title="Reject"
@@ -733,11 +753,18 @@ function ValidateAttendanceContent() {
         >
           <DialogHeader>
             <DialogTitle>
-              {validationAction === 'approve' ? 'Setujui' : 'Tolak'}{' '}
-              {activeTab === 'attendance' ? 'Catatan Absensi' : 'Pengajuan Izin'}
+              {validationAction === 'detail' 
+                ? 'Detail Catatan Absensi'
+                : validationAction === 'approve' 
+                ? 'Setujui' 
+                : 'Tolak'}{' '}
+              {validationAction !== 'detail' && activeTab === 'attendance' ? 'Catatan Absensi' : ''}
+              {validationAction !== 'detail' && activeTab === 'leave' ? 'Pengajuan Izin' : ''}
             </DialogTitle>
             <DialogDescription>
-              {validationAction === 'approve'
+              {validationAction === 'detail'
+                ? 'Lihat detail lengkap catatan absensi.'
+                : validationAction === 'approve'
                 ? 'Konfirmasi persetujuan dan tambahkan catatan opsional.'
                 : 'Berikan alasan untuk penolakan.'}
             </DialogDescription>
@@ -936,7 +963,7 @@ function ValidateAttendanceContent() {
             )}
 
             {/* Validation Status */}
-            {selectedRecord && 'CheckInTime' in selectedRecord && (
+            {selectedRecord && 'CheckInTime' in selectedRecord && validationAction !== 'detail' && (
               <div className="grid gap-2">
                 <Label htmlFor="validation-status">Status Validasi *</Label>
                 <Select value={validationStatus} onValueChange={setValidationStatus}>
@@ -954,23 +981,25 @@ function ValidateAttendanceContent() {
             )}
 
             {/* Validation Note */}
-            <div className="grid gap-2">
-              <Label htmlFor="validation-note">
-                {validationAction === 'approve' ? 'Catatan (Opsional)' : 'Alasan Penolakan *'}
-              </Label>
-              <Textarea
-                id="validation-note"
-                value={validationNote}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setValidationNote(e.target.value)}
-                placeholder={
-                  validationAction === 'approve'
-                    ? 'Tambahkan catatan tambahan...'
-                    : 'Silakan berikan alasan penolakan...'
-                }
-                className="rounded-sm"
-                rows={4}
-              />
-            </div>
+            {validationAction !== 'detail' && (
+              <div className="grid gap-2">
+                <Label htmlFor="validation-note">
+                  {validationAction === 'approve' ? 'Catatan (Opsional)' : 'Alasan Penolakan *'}
+                </Label>
+                <Textarea
+                  id="validation-note"
+                  value={validationNote}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setValidationNote(e.target.value)}
+                  placeholder={
+                    validationAction === 'approve'
+                      ? 'Tambahkan catatan tambahan...'
+                      : 'Silakan berikan alasan penolakan...'
+                  }
+                  className="rounded-sm"
+                  rows={4}
+                />
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -988,23 +1017,25 @@ function ValidateAttendanceContent() {
               className="rounded-sm"
               disabled={validateAttendanceMutation.isPending || validateLeaveMutation.isPending}
             >
-              Batal
+              {validationAction === 'detail' ? 'Tutup' : 'Batal'}
             </Button>
-            <Button
-              onClick={handleValidate}
-              disabled={validateAttendanceMutation.isPending || validateLeaveMutation.isPending}
-              className={
-                validationAction === 'approve'
-                  ? 'bg-green-600 hover:bg-green-700 text-white rounded-sm'
-                  : 'bg-red-600 hover:bg-red-700 text-white rounded-sm'
-              }
-            >
-              {validateAttendanceMutation.isPending || validateLeaveMutation.isPending
-                ? 'Memproses...'
-                : validationAction === 'approve'
-                ? 'Setujui'
-                : 'Tolak'}
-            </Button>
+            {validationAction !== 'detail' && (
+              <Button
+                onClick={handleValidate}
+                disabled={validateAttendanceMutation.isPending || validateLeaveMutation.isPending}
+                className={
+                  validationAction === 'approve'
+                    ? 'bg-green-600 hover:bg-green-700 text-white rounded-sm'
+                    : 'bg-red-600 hover:bg-red-700 text-white rounded-sm'
+                }
+              >
+                {validateAttendanceMutation.isPending || validateLeaveMutation.isPending
+                  ? 'Memproses...'
+                  : validationAction === 'approve'
+                  ? 'Setujui'
+                  : 'Tolak'}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
