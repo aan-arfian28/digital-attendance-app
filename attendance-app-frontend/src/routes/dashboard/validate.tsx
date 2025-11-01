@@ -135,20 +135,26 @@ function ValidateAttendanceContent() {
   const [leavePage, setLeavePage] = useState(0)
   const [leavePageSize, setLeavePageSize] = useState(10)
 
-  // OPTIMIZED: Use extracted query functions + disable aggressive refetching
+  // Auto-refetch for real-time updates
   const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery({
     queryKey: ['subordinate-attendance'],
     queryFn: fetchSubordinateAttendance,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    refetchOnWindowFocus: false,
+    staleTime: 0,
+    refetchInterval: 3000, // Refetch every 3 seconds
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   })
 
   // Fetch subordinate leave requests
   const { data: leaveRequests = [], isLoading: leaveLoading } = useQuery({
     queryKey: ['subordinate-leave-requests'],
     queryFn: fetchSubordinateLeaveRequests,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    refetchOnWindowFocus: false,
+    staleTime: 0,
+    refetchInterval: 3000, // Refetch every 3 seconds
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   })
 
   // Validate attendance mutation
@@ -178,7 +184,7 @@ function ValidateAttendanceContent() {
     },
   })
 
-  // Validate leave request mutation - OPTIMIZED: Conditional invalidation
+  // Validate leave request mutation
   const validateLeaveMutation = useMutation({
     mutationFn: async ({ id, payload }: { id: number; payload: LeaveValidationPayload }) => {
       const response = await fetch(`${API_BASE_URL}/user/leave/validate/${id}`, {
@@ -192,12 +198,9 @@ function ValidateAttendanceContent() {
       }
       return response.json()
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subordinate-leave-requests'] })
-      // OPTIMIZED: Hanya invalidate attendance jika leave APPROVED (affects attendance records)
-      if (variables.payload.status === 'APPROVED') {
-        queryClient.invalidateQueries({ queryKey: ['subordinate-attendance'] })
-      }
+      queryClient.invalidateQueries({ queryKey: ['subordinate-attendance'] })
       setIsValidateModalOpen(false)
       setSelectedRecord(null)
       setValidationNote('')

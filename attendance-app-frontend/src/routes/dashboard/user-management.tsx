@@ -152,8 +152,10 @@ function UserManagementContent() {
     },
     staleTime: 0,
     gcTime: 0,
+    refetchInterval: 3000, // Refetch every 3 seconds
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   })
 
   // Fetch roles
@@ -169,6 +171,10 @@ function UserManagementContent() {
     },
     staleTime: 0,
     gcTime: 0,
+    refetchInterval: 3000, // Refetch every 3 seconds
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   })
 
   // Fetch potential supervisors
@@ -202,7 +208,10 @@ function UserManagementContent() {
     enabled: formData.PositionLevel > 0,
     staleTime: 0,
     gcTime: 0,
+    refetchInterval: 3000, // Refetch every 3 seconds
     refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   })
 
   // Create user mutation

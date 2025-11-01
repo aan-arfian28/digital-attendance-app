@@ -113,6 +113,11 @@ function RoleManagementContent() {
       // Sort by position level ascending
       return data.sort((a: Role, b: Role) => a.PositionLevel - b.PositionLevel)
     },
+    staleTime: 0,
+    refetchInterval: 3000, // Refetch every 3 seconds
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   })
 
   // Create role mutation

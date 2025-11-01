@@ -84,15 +84,21 @@ function AttendanceHistoryContent() {
   const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery({
     queryKey: ['my-attendance'],
     queryFn: fetchMyAttendanceHistory,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 0,
+    refetchInterval: 3000, // Refetch every 3 seconds
+    refetchOnMount: true,
     refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   })
 
   const { data: leaveRecords = [], isLoading: leaveLoading } = useQuery({
     queryKey: ['my-leave-requests'],
     queryFn: fetchMyLeaveHistory,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 0,
+    refetchInterval: 3000, // Refetch every 3 seconds
+    refetchOnMount: true,
     refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   })
 
   const formatDate = (dateString: string) => {
