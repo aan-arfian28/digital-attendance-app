@@ -44,10 +44,10 @@ function ProfilePage() {
       <div className="p-6">
         <div className="text-center py-12">
           <User className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Profile Not Found</h2>
-          <p className="text-gray-600 mb-4">Unable to load your profile information.</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Profil Tidak Ditemukan</h2>
+          <p className="text-gray-600 mb-4">Tidak dapat memuat informasi profil Anda.</p>
           <Button onClick={refreshUser}>
-            Retry
+            Coba Lagi
           </Button>
         </div>
       </div>
@@ -59,11 +59,11 @@ function ProfilePage() {
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
           <User className="h-6 w-6 text-[#428bff]" />
-          <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Profil Saya</h1>
         </div>
         <Button className="bg-[#428bff] hover:bg-[#3b7ee6] text-white">
           <Edit className="h-4 w-4 mr-2" />
-          Edit Profile
+          Edit Profil
         </Button>
       </div>
 
@@ -94,14 +94,14 @@ function ProfilePage() {
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <User className="h-5 w-5 text-[#428bff]" />
-                Personal Information
+                Informasi Personal
               </h3>
             </div>
             <div className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    User ID
+                    ID User
                   </label>
                   <p className="text-gray-900 font-mono text-sm bg-gray-50 px-3 py-2 rounded border">
                     {userId}
@@ -117,15 +117,15 @@ function ProfilePage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Full Name
+                    Nama Lengkap
                   </label>
                   <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded border">
-                    {name || 'Not set'}
+                    {name || 'Belum diatur'}
                   </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email Address
+                    Alamat Email
                   </label>
                   <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded border flex items-center gap-2">
                     <Mail className="h-4 w-4 text-gray-500" />
@@ -140,7 +140,7 @@ function ProfilePage() {
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <Shield className="h-5 w-5 text-[#428bff]" />
-                Role & Permissions
+                Role & Izin
               </h3>
             </div>
             <div className="p-6">
@@ -156,7 +156,7 @@ function ProfilePage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Position
+                    Posisi
                   </label>
                   <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded border">
                     <Building className="h-4 w-4 text-gray-500" />
@@ -165,7 +165,7 @@ function ProfilePage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Authority Level
+                    Level Wewenang
                   </label>
                   <div className="bg-gray-50 px-3 py-2 rounded border">
                     <div className="flex items-center justify-between">
@@ -185,7 +185,7 @@ function ProfilePage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Role ID
+                    ID Role
                   </label>
                   <p className="text-gray-900 font-mono text-sm bg-gray-50 px-3 py-2 rounded border">
                     {user.Role?.ID}
@@ -201,7 +201,7 @@ function ProfilePage() {
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                   <Users className="h-5 w-5 text-[#428bff]" />
-                  Reporting Structure
+                  Struktur Pelaporan
                 </h3>
               </div>
               <div className="p-6">
@@ -209,7 +209,7 @@ function ProfilePage() {
                   {supervisorId && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Supervisor ID
+                        ID Supervisor
                       </label>
                       <p className="text-gray-900 font-mono text-sm bg-gray-50 px-3 py-2 rounded border">
                         {supervisorId}
@@ -219,7 +219,7 @@ function ProfilePage() {
                   {supervisorName && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Supervisor Name
+                        Nama Supervisor
                       </label>
                       <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded border">
                         <User className="h-4 w-4 text-gray-500" />
@@ -235,18 +235,18 @@ function ProfilePage() {
           {/* Actions */}
           <div className="bg-white rounded-lg border border-gray-200">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Account Actions</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Aksi Akun</h3>
             </div>
             <div className="p-6">
               <div className="flex flex-wrap gap-3">
                 <Button variant="outline" onClick={refreshUser}>
-                  Refresh Profile
+                  Refresh Profil
                 </Button>
                 <Button variant="outline">
-                  Change Password
+                  Ubah Password
                 </Button>
                 <Button variant="outline">
-                  Download Profile Data
+                  Unduh Data Profil
                 </Button>
               </div>
             </div>

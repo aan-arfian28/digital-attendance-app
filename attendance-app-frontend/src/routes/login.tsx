@@ -38,7 +38,7 @@ function Login() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-[#428bff] text-white font-bold text-xl mb-4 animate-pulse">
             T
           </div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">Memuat...</p>
         </div>
       </div>
     )
@@ -78,7 +78,7 @@ function Login() {
         {/* Login Form */}
         <div className="border border-gray-300 p-8 rounded-sm">
           <h2 className="text-xl font-semibold text-gray-900 mb-6 text-center">
-            Login to Your Account
+            Masuk ke Akun Anda
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -88,7 +88,7 @@ function Login() {
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
                   {loginMutation.error?.message ||
-                    'Login failed. Please try again.'}
+                    'Login gagal. Silakan coba lagi.'}
                 </AlertDescription>
               </Alert>
             )}
@@ -111,7 +111,7 @@ function Login() {
                   type="text"
                   required
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 focus:ring-[#428bff] focus:border-transparent"
-                  placeholder="Enter your username"
+                  placeholder="Masukkan username Anda"
                   value={formData.username}
                   onChange={(e) =>
                     handleInputChange('username', e.target.value)
@@ -138,7 +138,7 @@ function Login() {
                   type={showPassword ? 'text' : 'password'}
                   required
                   className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 focus:ring-[#428bff] focus:border-transparent"
-                  placeholder="Enter your password"
+                  placeholder="Masukkan password Anda"
                   value={formData.password}
                   onChange={(e) =>
                     handleInputChange('password', e.target.value)
@@ -167,10 +167,10 @@ function Login() {
               {loginMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing In...
+                  Masuk...
                 </>
               ) : (
-                'Sign In'
+                'Login'
               )}
             </Button>
           </form>

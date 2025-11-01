@@ -34,12 +34,12 @@ interface MenuItem {
 const allMenuItems: MenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/dashboard' },
   // Admin-only pages
-  { id: 'user-management', label: 'User Management', icon: Users, href: '/dashboard/user-management', isAdminOnly: true },
-  { id: 'role-management', label: 'Role Management', icon: Shield, href: '/dashboard/role-management', isAdminOnly: true },
-  { id: 'settings', label: 'Settings', icon: Settings, href: '/dashboard/settings', isAdminOnly: true },
+  { id: 'user-management', label: 'Manajemen User', icon: Users, href: '/dashboard/user-management', isAdminOnly: true },
+  { id: 'role-management', label: 'Manajemen Role', icon: Shield, href: '/dashboard/role-management', isAdminOnly: true },
+  { id: 'settings', label: 'Pengaturan', icon: Settings, href: '/dashboard/settings', isAdminOnly: true },
   // User-only pages
-  { id: 'history', label: 'History', icon: History, href: '/dashboard/history', isUserOnly: true },
-  { id: 'validate', label: 'Validate', icon: CheckCircle, href: '/dashboard/validate', isUserOnly: true },
+  { id: 'history', label: 'Riwayat', icon: History, href: '/dashboard/history', isUserOnly: true },
+  { id: 'validate', label: 'Validasi', icon: CheckCircle, href: '/dashboard/validate', isUserOnly: true },
 ]
 
 export default function Sidebar({ isOpen, onToggle, onMobileMenuClose }: SidebarProps) {

@@ -1,4 +1,4 @@
-import { User, LogOut, Settings } from 'lucide-react'
+import { User, LogOut } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,15 +19,15 @@ interface UserDropdownProps {
 }
 
 export default function UserDropdown({
-  userName = "John Doe",
-  userEmail = "user@example.com",
+  userName = 'John Doe',
+  userEmail = 'user@example.com',
   userAvatar,
   onLogout,
-  onProfile
+  onProfile,
 }: UserDropdownProps) {
   const initials = userName
     .split(' ')
-    .map(name => name[0])
+    .map((name) => name[0])
     .join('')
     .toUpperCase()
     .slice(0, 2)
@@ -35,8 +35,8 @@ export default function UserDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           className="relative h-10 w-auto px-2 py-1 border-none hover:bg-gray-100"
         >
           <div className="flex items-center gap-2">
@@ -52,7 +52,11 @@ export default function UserDropdown({
           </div>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56 border-gray-300" align="end" forceMount>
+      <DropdownMenuContent
+        className="w-56 border-gray-300"
+        align="end"
+        forceMount
+      >
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{userName}</p>
@@ -64,11 +68,11 @@ export default function UserDropdown({
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onProfile} className="cursor-pointer">
           <User className="mr-2 h-4 w-4" />
-          <span>Profile</span>
+          <span>Profil</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem 
-          onClick={onLogout} 
+        <DropdownMenuItem
+          onClick={onLogout}
           className="cursor-pointer text-red-600 focus:text-red-600"
         >
           <LogOut className="mr-2 h-4 w-4" />

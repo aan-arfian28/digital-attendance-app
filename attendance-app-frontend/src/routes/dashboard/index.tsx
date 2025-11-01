@@ -128,11 +128,12 @@ function DashboardHome() {
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    })
+    const date = new Date(dateString)
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+    const day = date.getDate()
+    const month = monthNames[date.getMonth()]
+    const year = date.getFullYear()
+    return `${day} ${month} ${year}`
   }
 
   const getRelativeTime = (dateString: string) => {
@@ -148,7 +149,7 @@ function DashboardHome() {
       return formatTime(dateString)
     }
     if (diffInHours < 48) {
-      return 'Yesterday'
+      return 'Kemarin'
     }
     return formatDate(dateString)
   }
@@ -167,15 +168,15 @@ function DashboardHome() {
   const formatValidationStatus = (status: string) => {
     switch (status) {
       case 'PENDING':
-        return 'pending validation'
+        return 'menunggu validasi'
       case 'PRESENT':
-        return 'validated as present'
+        return 'divalidasi hadir'
       case 'ABSENT':
-        return 'validated as absent'
+        return 'divalidasi tidak hadir'
       case 'LEAVE':
-        return 'validated as leave'
+        return 'divalidasi izin'
       case 'REJECTED':
-        return 'rejected'
+        return 'ditolak'
       default:
         return status.toLowerCase()
     }
@@ -184,11 +185,11 @@ function DashboardHome() {
   const formatLeaveStatus = (status: string) => {
     switch (status) {
       case 'PENDING':
-        return 'pending approval'
+        return 'menunggu persetujuan'
       case 'APPROVED':
-        return 'approved'
+        return 'disetujui'
       case 'REJECTED':
-        return 'rejected'
+        return 'ditolak'
       default:
         return status.toLowerCase()
     }
@@ -204,7 +205,7 @@ function DashboardHome() {
         if (record.CheckInTime) {
           activities.push({
             time: getRelativeTime(record.CheckInTime),
-            activity: `Attendance record ${formatValidationStatus(record.ValidationStatus)}`,
+            activity: `Catatan absensi ${formatValidationStatus(record.ValidationStatus)}`,
             timestamp: new Date(record.CheckInTime),
           })
         }
@@ -215,21 +216,21 @@ function DashboardHome() {
         if (record.CheckInTime) {
           activities.push({
             time: getRelativeTime(record.CheckInTime),
-            activity: `You checked in`,
+            activity: `Anda sudah check in`,
             timestamp: new Date(record.CheckInTime),
           })
         }
         if (record.CheckOutTime) {
           activities.push({
             time: getRelativeTime(record.CheckOutTime),
-            activity: `You checked out`,
+            activity: `Anda sudah check out`,
             timestamp: new Date(record.CheckOutTime),
           })
         }
         if (record.ValidationStatus !== 'PENDING') {
           activities.push({
             time: getRelativeTime(record.UpdatedAt),
-            activity: `Attendance ${formatValidationStatus(record.ValidationStatus)}`,
+            activity: `Absensi ${formatValidationStatus(record.ValidationStatus)}`,
             timestamp: new Date(record.UpdatedAt),
           })
         }
@@ -238,7 +239,7 @@ function DashboardHome() {
       leaveRequests.forEach((request) => {
         activities.push({
           time: getRelativeTime(request.CreatedAt),
-          activity: `Leave request (${formatLeaveType(request.LeaveType)}) ${formatLeaveStatus(request.Status)}`,
+          activity: `Pengajuan izin (${formatLeaveType(request.LeaveType)}) ${formatLeaveStatus(request.Status)}`,
           timestamp: new Date(request.CreatedAt),
         })
       })
@@ -276,7 +277,7 @@ function DashboardHome() {
       {/* Page Title */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Dashboard</h1>
-        <p className="text-gray-600">Welcome to your attendance dashboard</p>
+        <p className="text-gray-600">Selamat datang di dashboard absensi Anda</p>
       </div>
 
       {/* User Information Section */}
@@ -346,7 +347,7 @@ function DashboardHome() {
                   <FileText className="h-8 w-8 text-blue-600" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900">Izin</h3>
-                <p className="text-sm text-gray-600 mt-1">Leave Request</p>
+                <p className="text-sm text-gray-600 mt-1">Pengajuan Izin</p>
               </div>
             </button>
           </div>
@@ -357,55 +358,53 @@ function DashboardHome() {
       {isAdmin && (
         <>
           <div className="mb-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">System Overview</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Ringkasan Sistem</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white border border-gray-300 rounded-sm p-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-gray-900">Total Users</h3>
+                  <h3 className="font-semibold text-gray-900">Total User</h3>
                   <Users className="h-5 w-5 text-[#428bff]" />
                 </div>
                 <p className="text-2xl font-bold text-[#428bff]">150</p>
-                <p className="text-sm text-gray-600 mt-1">Active system users</p>
+                <p className="text-sm text-gray-600 mt-1">User aktif dalam sistem</p>
               </div>
-              
+
               <div className="bg-white border border-gray-300 rounded-sm p-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-gray-900">Total Roles</h3>
+                  <h3 className="font-semibold text-gray-900">Total Role</h3>
                   <Shield className="h-5 w-5 text-[#428bff]" />
                 </div>
                 <p className="text-2xl font-bold text-[#428bff]">4</p>
-                <p className="text-sm text-gray-600 mt-1">System roles configured</p>
+                <p className="text-sm text-gray-600 mt-1">Role sistem yang dikonfigurasi</p>
               </div>
-              
+
               <div className="bg-white border border-gray-300 rounded-sm p-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-gray-900">System Status</h3>
+                  <h3 className="font-semibold text-gray-900">Status Sistem</h3>
                   <Settings className="h-5 w-5 text-[#428bff]" />
                 </div>
-                <p className="text-2xl font-bold text-green-600">Active</p>
-                <p className="text-sm text-gray-600 mt-1">All systems operational</p>
+                <p className="text-2xl font-bold text-green-600">Aktif</p>
+                <p className="text-sm text-gray-600 mt-1">Semua sistem berjalan normal</p>
               </div>
             </div>
           </div>
         </>
-      )}
-
-      {/* Recent Activity Section */}
+      )}      {/* Recent Activity Section */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Aktivitas Terbaru</h2>
         <div className="bg-white border border-gray-300 rounded-sm overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-300 bg-gray-50">
-                <th className="text-left p-4 font-semibold text-gray-900">Time</th>
-                <th className="text-left p-4 font-semibold text-gray-900">Activity</th>
+                <th className="text-left p-4 font-semibold text-gray-900">Waktu</th>
+                <th className="text-left p-4 font-semibold text-gray-900">Aktivitas</th>
               </tr>
             </thead>
             <tbody>
               {recentActivities.length === 0 ? (
                 <tr>
                   <td colSpan={2} className="p-4 text-center text-gray-600">
-                    No recent activity
+                    Tidak ada aktivitas terbaru
                   </td>
                 </tr>
               ) : (

@@ -81,26 +81,22 @@ function AttendanceHistoryContent() {
   const [attendanceSortOrder, setAttendanceSortOrder] = useState<'asc' | 'desc' | null>(null)
   const [leaveSortOrder, setLeaveSortOrder] = useState<'asc' | 'desc' | null>(null)
 
-  // OPTIMIZED: Use extracted query functions + disable aggressive refetching
   const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery({
     queryKey: ['my-attendance'],
     queryFn: fetchMyAttendanceHistory,
     staleTime: 2 * 60 * 1000, // 2 minutes
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
   })
 
-  // Fetch leave requests
   const { data: leaveRecords = [], isLoading: leaveLoading } = useQuery({
     queryKey: ['my-leave-requests'],
     queryFn: fetchMyLeaveHistory,
     staleTime: 2 * 60 * 1000, // 2 minutes
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
   })
 
-  // Simple date formatting - extract date part directly from string
   const formatDate = (dateString: string) => {
     if (!dateString) return '-'
-    // Extract date part: "2025-10-20T06:11:29.111+07:00" → "2025-10-20"
     const datePart = dateString.split('T')[0]
     const [year, month, day] = datePart.split('-')
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
@@ -109,7 +105,6 @@ function AttendanceHistoryContent() {
 
   const formatTime = (dateString: string) => {
     if (!dateString) return '-'
-    // Extract time part: "2025-10-20T06:11:29.111+07:00" → "06:11"
     const timePart = dateString.split('T')[1]?.split('.')[0]
     if (!timePart) return '-'
     const [hours, minutes] = timePart.split(':')
@@ -128,13 +123,13 @@ function AttendanceHistoryContent() {
 
   // Export to CSV
   const exportAttendanceToCSV = () => {
-    const headers = ['Date', 'Check In', 'Check Out', 'Duration', 'Status', 'Validation']
+    const headers = ['Tanggal', 'Check In', 'Check Out', 'Durasi', 'Status', 'Validasi']
     const rows = attendanceRecords.map((record: AttendanceRecord) => [
       formatDate(record.CheckInTime),
       formatTime(record.CheckInTime),
       record.CheckOutTime ? formatTime(record.CheckOutTime) : '-',
       calculateDuration(record.CheckInTime, record.CheckOutTime),
-      record.Status === 'ON_TIME' ? 'On Time' : record.Status === 'LATE' ? 'Late' : record.Status,
+      record.Status === 'ON_TIME' ? 'Tepat Waktu' : record.Status === 'LATE' ? 'Terlambat' : record.Status,
       record.ValidationStatus,
     ])
 
@@ -153,12 +148,12 @@ function AttendanceHistoryContent() {
   }
 
   const exportLeaveToCSV = () => {
-    const headers = ['Period', 'Type', 'Reason', 'Status']
+    const headers = ['Periode', 'Tipe', 'Alasan', 'Status']
     const rows = leaveRecords.map((record: LeaveRequestRecord) => [
       `${formatDate(record.StartDate)} - ${formatDate(record.EndDate)}`,
       record.LeaveType === 'SICK' ? 'Sakit' : 'Izin',
       record.Reason,
-      record.Status === 'APPROVED' ? 'Approved' : record.Status === 'REJECTED' ? 'Rejected' : 'Pending',
+      record.Status === 'APPROVED' ? 'Disetujui' : record.Status === 'REJECTED' ? 'Ditolak' : 'Menunggu',
     ])
 
     const csvContent = [
@@ -277,8 +272,8 @@ function AttendanceHistoryContent() {
     <div className="p-6">
       {/* Page Title */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">History</h1>
-        <p className="text-gray-600">View your attendance and leave request history</p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Riwayat Absensi</h1>
+        <p className="text-gray-600">Lihat riwayat absensi dan pengajuan izin Anda</p>
       </div>
 
       {/* Export Button */}
@@ -303,7 +298,7 @@ function AttendanceHistoryContent() {
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
-          Attendance
+          Absensi
         </button>
         <button
           onClick={() => setActiveTab('leave')}
@@ -313,7 +308,7 @@ function AttendanceHistoryContent() {
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
-          Leave Requests
+          Pengajuan Izin
         </button>
       </div>
 
@@ -329,7 +324,7 @@ function AttendanceHistoryContent() {
                       className="flex items-center gap-2 font-semibold text-gray-900"
                       onClick={toggleAttendanceSort}
                     >
-                      Date
+                      Tanggal
                       {attendanceSortOrder === 'asc' ? (
                         <ChevronUp className="h-4 w-4" />
                       ) : attendanceSortOrder === 'desc' ? (
@@ -341,22 +336,22 @@ function AttendanceHistoryContent() {
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Check In</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Check Out</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Duration</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Durasi</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Validation</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Validasi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {attendanceLoading ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                      Loading records...
+                      Memuat data...
                     </td>
                   </tr>
                 ) : attendanceRecords.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                      No attendance records found
+                      Tidak ada catatan absensi
                     </td>
                   </tr>
                 ) : (
@@ -384,7 +379,7 @@ function AttendanceHistoryContent() {
                               : 'bg-gray-100 text-gray-800 border-gray-200'
                           }`}
                         >
-                          {record.Status === 'ON_TIME' ? 'On Time' : record.Status === 'LATE' ? 'Late' : record.Status}
+                          {record.Status === 'ON_TIME' ? 'Tepat Waktu' : record.Status === 'LATE' ? 'Terlambat' : record.Status}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm">
@@ -399,7 +394,10 @@ function AttendanceHistoryContent() {
                               : 'bg-gray-100 text-gray-800 border-gray-200'
                           }`}
                         >
-                          {record.ValidationStatus}
+                          {record.ValidationStatus === 'PRESENT' ? 'Hadir'
+                            : record.ValidationStatus === 'ABSENT' ? 'Tidak Hadir'
+                          : record.ValidationStatus === 'PENDING' ? 'Menunggu'
+                          : record.ValidationStatus}
                         </span>
                       </td>
                     </tr>
@@ -412,7 +410,7 @@ function AttendanceHistoryContent() {
           {/* Pagination */}
           <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-700">Rows per page:</span>
+              <span className="text-sm text-gray-700">Baris per halaman:</span>
               <Select
                 value={attendancePageSize.toString()}
                 onValueChange={(value) => setCurrentPageSize(Number(value))}
@@ -432,7 +430,7 @@ function AttendanceHistoryContent() {
 
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-700">
-                Page {getCurrentPage() + 1} of {getTotalPages() || 1}
+                Halaman {getCurrentPage() + 1} dari {getTotalPages() || 1}
               </span>
               <div className="flex gap-1">
                 <Button
@@ -442,7 +440,7 @@ function AttendanceHistoryContent() {
                   disabled={getCurrentPage() === 0}
                   className="rounded-sm"
                 >
-                  Previous
+                  Sebelumnya
                 </Button>
                 <Button
                   variant="outline"
@@ -451,7 +449,7 @@ function AttendanceHistoryContent() {
                   disabled={getCurrentPage() >= getTotalPages() - 1}
                   className="rounded-sm"
                 >
-                  Next
+                  Selanjutnya
                 </Button>
               </div>
             </div>
@@ -471,7 +469,7 @@ function AttendanceHistoryContent() {
                       className="flex items-center gap-2 font-semibold text-gray-900"
                       onClick={toggleLeaveSort}
                     >
-                      Period
+                      Periode
                       {leaveSortOrder === 'asc' ? (
                         <ChevronUp className="h-4 w-4" />
                       ) : leaveSortOrder === 'desc' ? (
@@ -481,8 +479,8 @@ function AttendanceHistoryContent() {
                       )}
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Type</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Reason</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Tipe</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Alasan</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
                 </tr>
               </thead>
@@ -490,13 +488,13 @@ function AttendanceHistoryContent() {
                 {leaveLoading ? (
                   <tr>
                     <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
-                      Loading records...
+                      Memuat data...
                     </td>
                   </tr>
                 ) : leaveRecords.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
-                      No leave requests found
+                      Tidak ada pengajuan izin
                     </td>
                   </tr>
                 ) : (
@@ -521,7 +519,7 @@ function AttendanceHistoryContent() {
                               : 'bg-yellow-100 text-yellow-800 border-yellow-200'
                           }`}
                         >
-                          {record.Status === 'APPROVED' ? 'Approved' : record.Status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                          {record.Status === 'APPROVED' ? 'Disetujui' : record.Status === 'REJECTED' ? 'Ditolak' : 'Menunggu'}
                         </span>
                       </td>
                     </tr>
@@ -534,7 +532,7 @@ function AttendanceHistoryContent() {
           {/* Pagination */}
           <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-700">Rows per page:</span>
+              <span className="text-sm text-gray-700">Baris per halaman:</span>
               <Select
                 value={leavePageSize.toString()}
                 onValueChange={(value) => setCurrentPageSize(Number(value))}
@@ -554,7 +552,7 @@ function AttendanceHistoryContent() {
 
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-700">
-                Page {getCurrentPage() + 1} of {getTotalPages() || 1}
+                Halaman {getCurrentPage() + 1} dari {getTotalPages() || 1}
               </span>
               <div className="flex gap-1">
                 <Button
@@ -564,7 +562,7 @@ function AttendanceHistoryContent() {
                   disabled={getCurrentPage() === 0}
                   className="rounded-sm"
                 >
-                  Previous
+                  Sebelumnya
                 </Button>
                 <Button
                   variant="outline"
@@ -573,7 +571,7 @@ function AttendanceHistoryContent() {
                   disabled={getCurrentPage() >= getTotalPages() - 1}
                   className="rounded-sm"
                 >
-                  Next
+                  Selanjutnya
                 </Button>
               </div>
             </div>
