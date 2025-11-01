@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
-import { Download, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
+import { useState, useCallback } from 'react'
+import { Download, ChevronUp, ChevronDown, ChevronsUpDown, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -9,6 +9,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { AlertCircle } from 'lucide-react'
 import RoleGuard from '@/components/RoleGuard'
 import { useQuery } from '@tanstack/react-query'
 
@@ -51,8 +61,15 @@ interface AttendanceRecord {
   ID: number
   CheckInTime: string
   CheckOutTime: string | null
+  CheckInLatitude: number
+  CheckInLongitude: number
+  CheckOutLatitude: number
+  CheckOutLongitude: number
+  CheckInPhotoURL: string
+  CheckOutPhotoURL: string
   Status: string
   ValidationStatus: string
+  Notes: string
 }
 
 interface LeaveRequestRecord {
@@ -61,7 +78,9 @@ interface LeaveRequestRecord {
   StartDate: string
   EndDate: string
   Reason: string
+  AttachmentURL: string
   Status: string
+  ApproverNotes: string
 }
 
 function AttendanceHistory() {
@@ -80,6 +99,10 @@ function AttendanceHistoryContent() {
   const [leavePageSize, setLeavePageSize] = useState(10)
   const [attendanceSortOrder, setAttendanceSortOrder] = useState<'asc' | 'desc' | null>('desc') // Default: newest first
   const [leaveSortOrder, setLeaveSortOrder] = useState<'asc' | 'desc' | null>('desc') // Default: newest first
+  
+  // Detail modal states
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+  const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | LeaveRequestRecord | null>(null)
 
   const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery({
     queryKey: ['my-attendance'],
@@ -126,6 +149,28 @@ function AttendanceHistoryContent() {
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
     return `${hours}h ${minutes}m`
   }
+
+  // Helper to check if URL is a PDF
+  const isPDF = (url: string) => {
+    return url?.toLowerCase().endsWith('.pdf')
+  }
+
+  // Helper to get full URL for uploaded files
+  const getFullFileURL = (relativePath: string) => {
+    if (!relativePath) return ''
+    // If it's already a full URL, return as is
+    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+      return relativePath
+    }
+    // Otherwise, prepend the backend base URL (without /api)
+    const baseURL = API_BASE_URL.replace('/api', '')
+    return `${baseURL}${relativePath}`
+  }
+
+  const openDetailModal = useCallback((record: AttendanceRecord | LeaveRequestRecord) => {
+    setSelectedRecord(record)
+    setIsDetailModalOpen(true)
+  }, [])
 
   // Export to CSV
   const exportAttendanceToCSV = () => {
@@ -345,18 +390,19 @@ function AttendanceHistoryContent() {
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Durasi</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Validasi</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {attendanceLoading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                       Memuat data...
                     </td>
                   </tr>
                 ) : attendanceRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                       Tidak ada catatan absensi
                     </td>
                   </tr>
@@ -405,6 +451,17 @@ function AttendanceHistoryContent() {
                           : record.ValidationStatus === 'PENDING' ? 'Menunggu'
                           : record.ValidationStatus}
                         </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openDetailModal(record)}
+                          className="bg-blue-50 border-blue-300 text-blue-600 hover:bg-blue-100 rounded-sm"
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Detail
+                        </Button>
                       </td>
                     </tr>
                   ))
@@ -488,18 +545,19 @@ function AttendanceHistoryContent() {
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Tipe</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Alasan</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {leaveLoading ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
                       Memuat data...
                     </td>
                   </tr>
                 ) : leaveRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
                       Tidak ada pengajuan izin
                     </td>
                   </tr>
@@ -527,6 +585,17 @@ function AttendanceHistoryContent() {
                         >
                           {record.Status === 'APPROVED' ? 'Disetujui' : record.Status === 'REJECTED' ? 'Ditolak' : 'Menunggu'}
                         </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openDetailModal(record)}
+                          className="bg-blue-50 border-blue-300 text-blue-600 hover:bg-blue-100 rounded-sm"
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Detail
+                        </Button>
                       </td>
                     </tr>
                   ))
@@ -584,6 +653,225 @@ function AttendanceHistoryContent() {
           </div>
         </div>
       )}
+
+      {/* Detail Modal */}
+      <Dialog open={isDetailModalOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsDetailModalOpen(false)
+        }
+      }}>
+        <DialogContent 
+          className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-sm"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle>
+              {selectedRecord && 'CheckInTime' in selectedRecord ? 'Detail Catatan Absensi' : 'Detail Pengajuan Izin'}
+            </DialogTitle>
+            <DialogDescription>
+              Lihat detail lengkap {selectedRecord && 'CheckInTime' in selectedRecord ? 'catatan absensi' : 'pengajuan izin'}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            {/* Record Details */}
+            <div className="p-4 bg-gray-50 rounded-sm border">
+              <h3 className="font-semibold text-gray-900 mb-3">Detail</h3>
+              {selectedRecord && 'CheckInTime' in selectedRecord ? (
+                // Attendance Record
+                <div className="grid gap-2 text-sm">
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Tanggal:</span>
+                    <span className="font-medium text-gray-900">{formatDate(selectedRecord.CheckInTime)}</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Check In:</span>
+                    <span className="font-medium text-gray-900">{formatTime(selectedRecord.CheckInTime)}</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Check Out:</span>
+                    <span className="font-medium text-gray-900">
+                      {selectedRecord.CheckOutTime ? formatTime(selectedRecord.CheckOutTime) : '-'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Durasi:</span>
+                    <span className="font-medium text-gray-900">
+                      {calculateDuration(selectedRecord.CheckInTime, selectedRecord.CheckOutTime)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Status:</span>
+                    <span className="font-medium text-gray-900">
+                      {selectedRecord.Status === 'ON_TIME' ? 'Tepat Waktu' : selectedRecord.Status === 'LATE' ? 'Terlambat' : selectedRecord.Status}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Validasi:</span>
+                    <span className="font-medium text-gray-900">
+                      {selectedRecord.ValidationStatus === 'PRESENT' ? 'Hadir'
+                        : selectedRecord.ValidationStatus === 'ABSENT' ? 'Tidak Hadir'
+                        : selectedRecord.ValidationStatus === 'LEAVE' ? 'Izin'
+                        : selectedRecord.ValidationStatus === 'PENDING' ? 'Menunggu'
+                        : selectedRecord.ValidationStatus}
+                    </span>
+                  </div>
+                  {selectedRecord.Notes && (
+                    <div className="flex justify-between py-1">
+                      <span className="text-gray-600">Catatan:</span>
+                      <span className="font-medium text-gray-900">{selectedRecord.Notes}</span>
+                    </div>
+                  )}
+                </div>
+              ) : selectedRecord && 'LeaveType' in selectedRecord ? (
+                // Leave Request
+                <div className="grid gap-2 text-sm">
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Tipe Izin:</span>
+                    <span className="font-medium text-gray-900">
+                      {selectedRecord.LeaveType === 'SICK' ? 'Sakit' : 'Izin'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Periode:</span>
+                    <span className="font-medium text-gray-900">
+                      {formatDate(selectedRecord.StartDate)} - {formatDate(selectedRecord.EndDate)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Alasan:</span>
+                    <span className="font-medium text-gray-900">{selectedRecord.Reason}</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Status:</span>
+                    <span className="font-medium text-gray-900">
+                      {selectedRecord.Status === 'APPROVED' ? 'Disetujui' : selectedRecord.Status === 'REJECTED' ? 'Ditolak' : 'Menunggu'}
+                    </span>
+                  </div>
+                  {selectedRecord.ApproverNotes && (
+                    <div className="flex justify-between py-1">
+                      <span className="text-gray-600">Catatan Approver:</span>
+                      <span className="font-medium text-gray-900">{selectedRecord.ApproverNotes}</span>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+
+            {/* Image/PDF Preview Section */}
+            {selectedRecord && (
+              <div className="grid gap-4">
+                {/* Attendance Photos Preview */}
+                {'CheckInPhotoURL' in selectedRecord && (selectedRecord.CheckInPhotoURL || selectedRecord.CheckOutPhotoURL) && (
+                  <div className="grid gap-3">
+                    <h3 className="font-semibold text-gray-900">Foto</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {selectedRecord.CheckInPhotoURL && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-gray-700">Foto Check In</p>
+                          <div className="border rounded-sm overflow-hidden bg-gray-100">
+                            <img
+                              src={getFullFileURL(selectedRecord.CheckInPhotoURL)}
+                              alt="Check In Photo"
+                              className="w-full h-auto object-contain max-h-96"
+                            />
+                          </div>
+                          <a
+                            href={getFullFileURL(selectedRecord.CheckInPhotoURL)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
+                          >
+                            <Eye className="h-3 w-3" />
+                            Lihat ukuran penuh
+                          </a>
+                        </div>
+                      )}
+                      {selectedRecord.CheckOutPhotoURL && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-gray-700">Foto Check Out</p>
+                          <div className="border rounded-sm overflow-hidden bg-gray-100">
+                            <img
+                              src={getFullFileURL(selectedRecord.CheckOutPhotoURL)}
+                              alt="Check Out Photo"
+                              className="w-full h-auto object-contain max-h-96"
+                            />
+                          </div>
+                          <a
+                            href={getFullFileURL(selectedRecord.CheckOutPhotoURL)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
+                          >
+                            <Eye className="h-3 w-3" />
+                            Lihat ukuran penuh
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Leave Attachment Preview */}
+                {'AttachmentURL' in selectedRecord && selectedRecord.AttachmentURL && (
+                  <div className="grid gap-3">
+                    <h3 className="font-semibold text-gray-900">Lampiran</h3>
+                    {isPDF(selectedRecord.AttachmentURL) ? (
+                      <div className="space-y-2">
+                        <p className="text-sm text-gray-600">File PDF - Klik untuk membuka</p>
+                        <a
+                          href={getFullFileURL(selectedRecord.AttachmentURL)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-300 text-red-700 rounded-sm hover:bg-red-100 transition-colors"
+                        >
+                          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" />
+                          </svg>
+                          Buka PDF
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="border rounded-sm overflow-hidden bg-gray-100">
+                          <img
+                            src={getFullFileURL(selectedRecord.AttachmentURL)}
+                            alt="Leave Attachment"
+                            className="w-full h-auto object-contain max-h-96"
+                          />
+                        </div>
+                        <a
+                          href={getFullFileURL(selectedRecord.AttachmentURL)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
+                        >
+                          <Eye className="h-3 w-3" />
+                          Lihat ukuran penuh
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSelectedRecord(null)
+                setIsDetailModalOpen(false)
+              }}
+              className="rounded-sm"
+            >
+              Tutup
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

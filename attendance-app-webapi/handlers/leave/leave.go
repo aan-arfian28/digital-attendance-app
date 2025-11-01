@@ -354,8 +354,8 @@ func ValidateLeaveRequest(c *gin.Context) {
 
 			// Check if attendance record already exists for this day
 			var existingAttendance models.Attendance
-			err := tx.Where("user_id = ? AND DATE(check_in_time) = ?", 
-				leaveRequest.UserID, 
+			err := tx.Where("user_id = ? AND DATE(check_in_time) = ?",
+				leaveRequest.UserID,
 				d.Format("2006-01-02")).First(&existingAttendance).Error
 
 			if err == nil {
@@ -394,4 +394,3 @@ func ValidateLeaveRequest(c *gin.Context) {
 
 	c.JSON(http.StatusOK, leaveRequest)
 }
-
