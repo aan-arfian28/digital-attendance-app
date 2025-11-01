@@ -1,4 +1,6 @@
 .env
+.github/
+.zed/
 
 # Uploaded files (photos, PDFs)
 attendance-app-webapi/uploads/*

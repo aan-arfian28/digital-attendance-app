@@ -21,10 +21,7 @@ function DashboardLayoutRoute() {
 
   return (
     <AuthGuard>
-      <DashboardLayout
-        onLogout={handleLogout}
-        onProfile={handleProfile}
-      >
+      <DashboardLayout onLogout={handleLogout} onProfile={handleProfile}>
         <Outlet />
       </DashboardLayout>
     </AuthGuard>
