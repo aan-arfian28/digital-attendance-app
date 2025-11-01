@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, ExternalLink } from 'lucide-react'
+import { AlertCircle, ExternalLink, Eye, X, Check } from 'lucide-react'
 import RoleGuard from '@/components/RoleGuard'
 import SubordinateGuard from '@/components/SubordinateGuard'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -535,6 +535,7 @@ function ValidateAttendanceContent() {
                             className="bg-blue-50 border-blue-300 text-blue-600 hover:bg-blue-100 rounded-sm"
                             title="Detail"
                           >
+                            <Eye className="h-4 w-4 mr-1" />
                             Detail
                           </Button>
                           <Button
@@ -545,6 +546,7 @@ function ValidateAttendanceContent() {
                             title="Reject"
                             disabled={record.ValidationStatus !== 'PRESENT'}
                           >
+                            <X className="h-4 w-4 mr-1" />
                             Tolak
                           </Button>
                         </div>
@@ -661,6 +663,7 @@ function ValidateAttendanceContent() {
                             className="bg-blue-50 border-blue-300 text-blue-600 hover:bg-blue-100 rounded-sm"
                             title="Detail"
                           >
+                            <Eye className="h-4 w-4 mr-1" />
                             Detail
                           </Button>
                           <Button
@@ -671,6 +674,7 @@ function ValidateAttendanceContent() {
                             title="Reject"
                             disabled={request.Status !== 'PENDING'}
                           >
+                            <X className="h-4 w-4 mr-1" />
                             Tolak
                           </Button>
                           <Button
@@ -681,6 +685,7 @@ function ValidateAttendanceContent() {
                             title="Approve"
                             disabled={request.Status !== 'PENDING'}
                           >
+                            <Check className="h-4 w-4 mr-1" />
                             Setujui
                           </Button>
                         </div>

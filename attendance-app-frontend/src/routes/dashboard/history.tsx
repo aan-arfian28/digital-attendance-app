@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useCallback } from 'react'
-import { Download, ChevronUp, ChevronDown, ChevronsUpDown, Eye } from 'lucide-react'
+import { Download, ChevronUp, ChevronDown, ChevronsUpDown, Eye, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -817,41 +817,47 @@ function AttendanceHistoryContent() {
                 {'AttachmentURL' in selectedRecord && selectedRecord.AttachmentURL && (
                   <div className="grid gap-3">
                     <h3 className="font-semibold text-gray-900">Lampiran</h3>
-                    {isPDF(selectedRecord.AttachmentURL) ? (
-                      <div className="space-y-2">
-                        <p className="text-sm text-gray-600">File PDF - Klik untuk membuka</p>
-                        <a
-                          href={getFullFileURL(selectedRecord.AttachmentURL)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-300 text-red-700 rounded-sm hover:bg-red-100 transition-colors"
-                        >
-                          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" />
-                          </svg>
-                          Buka PDF
-                        </a>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <div className="border rounded-sm overflow-hidden bg-gray-100">
-                          <img
+                    <div className="border rounded-sm overflow-hidden bg-gray-50">
+                      {isPDF(selectedRecord.AttachmentURL) ? (
+                        // PDF Preview
+                        <div className="p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <p className="text-sm font-medium text-gray-700">Dokumen PDF</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(getFullFileURL(selectedRecord.AttachmentURL), '_blank')}
+                              className="rounded-sm"
+                            >
+                              <ExternalLink className="h-4 w-4 mr-1" />
+                              Buka di Tab Baru
+                            </Button>
+                          </div>
+                          <iframe
                             src={getFullFileURL(selectedRecord.AttachmentURL)}
-                            alt="Leave Attachment"
-                            className="w-full h-auto object-contain max-h-96"
+                            className="w-full h-96 rounded-sm border"
+                            title="PDF Preview"
                           />
                         </div>
-                        <a
-                          href={getFullFileURL(selectedRecord.AttachmentURL)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
-                        >
-                          <Eye className="h-3 w-3" />
-                          Lihat ukuran penuh
-                        </a>
-                      </div>
-                    )}
+                      ) : (
+                        // Image Preview
+                        <div className="p-2">
+                          <img 
+                            src={getFullFileURL(selectedRecord.AttachmentURL)} 
+                            alt="Leave Attachment"
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-auto rounded-sm cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => window.open(getFullFileURL(selectedRecord.AttachmentURL), '_blank')}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement
+                              target.onerror = null
+                              target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="16" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3EGambar tidak tersedia%3C/text%3E%3C/svg%3E'
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
