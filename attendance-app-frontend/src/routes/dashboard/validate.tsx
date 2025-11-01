@@ -840,7 +840,7 @@ function ValidateAttendanceContent() {
                     <div className="flex flex-col gap-1">
                       <span className="text-gray-600">Lampiran:</span>
                       <a 
-                        href={selectedRecord.AttachmentURL} 
+                        href={getFullFileURL(selectedRecord.AttachmentURL)} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800 underline text-sm flex items-center gap-1"

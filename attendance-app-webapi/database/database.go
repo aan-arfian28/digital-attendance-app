@@ -6,7 +6,6 @@ import (
 
 	"attendance-app/config"
 	"attendance-app/models"
-	"attendance-app/storage"
 	"attendance-app/utils"
 
 	"gorm.io/driver/mysql"
@@ -16,9 +15,6 @@ import (
 var DB *gorm.DB
 
 func InitDB() *gorm.DB {
-	// Initialize storage
-	storage.InitConfig("./storage/uploads")
-
 	dsn := config.DBURL()
 
 	var err error
