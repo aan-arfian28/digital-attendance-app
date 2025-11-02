@@ -8,10 +8,9 @@ import (
 )
 
 func Config(key string) string {
-	err := godotenv.Load(".env")
-	if err != nil {
-		fmt.Print("Error loading .env file")
-	}
+	// Try to load .env file, silently ignore if not exists
+	// In Docker, env vars are provided via docker-compose.yml
+	_ = godotenv.Load(".env")
 	return os.Getenv(key)
 }
 

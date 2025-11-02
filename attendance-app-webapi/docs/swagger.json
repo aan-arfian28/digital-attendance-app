@@ -54,7 +54,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.User"
+                            "$ref": "#/definitions/models.UserSwagger"
                         }
                     },
                     "400": {
@@ -178,7 +178,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.Role"
+                                "$ref": "#/definitions/models.RoleSwagger"
                             }
                         }
                     },
@@ -243,7 +243,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.Role"
+                            "$ref": "#/definitions/models.RoleSwagger"
                         }
                     },
                     "400": {
@@ -309,7 +309,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.Role"
+                                "$ref": "#/definitions/models.RoleSwagger"
                             }
                         }
                     },
@@ -367,7 +367,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.Role"
+                                "$ref": "#/definitions/models.RoleSwagger"
                             }
                         }
                     },
@@ -441,7 +441,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Role"
+                            "$ref": "#/definitions/models.RoleSwagger"
                         }
                     },
                     "400": {
@@ -599,7 +599,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.User"
+                                "$ref": "#/definitions/models.UserSwagger"
                             }
                         }
                     },
@@ -655,7 +655,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.User"
+                            "$ref": "#/definitions/models.UserSwagger"
                         }
                     },
                     "401": {
@@ -735,7 +735,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.User"
+                            "$ref": "#/definitions/models.UserSwagger"
                         }
                     },
                     "400": {
@@ -1006,25 +1006,25 @@
                     "400": {
                         "description": "Invalid request, location too far from office, or invalid photo",
                         "schema": {
-                            "$ref": "#/definitions/docs.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized or invalid token",
                         "schema": {
-                            "$ref": "#/definitions/docs.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "429": {
                         "description": "Already checked in today",
                         "schema": {
-                            "$ref": "#/definitions/docs.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Server error",
                         "schema": {
-                            "$ref": "#/definitions/docs.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     }
                 }
@@ -1075,7 +1075,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Attendance"
+                            "$ref": "#/definitions/models.AttendanceSwagger"
                         }
                     },
                     "400": {
@@ -1138,7 +1138,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.Attendance"
+                                "$ref": "#/definitions/models.AttendanceSwagger"
                             }
                         }
                     },
@@ -1184,7 +1184,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.Attendance"
+                                "$ref": "#/definitions/models.AttendanceSwagger"
                             }
                         }
                     },
@@ -1258,7 +1258,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Attendance"
+                            "$ref": "#/definitions/models.AttendanceSwagger"
                         }
                     },
                     "400": {
@@ -1368,7 +1368,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.LeaveRequest"
+                            "$ref": "#/definitions/models.LeaveRequestSwagger"
                         }
                     },
                     "400": {
@@ -1425,7 +1425,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.LeaveRequest"
+                                "$ref": "#/definitions/models.LeaveRequestSwagger"
                             }
                         }
                     },
@@ -1474,7 +1474,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.LeaveRequest"
+                                "$ref": "#/definitions/models.LeaveRequestSwagger"
                             }
                         }
                     },
@@ -1539,7 +1539,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.LeaveRequest"
+                            "$ref": "#/definitions/models.LeaveRequestSwagger"
                         }
                     },
                     "400": {
@@ -1571,6 +1571,61 @@
                     },
                     "404": {
                         "description": "Leave request or user not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/user/profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get the profile of the currently authenticated user (non-admin)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Get current user's profile",
+                "responses": {
+                    "200": {
+                        "description": "Current user's profile",
+                        "schema": {
+                            "$ref": "#/definitions/models.UserSwagger"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or invalid token",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1853,27 +1908,6 @@
                 }
             }
         },
-        "docs.ErrorResponse": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string",
-                    "example": "Error message description"
-                }
-            }
-        },
-        "gorm.DeletedAt": {
-            "type": "object",
-            "properties": {
-                "time": {
-                    "type": "string"
-                },
-                "valid": {
-                    "description": "Valid is true if Time is not NULL",
-                    "type": "boolean"
-                }
-            }
-        },
         "handlers.loginPayload": {
             "type": "object",
             "required": [
@@ -1891,7 +1925,18 @@
                 }
             }
         },
-        "models.Attendance": {
+        "models.AttendanceStatus": {
+            "type": "string",
+            "enum": [
+                "ON_TIME",
+                "LATE"
+            ],
+            "x-enum-varnames": [
+                "OnTime",
+                "Late"
+            ]
+        },
+        "models.AttendanceSwagger": {
             "type": "object",
             "properties": {
                 "CheckInLatitude": {
@@ -1918,6 +1963,12 @@
                 "CheckOutTime": {
                     "type": "string"
                 },
+                "CreatedAt": {
+                    "type": "string"
+                },
+                "ID": {
+                    "type": "integer"
+                },
                 "LocationID": {
                     "type": "integer"
                 },
@@ -1927,96 +1978,26 @@
                 "Status": {
                     "$ref": "#/definitions/models.AttendanceStatus"
                 },
+                "UpdatedAt": {
+                    "type": "string"
+                },
                 "UserID": {
                     "type": "integer"
                 },
                 "ValidationStatus": {
                     "$ref": "#/definitions/models.ValidationStatus"
                 },
-                "Validator": {
-                    "$ref": "#/definitions/models.User"
-                },
                 "ValidatorID": {
                     "type": "integer"
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "deletedAt": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "location": {
-                    "$ref": "#/definitions/models.Location"
-                },
-                "updatedAt": {
-                    "type": "string"
-                },
-                "user": {
-                    "$ref": "#/definitions/models.User"
                 }
             }
         },
-        "models.AttendanceStatus": {
-            "type": "string",
-            "enum": [
-                "ON_TIME",
-                "LATE"
-            ],
-            "x-enum-varnames": [
-                "OnTime",
-                "Late"
-            ]
-        },
-        "models.LeaveRequest": {
+        "models.ErrorResponse": {
             "type": "object",
             "properties": {
-                "Approver": {
-                    "$ref": "#/definitions/models.User"
-                },
-                "ApproverID": {
-                    "type": "integer"
-                },
-                "ApproverNotes": {
-                    "type": "string"
-                },
-                "AttachmentURL": {
-                    "type": "string"
-                },
-                "EndDate": {
-                    "type": "string"
-                },
-                "LeaveType": {
-                    "$ref": "#/definitions/models.LeaveType"
-                },
-                "Reason": {
-                    "type": "string"
-                },
-                "StartDate": {
-                    "type": "string"
-                },
-                "Status": {
-                    "$ref": "#/definitions/models.LeaveRequestStatus"
-                },
-                "UserID": {
-                    "type": "integer"
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "deletedAt": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "updatedAt": {
-                    "type": "string"
-                },
-                "user": {
-                    "$ref": "#/definitions/models.User"
+                "error": {
+                    "type": "string",
+                    "example": "Error message description"
                 }
             }
         },
@@ -2033,6 +2014,47 @@
                 "LeaveRejected"
             ]
         },
+        "models.LeaveRequestSwagger": {
+            "type": "object",
+            "properties": {
+                "ApproverID": {
+                    "type": "integer"
+                },
+                "ApproverNotes": {
+                    "type": "string"
+                },
+                "AttachmentURL": {
+                    "type": "string"
+                },
+                "CreatedAt": {
+                    "type": "string"
+                },
+                "EndDate": {
+                    "type": "string"
+                },
+                "ID": {
+                    "type": "integer"
+                },
+                "LeaveType": {
+                    "$ref": "#/definitions/models.LeaveType"
+                },
+                "Reason": {
+                    "type": "string"
+                },
+                "StartDate": {
+                    "type": "string"
+                },
+                "Status": {
+                    "$ref": "#/definitions/models.LeaveRequestStatus"
+                },
+                "UpdatedAt": {
+                    "type": "string"
+                },
+                "UserID": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.LeaveType": {
             "type": "string",
             "enum": [
@@ -2044,86 +2066,8 @@
                 "Permit"
             ]
         },
-        "models.Location": {
-            "type": "object",
-            "properties": {
-                "Address": {
-                    "type": "string"
-                },
-                "Attendances": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Attendance"
-                    }
-                },
-                "Latitude": {
-                    "type": "number"
-                },
-                "Longitude": {
-                    "type": "number"
-                },
-                "Name": {
-                    "type": "string"
-                },
-                "Radius": {
-                    "type": "integer"
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "deletedAt": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "updatedAt": {
-                    "type": "string"
-                }
-            }
-        },
         "models.Role": {
-            "type": "object",
-            "required": [
-                "Name",
-                "Position"
-            ],
-            "properties": {
-                "Name": {
-                    "description": "Your fields",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.RoleName"
-                        }
-                    ]
-                },
-                "Position": {
-                    "description": "Remove 'unique' tag and use 'uniqueIndex' instead",
-                    "type": "string"
-                },
-                "PositionLevel": {
-                    "type": "integer",
-                    "minimum": 0
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "deletedAt": {
-                    "description": "Add index and uniqueIndex tag",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/gorm.DeletedAt"
-                        }
-                    ]
-                },
-                "id": {
-                    "description": "Manually define fields from gorm.Model to add tags",
-                    "type": "integer"
-                },
-                "updatedAt": {
-                    "type": "string"
-                }
-            }
+            "type": "object"
         },
         "models.RoleName": {
             "type": "string",
@@ -2136,111 +2080,52 @@
                 "RoleUser"
             ]
         },
-        "models.User": {
+        "models.RoleSwagger": {
             "type": "object",
-            "required": [
-                "Email",
-                "Password",
-                "Username"
-            ],
             "properties": {
-                "Attendances": {
-                    "description": "One-to-Many Relationships",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Attendance"
-                    }
+                "CreatedAt": {
+                    "type": "string"
+                },
+                "ID": {
+                    "type": "integer"
+                },
+                "Name": {
+                    "$ref": "#/definitions/models.RoleName"
+                },
+                "Position": {
+                    "type": "string"
+                },
+                "PositionLevel": {
+                    "type": "integer"
+                },
+                "UpdatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.UserSwagger": {
+            "type": "object",
+            "properties": {
+                "CreatedAt": {
+                    "type": "string"
                 },
                 "Email": {
                     "type": "string"
                 },
-                "LeaveRequests": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.LeaveRequest"
-                    }
-                },
-                "Password": {
-                    "type": "string",
-                    "maxLength": 72,
-                    "minLength": 8
+                "ID": {
+                    "type": "integer"
                 },
                 "Role": {
-                    "$ref": "#/definitions/models.Role"
+                    "$ref": "#/definitions/models.RoleSwagger"
                 },
-                "Subordinates": {
-                    "description": "No constraint tag here to avoid conflict",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.User"
-                    }
-                },
-                "SupervisorID": {
-                    "description": "Supervisor/Subordinate Relationship (Corrected)\nThe constraint is defined here as the primary direction of the relationship.",
+                "RoleID": {
                     "type": "integer"
+                },
+                "UpdatedAt": {
+                    "type": "string"
                 },
                 "Username": {
-                    "type": "string",
-                    "maxLength": 32,
-                    "minLength": 3
-                },
-                "createdAt": {
                     "type": "string"
-                },
-                "deletedAt": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "roleID": {
-                    "type": "integer"
-                },
-                "supervisor": {
-                    "$ref": "#/definitions/models.User"
-                },
-                "updatedAt": {
-                    "type": "string"
-                },
-                "userDetail": {
-                    "description": "UserDetail Relationship (Corrected)\nThis tag only informs GORM how to join, the actual constraint is in UserDetail model.",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.UserDetail"
-                        }
-                    ]
-                }
-            }
-        },
-        "models.UserDetail": {
-            "type": "object",
-            "properties": {
-                "Name": {
-                    "type": "string"
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "deletedAt": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "updatedAt": {
-                    "type": "string"
-                },
-                "user": {
-                    "description": "The constraint is now defined explicitly and only here.",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.User"
-                        }
-                    ]
-                },
-                "userID": {
-                    "description": "The 'unique' tag enforces the one-to-one relationship at the database level.",
-                    "type": "integer"
                 }
             }
         },

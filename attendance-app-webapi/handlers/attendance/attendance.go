@@ -61,10 +61,10 @@ type AttendanceResponse struct {
 // @Param latitude formData number true "Location latitude" minimum:-90 maximum:90 default:-7.5583648316326295
 // @Param longitude formData number true "Location longitude" minimum:-180 maximum:180 default:110.8577696892991
 // @Success 201 {object} AttendanceResponse "Successfully created attendance record"
-// @Failure 400 {object} docs.ErrorResponse "Invalid request, location too far from office, or invalid photo"
-// @Failure 401 {object} docs.ErrorResponse "Unauthorized or invalid token"
-// @Failure 429 {object} docs.ErrorResponse "Already checked in today"
-// @Failure 500 {object} docs.ErrorResponse "Server error"
+// @Failure 400 {object} models.ErrorResponse "Invalid request, location too far from office, or invalid photo"
+// @Failure 401 {object} models.ErrorResponse "Unauthorized or invalid token"
+// @Failure 429 {object} models.ErrorResponse "Already checked in today"
+// @Failure 500 {object} models.ErrorResponse "Server error"
 // @Router /user/attendance/check-in [post]
 func CheckIn(c *gin.Context) {
 	var req AttendanceRequest
@@ -169,7 +169,7 @@ func CheckIn(c *gin.Context) {
 // @Param photo formData file true "Check-out photo (JPG, JPEG, PNG, max 5MB)"
 // @Param latitude formData number true "Location latitude" minimum:-90 maximum:90 default:-7.5583648316326295
 // @Param longitude formData number true "Location longitude" minimum:-180 maximum:180 default:110.8577696892991
-// @Success 200 {object} models.Attendance
+// @Success 200 {object} models.AttendanceSwagger
 // @Failure 400 {object} map[string]string "Invalid request, location too far, or invalid photo"
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 404 {object} map[string]string "No check-in record found"
@@ -270,7 +270,7 @@ func CheckOut(c *gin.Context) {
 // @Tags attendance
 // @Security BearerAuth
 // @Produce json
-// @Success 200 {array} models.Attendance
+// @Success 200 {array} models.AttendanceSwagger
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 500 {object} map[string]string "Server error"
 // @Router /user/attendance/my-records [get]
@@ -293,7 +293,7 @@ func GetMyAttendanceRecords(c *gin.Context) {
 // @Tags attendance
 // @Security BearerAuth
 // @Produce json
-// @Success 200 {array} models.Attendance
+// @Success 200 {array} models.AttendanceSwagger
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 403 {object} map[string]string "Forbidden - Not a supervisor"
 // @Failure 500 {object} map[string]string "Server error"
@@ -331,7 +331,7 @@ func GetSubordinateAttendanceRecords(c *gin.Context) {
 // @Produce json
 // @Param id path string true "Attendance ID"
 // @Param validation body AttendanceValidationRequest true "Update data"
-// @Success 200 {object} models.Attendance
+// @Success 200 {object} models.AttendanceSwagger
 // @Failure 400 {object} map[string]string "Invalid request"
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 403 {object} map[string]string "Forbidden - Not the supervisor"
@@ -369,6 +369,11 @@ func UpdateSubordinateAttendanceRecord(c *gin.Context) {
 	}
 
 	// Update the record with new status
+	// NOTE: Supervisor can update validation status at any time:
+	// - Default status is PRESENT (set during check-in)
+	// - Supervisor can change PRESENT to REJECTED with reason
+	// - Supervisor can also change REJECTED back to PRESENT if needed
+	// - No restrictions on when validation can be performed
 	attendance.ValidationStatus = req.ValidationStatus
 	attendance.ValidatorID = &supervisorId
 	attendance.Notes = req.Notes

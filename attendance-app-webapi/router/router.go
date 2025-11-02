@@ -21,11 +21,13 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 	config.AllowOrigins = []string{
 		"http://localhost:3000",
 		"http://localhost:3001",
+		"http://localhost:8081", // Docker frontend port
 		"http://127.0.0.1:3000",
 		"http://127.0.0.1:3001",
+		"http://127.0.0.1:8081", // Docker frontend port
 		"http://192.168.1.11:3000",
 		"http://192.168.1.11:3001",
-		"http://10.209.125.240:3000",
+		"http://10.60.208.240:3000",
 		"http://10.209.125.240:3001",
 		"https://cluster-gotten-sciences-marathon.trycloudflare.com", // Cloudflared tunnel
 	}
@@ -42,6 +44,11 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 	api.Use(middleware.DBMiddleware(DB))
 	api.Use(middleware.XSSProtection())
 	{
+		// Health check endpoint (supports both GET and HEAD for Docker health checks)
+		api.Any("/health", func(c *gin.Context) {
+			c.JSON(200, gin.H{"status": "ok"})
+		})
+
 		api.POST("/login", handlers.Login)
 
 		// Auth required routes

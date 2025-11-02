@@ -4,7 +4,6 @@ package leave
 import (
 	"attendance-app/models"
 	"attendance-app/storage"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -42,7 +41,7 @@ type LeaveValidationRequest struct {
 // @Param startDate formData string true "Start date of leave (YYYY-MM-DD)" example:"2025-10-22" format:"date" default:"2025-10-21"
 // @Param endDate formData string true "End date of leave (YYYY-MM-DD)" example:"2025-10-24" format:"date" default:"2025-10-22"
 // @Param reason formData string true "Reason for leave request" example:"Medical appointment and recovery"
-// @Success 200 {object} models.LeaveRequest
+// @Success 200 {object} models.LeaveRequestSwagger
 // @Failure 400 {object} map[string]string "Invalid request payload, dates, or attachment"
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 500 {object} map[string]string "Server error"
@@ -128,13 +127,13 @@ func SubmitLeaveRequest(c *gin.Context) {
 	}
 
 	// Check for existing attendance records in the date range
+	// Users cannot submit leave requests for days where they already checked in
 	var existingAttendance models.Attendance
 	result := tx.Where(
-		"user_id = ? AND DATE(check_in_time) BETWEEN ? AND ? AND validation_status != ?",
+		"user_id = ? AND DATE(check_in_time) BETWEEN ? AND ?",
 		userId,
 		startDate.Format("2006-01-02"),
 		endDate.Format("2006-01-02"),
-		models.Pending,
 	).First(&existingAttendance)
 
 	if result.RowsAffected > 0 {
@@ -200,29 +199,9 @@ func SubmitLeaveRequest(c *gin.Context) {
 		return
 	}
 
-	// Create pending attendance records for the leave period
-	for currentDate := startDate; !currentDate.After(endDate); currentDate = currentDate.AddDate(0, 0, 1) {
-		// Skip weekends
-		if currentDate.Weekday() != time.Saturday && currentDate.Weekday() != time.Sunday {
-			attendance := models.Attendance{
-				UserID:           userId,
-				LocationID:       nil, // No location required for leave records
-				CheckInTime:      &currentDate,
-				CheckInLatitude:  0.0,
-				CheckInLongitude: 0.0,
-				CheckInPhotoURL:  "",
-				ValidationStatus: models.Pending,
-				Notes:            fmt.Sprintf("Pending leave request: %s", req.Reason),
-			}
-
-			if err := tx.Create(&attendance).Error; err != nil {
-				tx.Rollback()
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create attendance record"})
-				return
-			}
-		}
-		currentDate = currentDate.AddDate(0, 0, 1)
-	}
+	// NOTE: Attendance records are NOT created here.
+	// They will only be created when the leave request is APPROVED in ValidateLeaveRequest.
+	// This prevents creating unnecessary PENDING records and follows the new attendance workflow.
 
 	// Commit transaction
 	if err := tx.Commit().Error; err != nil {
@@ -246,7 +225,7 @@ func SubmitLeaveRequest(c *gin.Context) {
 // @Tags leave
 // @Accept json
 // @Produce json
-// @Success 200 {array} models.LeaveRequest
+// @Success 200 {array} models.LeaveRequestSwagger
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 500 {object} map[string]string "Server error"
 // @Router /user/leave/my-requests [get]
@@ -269,7 +248,7 @@ func GetMyLeaveRequests(c *gin.Context) {
 // @Tags leave
 // @Accept json
 // @Produce json
-// @Success 200 {array} models.LeaveRequest
+// @Success 200 {array} models.LeaveRequestSwagger
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 500 {object} map[string]string "Server error"
 // @Router /user/leave/subordinates [get]
@@ -305,7 +284,7 @@ func GetSubordinateLeaveRequests(c *gin.Context) {
 // @Produce json
 // @Param id path string true "Leave request ID"
 // @Param request body LeaveValidationRequest true "Leave validation details"
-// @Success 200 {object} models.LeaveRequest
+// @Success 200 {object} models.LeaveRequestSwagger
 // @Failure 400 {object} map[string]string "Invalid request payload"
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 403 {object} map[string]string "Forbidden - Not the supervisor"
@@ -346,17 +325,41 @@ func ValidateLeaveRequest(c *gin.Context) {
 	leaveRequest.ApproverID = &supervisorId
 	leaveRequest.ApproverNotes = req.ApproverNotes
 
-	if err := db.Save(&leaveRequest).Error; err != nil {
+	// Start transaction for atomic operation
+	tx := db.Begin()
+	if tx.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start transaction"})
+		return
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := tx.Save(&leaveRequest).Error; err != nil {
+		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update leave request"})
 		return
 	}
 
-	// If approved, update attendance records for the leave period
+	// If approved, create attendance records for the leave period
 	if req.Status == models.LeaveApproved {
 		// Create attendance records for each day of leave
 		for d := leaveRequest.StartDate; !d.After(leaveRequest.EndDate); d = d.AddDate(0, 0, 1) {
 			// Skip weekends
 			if d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
+				continue
+			}
+
+			// Check if attendance record already exists for this day
+			var existingAttendance models.Attendance
+			err := tx.Where("user_id = ? AND DATE(check_in_time) = ?",
+				leaveRequest.UserID,
+				d.Format("2006-01-02")).First(&existingAttendance).Error
+
+			if err == nil {
+				// Record exists, skip creation
 				continue
 			}
 
@@ -374,11 +377,19 @@ func ValidateLeaveRequest(c *gin.Context) {
 				Notes:            "Approved leave request: " + leaveRequest.Reason,
 			}
 
-			if err := db.Create(&attendance).Error; err != nil {
-				// Log the error but continue processing
-				continue
+			if err := tx.Create(&attendance).Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create attendance record for leave"})
+				return
 			}
 		}
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction"})
+		return
 	}
 
 	c.JSON(http.StatusOK, leaveRequest)

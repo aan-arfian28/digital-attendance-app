@@ -17,7 +17,7 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState<LoginRequest>({
     username: '',
-    password: ''
+    password: '',
   })
 
   // Redirect to dashboard if already authenticated
@@ -25,7 +25,7 @@ function Login() {
     if (!isLoading && isAuthenticated) {
       navigate({
         to: '/dashboard',
-        replace: true
+        replace: true,
       })
     }
   }, [isAuthenticated, isLoading, navigate])
@@ -38,7 +38,7 @@ function Login() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-[#428bff] text-white font-bold text-xl mb-4 animate-pulse">
             T
           </div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">Memuat...</p>
         </div>
       </div>
     )
@@ -57,9 +57,9 @@ function Login() {
   }
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }))
   }
 
@@ -78,23 +78,27 @@ function Login() {
         {/* Login Form */}
         <div className="border border-gray-300 p-8 rounded-sm">
           <h2 className="text-xl font-semibold text-gray-900 mb-6 text-center">
-            Login to Your Account
+            Masuk ke Akun Anda
           </h2>
-          
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Error Alert */}
             {loginMutation.isError && (
               <Alert variant="destructive" className="rounded-sm">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  {loginMutation.error?.message || 'Login failed. Please try again.'}
+                  {loginMutation.error?.message ||
+                    'Login gagal. Silakan coba lagi.'}
                 </AlertDescription>
               </Alert>
             )}
 
             {/* Username Field */}
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="username"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Username
               </label>
               <div className="relative">
@@ -107,16 +111,21 @@ function Login() {
                   type="text"
                   required
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 focus:ring-[#428bff] focus:border-transparent"
-                  placeholder="Enter your username"
+                  placeholder="Masukkan username Anda"
                   value={formData.username}
-                  onChange={(e) => handleInputChange('username', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange('username', e.target.value)
+                  }
                 />
               </div>
             </div>
 
             {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Password
               </label>
               <div className="relative">
@@ -129,9 +138,11 @@ function Login() {
                   type={showPassword ? 'text' : 'password'}
                   required
                   className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 focus:ring-[#428bff] focus:border-transparent"
-                  placeholder="Enter your password"
+                  placeholder="Masukkan password Anda"
                   value={formData.password}
-                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange('password', e.target.value)
+                  }
                 />
                 <button
                   type="button"
@@ -147,19 +158,6 @@ function Login() {
               </div>
             </div>
 
-            {/* Remember Me */}
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                className="h-4 w-4 text-[#428bff] focus:ring-[#428bff] border-gray-300 rounded-sm"
-              />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-                Remember me
-              </label>
-            </div>
-
             {/* Login Button */}
             <Button
               type="submit"
@@ -169,30 +167,13 @@ function Login() {
               {loginMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing In...
+                  Masuk...
                 </>
               ) : (
-                'Sign In'
+                'Login'
               )}
             </Button>
           </form>
-
-          {/* Footer */}
-          <div className="mt-6 text-center">
-            <a href="#" className="text-sm text-[#428bff] hover:text-[#3b7ee6]">
-              Forgot your password?
-            </a>
-          </div>
-        </div>
-
-        {/* Demo Credentials */}
-        <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-sm">
-          <p className="text-xs text-gray-600 text-center mb-2">
-            <strong>Demo Credentials:</strong>
-          </p>
-          <p className="text-xs text-gray-600 text-center">
-            Username: <strong>admin</strong> | Password: <strong>admin</strong>
-          </p>
         </div>
       </div>
     </div>

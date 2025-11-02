@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
-import { Download, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
+import { useState, useCallback } from 'react'
+import { Download, ChevronUp, ChevronDown, ChevronsUpDown, Eye, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -9,6 +9,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { AlertCircle } from 'lucide-react'
 import RoleGuard from '@/components/RoleGuard'
 import { useQuery } from '@tanstack/react-query'
 
@@ -27,13 +37,39 @@ const getAuthHeaders = () => {
   }
 }
 
+// OPTIMIZATION: Extract query functions outside component to prevent recreation
+const fetchMyAttendanceHistory = async () => {
+  const response = await fetch(`${API_BASE_URL}/user/attendance/my-records`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to fetch attendance records')
+  const data = await response.json()
+  return Array.isArray(data) ? data : []
+}
+
+const fetchMyLeaveHistory = async () => {
+  const response = await fetch(`${API_BASE_URL}/user/leave/my-requests`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to fetch leave requests')
+  const data = await response.json()
+  return Array.isArray(data) ? data : []
+}
+
 // Types
 interface AttendanceRecord {
   ID: number
   CheckInTime: string
   CheckOutTime: string | null
+  CheckInLatitude: number
+  CheckInLongitude: number
+  CheckOutLatitude: number
+  CheckOutLongitude: number
+  CheckInPhotoURL: string
+  CheckOutPhotoURL: string
   Status: string
   ValidationStatus: string
+  Notes: string
 }
 
 interface LeaveRequestRecord {
@@ -42,7 +78,9 @@ interface LeaveRequestRecord {
   StartDate: string
   EndDate: string
   Reason: string
+  AttachmentURL: string
   Status: string
+  ApproverNotes: string
 }
 
 function AttendanceHistory() {
@@ -59,39 +97,35 @@ function AttendanceHistoryContent() {
   const [attendancePageSize, setAttendancePageSize] = useState(10)
   const [leavePage, setLeavePage] = useState(0)
   const [leavePageSize, setLeavePageSize] = useState(10)
-  const [attendanceSortOrder, setAttendanceSortOrder] = useState<'asc' | 'desc' | null>(null)
-  const [leaveSortOrder, setLeaveSortOrder] = useState<'asc' | 'desc' | null>(null)
+  const [attendanceSortOrder, setAttendanceSortOrder] = useState<'asc' | 'desc' | null>('desc') // Default: newest first
+  const [leaveSortOrder, setLeaveSortOrder] = useState<'asc' | 'desc' | null>('desc') // Default: newest first
+  
+  // Detail modal states
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+  const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | LeaveRequestRecord | null>(null)
 
-  // Fetch attendance records
   const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery({
     queryKey: ['my-attendance'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/user/attendance/my-records`, {
-        headers: getAuthHeaders(),
-      })
-      if (!response.ok) throw new Error('Failed to fetch attendance records')
-      const data = await response.json()
-      return Array.isArray(data) ? data : []
-    },
+    queryFn: fetchMyAttendanceHistory,
+    staleTime: 0,
+    refetchInterval: 3000, // Refetch every 3 seconds
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   })
 
-  // Fetch leave requests
   const { data: leaveRecords = [], isLoading: leaveLoading } = useQuery({
     queryKey: ['my-leave-requests'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/user/leave/my-requests`, {
-        headers: getAuthHeaders(),
-      })
-      if (!response.ok) throw new Error('Failed to fetch leave requests')
-      const data = await response.json()
-      return Array.isArray(data) ? data : []
-    },
+    queryFn: fetchMyLeaveHistory,
+    staleTime: 0,
+    refetchInterval: 3000, // Refetch every 3 seconds
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   })
 
-  // Simple date formatting - extract date part directly from string
   const formatDate = (dateString: string) => {
     if (!dateString) return '-'
-    // Extract date part: "2025-10-20T06:11:29.111+07:00" → "2025-10-20"
     const datePart = dateString.split('T')[0]
     const [year, month, day] = datePart.split('-')
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
@@ -100,7 +134,6 @@ function AttendanceHistoryContent() {
 
   const formatTime = (dateString: string) => {
     if (!dateString) return '-'
-    // Extract time part: "2025-10-20T06:11:29.111+07:00" → "06:11"
     const timePart = dateString.split('T')[1]?.split('.')[0]
     if (!timePart) return '-'
     const [hours, minutes] = timePart.split(':')
@@ -117,15 +150,37 @@ function AttendanceHistoryContent() {
     return `${hours}h ${minutes}m`
   }
 
+  // Helper to check if URL is a PDF
+  const isPDF = (url: string) => {
+    return url?.toLowerCase().endsWith('.pdf')
+  }
+
+  // Helper to get full URL for uploaded files
+  const getFullFileURL = (relativePath: string) => {
+    if (!relativePath) return ''
+    // If it's already a full URL, return as is
+    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+      return relativePath
+    }
+    // Otherwise, prepend the backend base URL (without /api)
+    const baseURL = API_BASE_URL.replace('/api', '')
+    return `${baseURL}${relativePath}`
+  }
+
+  const openDetailModal = useCallback((record: AttendanceRecord | LeaveRequestRecord) => {
+    setSelectedRecord(record)
+    setIsDetailModalOpen(true)
+  }, [])
+
   // Export to CSV
   const exportAttendanceToCSV = () => {
-    const headers = ['Date', 'Check In', 'Check Out', 'Duration', 'Status', 'Validation']
+    const headers = ['Tanggal', 'Check In', 'Check Out', 'Durasi', 'Status', 'Validasi']
     const rows = attendanceRecords.map((record: AttendanceRecord) => [
       formatDate(record.CheckInTime),
       formatTime(record.CheckInTime),
       record.CheckOutTime ? formatTime(record.CheckOutTime) : '-',
       calculateDuration(record.CheckInTime, record.CheckOutTime),
-      record.Status === 'ON_TIME' ? 'On Time' : record.Status === 'LATE' ? 'Late' : record.Status,
+      record.Status === 'ON_TIME' ? 'Tepat Waktu' : record.Status === 'LATE' ? 'Terlambat' : record.Status,
       record.ValidationStatus,
     ])
 
@@ -144,12 +199,12 @@ function AttendanceHistoryContent() {
   }
 
   const exportLeaveToCSV = () => {
-    const headers = ['Period', 'Type', 'Reason', 'Status']
+    const headers = ['Periode', 'Tipe', 'Alasan', 'Status']
     const rows = leaveRecords.map((record: LeaveRequestRecord) => [
       `${formatDate(record.StartDate)} - ${formatDate(record.EndDate)}`,
       record.LeaveType === 'SICK' ? 'Sakit' : 'Izin',
       record.Reason,
-      record.Status === 'APPROVED' ? 'Approved' : record.Status === 'REJECTED' ? 'Rejected' : 'Pending',
+      record.Status === 'APPROVED' ? 'Disetujui' : record.Status === 'REJECTED' ? 'Ditolak' : 'Menunggu',
     ])
 
     const csvContent = [
@@ -198,22 +253,22 @@ function AttendanceHistoryContent() {
   }
 
   const toggleAttendanceSort = () => {
-    if (!attendanceSortOrder) {
+    if (attendanceSortOrder === 'desc') {
       setAttendanceSortOrder('asc')
     } else if (attendanceSortOrder === 'asc') {
       setAttendanceSortOrder('desc')
     } else {
-      setAttendanceSortOrder(null)
+      setAttendanceSortOrder('desc')
     }
   }
 
   const toggleLeaveSort = () => {
-    if (!leaveSortOrder) {
+    if (leaveSortOrder === 'desc') {
       setLeaveSortOrder('asc')
     } else if (leaveSortOrder === 'asc') {
       setLeaveSortOrder('desc')
     } else {
-      setLeaveSortOrder(null)
+      setLeaveSortOrder('desc')
     }
   }
 
@@ -268,8 +323,8 @@ function AttendanceHistoryContent() {
     <div className="p-6">
       {/* Page Title */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">History</h1>
-        <p className="text-gray-600">View your attendance and leave request history</p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Riwayat Absensi</h1>
+        <p className="text-gray-600">Lihat riwayat absensi dan pengajuan izin Anda</p>
       </div>
 
       {/* Export Button */}
@@ -294,7 +349,7 @@ function AttendanceHistoryContent() {
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
-          Attendance
+          Absensi
         </button>
         <button
           onClick={() => setActiveTab('leave')}
@@ -304,7 +359,7 @@ function AttendanceHistoryContent() {
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
-          Leave Requests
+          Pengajuan Izin
         </button>
       </div>
 
@@ -320,7 +375,7 @@ function AttendanceHistoryContent() {
                       className="flex items-center gap-2 font-semibold text-gray-900"
                       onClick={toggleAttendanceSort}
                     >
-                      Date
+                      Tanggal
                       {attendanceSortOrder === 'asc' ? (
                         <ChevronUp className="h-4 w-4" />
                       ) : attendanceSortOrder === 'desc' ? (
@@ -332,22 +387,23 @@ function AttendanceHistoryContent() {
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Check In</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Check Out</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Duration</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Durasi</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Validation</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Validasi</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {attendanceLoading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                      Loading records...
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                      Memuat data...
                     </td>
                   </tr>
                 ) : attendanceRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                      No attendance records found
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                      Tidak ada catatan absensi
                     </td>
                   </tr>
                 ) : (
@@ -375,7 +431,7 @@ function AttendanceHistoryContent() {
                               : 'bg-gray-100 text-gray-800 border-gray-200'
                           }`}
                         >
-                          {record.Status === 'ON_TIME' ? 'On Time' : record.Status === 'LATE' ? 'Late' : record.Status}
+                          {record.Status === 'ON_TIME' ? 'Tepat Waktu' : record.Status === 'LATE' ? 'Terlambat' : record.Status}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm">
@@ -390,8 +446,22 @@ function AttendanceHistoryContent() {
                               : 'bg-gray-100 text-gray-800 border-gray-200'
                           }`}
                         >
-                          {record.ValidationStatus}
+                          {record.ValidationStatus === 'PRESENT' ? 'Hadir'
+                            : record.ValidationStatus === 'ABSENT' ? 'Tidak Hadir'
+                          : record.ValidationStatus === 'PENDING' ? 'Menunggu'
+                          : record.ValidationStatus}
                         </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openDetailModal(record)}
+                          className="bg-blue-50 border-blue-300 text-blue-600 hover:bg-blue-100 rounded-sm"
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Detail
+                        </Button>
                       </td>
                     </tr>
                   ))
@@ -403,7 +473,7 @@ function AttendanceHistoryContent() {
           {/* Pagination */}
           <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-700">Rows per page:</span>
+              <span className="text-sm text-gray-700">Baris per halaman:</span>
               <Select
                 value={attendancePageSize.toString()}
                 onValueChange={(value) => setCurrentPageSize(Number(value))}
@@ -423,7 +493,7 @@ function AttendanceHistoryContent() {
 
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-700">
-                Page {getCurrentPage() + 1} of {getTotalPages() || 1}
+                Halaman {getCurrentPage() + 1} dari {getTotalPages() || 1}
               </span>
               <div className="flex gap-1">
                 <Button
@@ -433,7 +503,7 @@ function AttendanceHistoryContent() {
                   disabled={getCurrentPage() === 0}
                   className="rounded-sm"
                 >
-                  Previous
+                  Sebelumnya
                 </Button>
                 <Button
                   variant="outline"
@@ -442,7 +512,7 @@ function AttendanceHistoryContent() {
                   disabled={getCurrentPage() >= getTotalPages() - 1}
                   className="rounded-sm"
                 >
-                  Next
+                  Selanjutnya
                 </Button>
               </div>
             </div>
@@ -462,7 +532,7 @@ function AttendanceHistoryContent() {
                       className="flex items-center gap-2 font-semibold text-gray-900"
                       onClick={toggleLeaveSort}
                     >
-                      Period
+                      Periode
                       {leaveSortOrder === 'asc' ? (
                         <ChevronUp className="h-4 w-4" />
                       ) : leaveSortOrder === 'desc' ? (
@@ -472,22 +542,23 @@ function AttendanceHistoryContent() {
                       )}
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Type</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Reason</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Tipe</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Alasan</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {leaveLoading ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
-                      Loading records...
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                      Memuat data...
                     </td>
                   </tr>
                 ) : leaveRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
-                      No leave requests found
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                      Tidak ada pengajuan izin
                     </td>
                   </tr>
                 ) : (
@@ -512,8 +583,19 @@ function AttendanceHistoryContent() {
                               : 'bg-yellow-100 text-yellow-800 border-yellow-200'
                           }`}
                         >
-                          {record.Status === 'APPROVED' ? 'Approved' : record.Status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                          {record.Status === 'APPROVED' ? 'Disetujui' : record.Status === 'REJECTED' ? 'Ditolak' : 'Menunggu'}
                         </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openDetailModal(record)}
+                          className="bg-blue-50 border-blue-300 text-blue-600 hover:bg-blue-100 rounded-sm"
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Detail
+                        </Button>
                       </td>
                     </tr>
                   ))
@@ -525,7 +607,7 @@ function AttendanceHistoryContent() {
           {/* Pagination */}
           <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-700">Rows per page:</span>
+              <span className="text-sm text-gray-700">Baris per halaman:</span>
               <Select
                 value={leavePageSize.toString()}
                 onValueChange={(value) => setCurrentPageSize(Number(value))}
@@ -545,7 +627,7 @@ function AttendanceHistoryContent() {
 
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-700">
-                Page {getCurrentPage() + 1} of {getTotalPages() || 1}
+                Halaman {getCurrentPage() + 1} dari {getTotalPages() || 1}
               </span>
               <div className="flex gap-1">
                 <Button
@@ -555,7 +637,7 @@ function AttendanceHistoryContent() {
                   disabled={getCurrentPage() === 0}
                   className="rounded-sm"
                 >
-                  Previous
+                  Sebelumnya
                 </Button>
                 <Button
                   variant="outline"
@@ -564,13 +646,238 @@ function AttendanceHistoryContent() {
                   disabled={getCurrentPage() >= getTotalPages() - 1}
                   className="rounded-sm"
                 >
-                  Next
+                  Selanjutnya
                 </Button>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Detail Modal */}
+      <Dialog open={isDetailModalOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsDetailModalOpen(false)
+        }
+      }}>
+        <DialogContent 
+          className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-sm"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle>
+              {selectedRecord && 'CheckInTime' in selectedRecord ? 'Detail Catatan Absensi' : 'Detail Pengajuan Izin'}
+            </DialogTitle>
+            <DialogDescription>
+              Lihat detail lengkap {selectedRecord && 'CheckInTime' in selectedRecord ? 'catatan absensi' : 'pengajuan izin'}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            {/* Record Details */}
+            <div className="p-4 bg-gray-50 rounded-sm border">
+              <h3 className="font-semibold text-gray-900 mb-3">Detail</h3>
+              {selectedRecord && 'CheckInTime' in selectedRecord ? (
+                // Attendance Record
+                <div className="grid gap-2 text-sm">
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Tanggal:</span>
+                    <span className="font-medium text-gray-900">{formatDate(selectedRecord.CheckInTime)}</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Check In:</span>
+                    <span className="font-medium text-gray-900">{formatTime(selectedRecord.CheckInTime)}</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Check Out:</span>
+                    <span className="font-medium text-gray-900">
+                      {selectedRecord.CheckOutTime ? formatTime(selectedRecord.CheckOutTime) : '-'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Durasi:</span>
+                    <span className="font-medium text-gray-900">
+                      {calculateDuration(selectedRecord.CheckInTime, selectedRecord.CheckOutTime)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Status:</span>
+                    <span className="font-medium text-gray-900">
+                      {selectedRecord.Status === 'ON_TIME' ? 'Tepat Waktu' : selectedRecord.Status === 'LATE' ? 'Terlambat' : selectedRecord.Status}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Validasi:</span>
+                    <span className="font-medium text-gray-900">
+                      {selectedRecord.ValidationStatus === 'PRESENT' ? 'Hadir'
+                        : selectedRecord.ValidationStatus === 'ABSENT' ? 'Tidak Hadir'
+                        : selectedRecord.ValidationStatus === 'LEAVE' ? 'Izin'
+                        : selectedRecord.ValidationStatus === 'PENDING' ? 'Menunggu'
+                        : selectedRecord.ValidationStatus}
+                    </span>
+                  </div>
+                  {selectedRecord.Notes && (
+                    <div className="flex justify-between py-1">
+                      <span className="text-gray-600">Catatan:</span>
+                      <span className="font-medium text-gray-900">{selectedRecord.Notes}</span>
+                    </div>
+                  )}
+                </div>
+              ) : selectedRecord && 'LeaveType' in selectedRecord ? (
+                // Leave Request
+                <div className="grid gap-2 text-sm">
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Tipe Izin:</span>
+                    <span className="font-medium text-gray-900">
+                      {selectedRecord.LeaveType === 'SICK' ? 'Sakit' : 'Izin'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Periode:</span>
+                    <span className="font-medium text-gray-900">
+                      {formatDate(selectedRecord.StartDate)} - {formatDate(selectedRecord.EndDate)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Alasan:</span>
+                    <span className="font-medium text-gray-900">{selectedRecord.Reason}</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Status:</span>
+                    <span className="font-medium text-gray-900">
+                      {selectedRecord.Status === 'APPROVED' ? 'Disetujui' : selectedRecord.Status === 'REJECTED' ? 'Ditolak' : 'Menunggu'}
+                    </span>
+                  </div>
+                  {selectedRecord.ApproverNotes && (
+                    <div className="flex justify-between py-1">
+                      <span className="text-gray-600">Catatan Approver:</span>
+                      <span className="font-medium text-gray-900">{selectedRecord.ApproverNotes}</span>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+
+            {/* Image/PDF Preview Section */}
+            {selectedRecord && (
+              <div className="grid gap-4">
+                {/* Attendance Photos Preview */}
+                {'CheckInPhotoURL' in selectedRecord && (selectedRecord.CheckInPhotoURL || selectedRecord.CheckOutPhotoURL) && (
+                  <div className="grid gap-3">
+                    <h3 className="font-semibold text-gray-900">Foto</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {selectedRecord.CheckInPhotoURL && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-gray-700">Foto Check In</p>
+                          <div className="border rounded-sm overflow-hidden bg-gray-100">
+                            <img
+                              src={getFullFileURL(selectedRecord.CheckInPhotoURL)}
+                              alt="Check In Photo"
+                              className="w-full h-auto object-contain max-h-96"
+                            />
+                          </div>
+                          <a
+                            href={getFullFileURL(selectedRecord.CheckInPhotoURL)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
+                          >
+                            <Eye className="h-3 w-3" />
+                            Lihat ukuran penuh
+                          </a>
+                        </div>
+                      )}
+                      {selectedRecord.CheckOutPhotoURL && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-gray-700">Foto Check Out</p>
+                          <div className="border rounded-sm overflow-hidden bg-gray-100">
+                            <img
+                              src={getFullFileURL(selectedRecord.CheckOutPhotoURL)}
+                              alt="Check Out Photo"
+                              className="w-full h-auto object-contain max-h-96"
+                            />
+                          </div>
+                          <a
+                            href={getFullFileURL(selectedRecord.CheckOutPhotoURL)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
+                          >
+                            <Eye className="h-3 w-3" />
+                            Lihat ukuran penuh
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Leave Attachment Preview */}
+                {'AttachmentURL' in selectedRecord && selectedRecord.AttachmentURL && (
+                  <div className="grid gap-3">
+                    <h3 className="font-semibold text-gray-900">Lampiran</h3>
+                    <div className="border rounded-sm overflow-hidden bg-gray-50">
+                      {isPDF(selectedRecord.AttachmentURL) ? (
+                        // PDF Preview
+                        <div className="p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <p className="text-sm font-medium text-gray-700">Dokumen PDF</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(getFullFileURL(selectedRecord.AttachmentURL), '_blank')}
+                              className="rounded-sm"
+                            >
+                              <ExternalLink className="h-4 w-4 mr-1" />
+                              Buka di Tab Baru
+                            </Button>
+                          </div>
+                          <iframe
+                            src={getFullFileURL(selectedRecord.AttachmentURL)}
+                            className="w-full h-96 rounded-sm border"
+                            title="PDF Preview"
+                          />
+                        </div>
+                      ) : (
+                        // Image Preview
+                        <div className="p-2">
+                          <img 
+                            src={getFullFileURL(selectedRecord.AttachmentURL)} 
+                            alt="Leave Attachment"
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-auto rounded-sm cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => window.open(getFullFileURL(selectedRecord.AttachmentURL), '_blank')}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement
+                              target.onerror = null
+                              target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="16" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3EGambar tidak tersedia%3C/text%3E%3C/svg%3E'
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSelectedRecord(null)
+                setIsDetailModalOpen(false)
+              }}
+              className="rounded-sm"
+            >
+              Tutup
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

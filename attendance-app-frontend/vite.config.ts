@@ -6,19 +6,27 @@ import tailwindcss from '@tailwindcss/vite'
 
 const config = defineConfig({
   plugins: [
-    // this is the plugin that enables path aliases
     viteTsConfigPaths({
       projects: ['./tsconfig.json'],
     }),
     tailwindcss(),
-    tanstackStart(),
+    tanstackStart({
+      spa: {
+        enabled: true,
+      },
+    }),
     viteReact(),
   ],
-  server: {
-    host: true, // expose the server to the network
-    allowedHosts: ['cluster-gotten-sciences-marathon.trycloudflare.com'], // cloudflared tunnel - no http://
-    // allowedHosts: ['*'], // allow all hosts
 
+  build: {
+    target: 'esnext',
+    minify: false, // TEMPORARY: Disable minification for debugging
+    chunkSizeWarningLimit: 600,
+    reportCompressedSize: false,
+  },
+  server: {
+    host: true,
+    allowedHosts: ['cluster-gotten-sciences-marathon.trycloudflare.com'],
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
@@ -26,7 +34,6 @@ const config = defineConfig({
       }
     }
   },
-
 })
 
 export default config

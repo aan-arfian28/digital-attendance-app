@@ -68,7 +68,7 @@ type Attendance struct {
 	CheckOutPhotoURL  string     `json:"CheckOutPhotoURL"`
 
 	Status           AttendanceStatus `json:"Status" gorm:"type:varchar(20);default:'ON_TIME'"`
-	ValidationStatus ValidationStatus `json:"ValidationStatus" gorm:"type:varchar(20);default:'PENDING';index"`
+	ValidationStatus ValidationStatus `json:"ValidationStatus" gorm:"type:varchar(20);default:'PRESENT';index"`
 	ValidatorID      *uint            `json:"ValidatorID"`
 	Validator        *User            `json:"Validator" gorm:"foreignKey:ValidatorID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Notes            string           `json:"Notes" gorm:"type:text"`

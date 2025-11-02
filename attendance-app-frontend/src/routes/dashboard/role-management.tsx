@@ -74,7 +74,12 @@ function RoleManagement() {
 
 function RoleManagementContent() {
   const queryClient = useQueryClient()
-  const [sorting, setSorting] = useState<SortingState>([])
+  const [sorting, setSorting] = useState<SortingState>([
+    {
+      id: 'PositionLevel',
+      desc: false,
+    },
+  ])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   
@@ -108,6 +113,11 @@ function RoleManagementContent() {
       // Sort by position level ascending
       return data.sort((a: Role, b: Role) => a.PositionLevel - b.PositionLevel)
     },
+    staleTime: 0,
+    refetchInterval: 3000, // Refetch every 3 seconds
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   })
 
   // Create role mutation
@@ -194,13 +204,13 @@ function RoleManagementContent() {
     const errors: Partial<Record<keyof CreateRoleData, string>> = {}
     
     if (!formData.Name.trim()) {
-      errors.Name = 'Role is required'
+      errors.Name = 'Role diperlukan'
     }
     if (!formData.Position.trim()) {
-      errors.Position = 'Position is required'
+      errors.Position = 'Posisi diperlukan'
     }
     if (formData.PositionLevel < 1) {
-      errors.PositionLevel = 'Position level must be at least 1'
+      errors.PositionLevel = 'Level posisi harus minimal 1'
     }
 
     // Check for duplicate position
@@ -209,7 +219,7 @@ function RoleManagementContent() {
       (!editingRole || role.ID !== editingRole.ID)
     )
     if (isDuplicate) {
-      errors.Position = 'This position already exists'
+      errors.Position = 'Posisi ini sudah ada'
     }
 
     setFieldErrors(errors)
@@ -240,7 +250,7 @@ function RoleManagementContent() {
   }
 
   const handleDeleteRole = (roleId: number) => {
-    if (confirm('Are you sure you want to delete this role?')) {
+    if (confirm('Apakah Anda yakin ingin menghapus role ini?')) {
       deleteRoleMutation.mutate(roleId)
     }
   }
@@ -283,7 +293,7 @@ function RoleManagementContent() {
             className="flex items-center gap-2 font-semibold"
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
           >
-            Position Level
+            Level Posisi
             {column.getIsSorted() === 'asc' ? (
               <ChevronUp className="h-4 w-4" />
             ) : column.getIsSorted() === 'desc' ? (
@@ -297,7 +307,7 @@ function RoleManagementContent() {
     },
     {
       id: 'actions',
-      header: 'Actions',
+      header: 'Aksi',
       cell: ({ row }) => {
         const role = row.original
         
@@ -322,7 +332,7 @@ function RoleManagementContent() {
               title="Delete"
             >
               <Trash2 className="h-4 w-4" />
-              {deleteRoleMutation.isPending ? 'Deleting...' : 'Delete'}
+              {deleteRoleMutation.isPending ? 'Menghapus...' : 'Hapus'}
             </Button>
           </div>
         )
@@ -347,6 +357,12 @@ function RoleManagementContent() {
       globalFilter,
     },
     initialState: {
+      sorting: [
+        {
+          id: 'PositionLevel',
+          desc: false,
+        },
+      ],
       pagination: {
         pageSize: 10,
       },
@@ -357,7 +373,7 @@ function RoleManagementContent() {
     return (
       <div className="p-6">
         <div className="flex items-center justify-center h-64">
-          <div className="text-gray-600">Loading roles...</div>
+          <div className="text-gray-600">Memuat role...</div>
         </div>
       </div>
     )
@@ -369,7 +385,7 @@ function RoleManagementContent() {
         <Alert variant="destructive" className="rounded-sm">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Failed to load roles: {error instanceof Error ? error.message : 'Unknown error'}
+            Gagal memuat role: {error instanceof Error ? error.message : 'Unknown error'}
           </AlertDescription>
         </Alert>
       </div>
@@ -380,7 +396,7 @@ function RoleManagementContent() {
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Role Management</h1>
-        <p className="text-gray-600">Manage system roles and position hierarchy</p>
+        <p className="text-gray-600">Kelola role sistem dan hierarki posisi</p>
       </div>
 
       {/* Action Bar */}
@@ -389,7 +405,7 @@ function RoleManagementContent() {
         <div className="relative w-full md:w-96">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
-            placeholder="Search roles..."
+            placeholder="Cari role..."
             value={globalFilter ?? ''}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGlobalFilter(e.target.value)}
             className="pl-10 rounded-sm"
@@ -421,7 +437,7 @@ function RoleManagementContent() {
                   // Don't clear form - keep prefilled data if exists
                 }}
               >
-                Create Role
+                Buat Role
               </Button>
             </DialogTrigger>
             <DialogContent 
@@ -430,9 +446,9 @@ function RoleManagementContent() {
               onEscapeKeyDown={(e) => e.preventDefault()}
             >
               <DialogHeader>
-                <DialogTitle>Create New Role</DialogTitle>
+                <DialogTitle>Buat Role Baru</DialogTitle>
                 <DialogDescription>
-                  Add a new role to the system. Fill in all required fields.
+                  Tambahkan role baru ke sistem. Isi semua field yang diperlukan.
                 </DialogDescription>
               </DialogHeader>
               
@@ -451,7 +467,7 @@ function RoleManagementContent() {
                     onValueChange={(value) => setFormData({ ...formData, Name: value })}
                   >
                     <SelectTrigger className="rounded-sm">
-                      <SelectValue placeholder="Select role" />
+                      <SelectValue placeholder="Pilih role" />
                     </SelectTrigger>
                     <SelectContent className="rounded-sm">
                       <SelectItem value="admin">admin</SelectItem>
@@ -463,20 +479,20 @@ function RoleManagementContent() {
                   )}
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="position">Position *</Label>
+                  <Label htmlFor="position">Posisi *</Label>
                   <Input
                     id="position"
                     value={formData.Position}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Position: e.target.value })}
                     className={fieldErrors.Position ? 'border-red-500 rounded-sm' : 'rounded-sm'}
-                    placeholder="e.g., Teacher, Manager"
+                    placeholder="contoh: Guru, Manajer"
                   />
                   {fieldErrors.Position && (
                     <p className="text-sm text-red-500">{fieldErrors.Position}</p>
                   )}
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="positionLevel">Position Level *</Label>
+                  <Label htmlFor="positionLevel">Level Posisi *</Label>
                   <Input
                     id="positionLevel"
                     type="number"
@@ -500,14 +516,14 @@ function RoleManagementContent() {
                   }}
                   className="rounded-sm"
                 >
-                  Cancel
+                  Batal
                 </Button>
                 <Button
                   onClick={handleCreateRole}
                   disabled={createRoleMutation.isPending}
                   className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm disabled:opacity-50"
                 >
-                  {createRoleMutation.isPending ? 'Creating...' : 'Create Role'}
+                  {createRoleMutation.isPending ? 'Membuat...' : 'Buat Role'}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -559,12 +575,12 @@ function RoleManagementContent() {
         <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200">
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-700">
-              Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{' '}
+              Menampilkan {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} ke{' '}
               {Math.min(
                 (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
                 table.getFilteredRowModel().rows.length
               )}{' '}
-              of {table.getFilteredRowModel().rows.length} results
+              dari {table.getFilteredRowModel().rows.length} hasil
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -575,7 +591,7 @@ function RoleManagementContent() {
               disabled={!table.getCanPreviousPage()}
               className="rounded-sm"
             >
-              Previous
+              Sebelumnya
             </Button>
             <Button
               variant="outline"
@@ -584,7 +600,7 @@ function RoleManagementContent() {
               disabled={!table.getCanNextPage()}
               className="rounded-sm"
             >
-              Next
+              Selanjutnya
             </Button>
           </div>
         </div>
@@ -610,7 +626,7 @@ function RoleManagementContent() {
           <DialogHeader>
             <DialogTitle>Edit Role</DialogTitle>
             <DialogDescription>
-              Update role information. All fields are required.
+              Perbarui informasi role. Semua field diperlukan.
             </DialogDescription>
           </DialogHeader>
           
@@ -629,7 +645,7 @@ function RoleManagementContent() {
                 onValueChange={(value) => setFormData({ ...formData, Name: value })}
               >
                 <SelectTrigger className="rounded-sm">
-                  <SelectValue placeholder="Select role" />
+                  <SelectValue placeholder="Pilih role" />
                 </SelectTrigger>
                 <SelectContent className="rounded-sm">
                   <SelectItem value="admin">admin</SelectItem>
@@ -641,20 +657,20 @@ function RoleManagementContent() {
               )}
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-position">Position *</Label>
+              <Label htmlFor="edit-position">Posisi *</Label>
               <Input
                 id="edit-position"
                 value={formData.Position}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, Position: e.target.value })}
                 className={fieldErrors.Position ? 'border-red-500 rounded-sm' : 'rounded-sm'}
-                placeholder="e.g., Teacher, Manager"
+                placeholder="contoh: Guru, Manajer"
               />
               {fieldErrors.Position && (
                 <p className="text-sm text-red-500">{fieldErrors.Position}</p>
               )}
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-positionLevel">Position Level *</Label>
+              <Label htmlFor="edit-positionLevel">Level Posisi *</Label>
               <Input
                 id="edit-positionLevel"
                 type="number"
@@ -679,14 +695,14 @@ function RoleManagementContent() {
               }}
               className="rounded-sm"
             >
-              Cancel
+              Batal
             </Button>
             <Button
               onClick={handleUpdateRole}
               disabled={updateRoleMutation.isPending}
               className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm disabled:opacity-50"
             >
-              {updateRoleMutation.isPending ? 'Updating...' : 'Update Role'}
+              {updateRoleMutation.isPending ? 'Memperbarui...' : 'Perbarui Role'}
             </Button>
           </DialogFooter>
         </DialogContent>

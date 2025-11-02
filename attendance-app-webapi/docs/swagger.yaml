@@ -181,20 +181,6 @@ definitions:
         minLength: 3
         type: string
     type: object
-  docs.ErrorResponse:
-    properties:
-      error:
-        example: Error message description
-        type: string
-    type: object
-  gorm.DeletedAt:
-    properties:
-      time:
-        type: string
-      valid:
-        description: Valid is true if Time is not NULL
-        type: boolean
-    type: object
   handlers.loginPayload:
     properties:
       password:
@@ -207,7 +193,15 @@ definitions:
     - password
     - username
     type: object
-  models.Attendance:
+  models.AttendanceStatus:
+    enum:
+    - ON_TIME
+    - LATE
+    type: string
+    x-enum-varnames:
+    - OnTime
+    - Late
+  models.AttendanceSwagger:
     properties:
       CheckInLatitude:
         type: number
@@ -225,73 +219,30 @@ definitions:
         type: string
       CheckOutTime:
         type: string
+      CreatedAt:
+        type: string
+      ID:
+        type: integer
       LocationID:
         type: integer
       Notes:
         type: string
       Status:
         $ref: '#/definitions/models.AttendanceStatus'
+      UpdatedAt:
+        type: string
       UserID:
         type: integer
       ValidationStatus:
         $ref: '#/definitions/models.ValidationStatus'
-      Validator:
-        $ref: '#/definitions/models.User'
       ValidatorID:
         type: integer
-      createdAt:
-        type: string
-      deletedAt:
-        $ref: '#/definitions/gorm.DeletedAt'
-      id:
-        type: integer
-      location:
-        $ref: '#/definitions/models.Location'
-      updatedAt:
-        type: string
-      user:
-        $ref: '#/definitions/models.User'
     type: object
-  models.AttendanceStatus:
-    enum:
-    - ON_TIME
-    - LATE
-    type: string
-    x-enum-varnames:
-    - OnTime
-    - Late
-  models.LeaveRequest:
+  models.ErrorResponse:
     properties:
-      Approver:
-        $ref: '#/definitions/models.User'
-      ApproverID:
-        type: integer
-      ApproverNotes:
+      error:
+        example: Error message description
         type: string
-      AttachmentURL:
-        type: string
-      EndDate:
-        type: string
-      LeaveType:
-        $ref: '#/definitions/models.LeaveType'
-      Reason:
-        type: string
-      StartDate:
-        type: string
-      Status:
-        $ref: '#/definitions/models.LeaveRequestStatus'
-      UserID:
-        type: integer
-      createdAt:
-        type: string
-      deletedAt:
-        $ref: '#/definitions/gorm.DeletedAt'
-      id:
-        type: integer
-      updatedAt:
-        type: string
-      user:
-        $ref: '#/definitions/models.User'
     type: object
   models.LeaveRequestStatus:
     enum:
@@ -303,6 +254,33 @@ definitions:
     - LeavePending
     - LeaveApproved
     - LeaveRejected
+  models.LeaveRequestSwagger:
+    properties:
+      ApproverID:
+        type: integer
+      ApproverNotes:
+        type: string
+      AttachmentURL:
+        type: string
+      CreatedAt:
+        type: string
+      EndDate:
+        type: string
+      ID:
+        type: integer
+      LeaveType:
+        $ref: '#/definitions/models.LeaveType'
+      Reason:
+        type: string
+      StartDate:
+        type: string
+      Status:
+        $ref: '#/definitions/models.LeaveRequestStatus'
+      UpdatedAt:
+        type: string
+      UserID:
+        type: integer
+    type: object
   models.LeaveType:
     enum:
     - SICK
@@ -311,57 +289,7 @@ definitions:
     x-enum-varnames:
     - Sick
     - Permit
-  models.Location:
-    properties:
-      Address:
-        type: string
-      Attendances:
-        items:
-          $ref: '#/definitions/models.Attendance'
-        type: array
-      Latitude:
-        type: number
-      Longitude:
-        type: number
-      Name:
-        type: string
-      Radius:
-        type: integer
-      createdAt:
-        type: string
-      deletedAt:
-        $ref: '#/definitions/gorm.DeletedAt'
-      id:
-        type: integer
-      updatedAt:
-        type: string
-    type: object
   models.Role:
-    properties:
-      Name:
-        allOf:
-        - $ref: '#/definitions/models.RoleName'
-        description: Your fields
-      Position:
-        description: Remove 'unique' tag and use 'uniqueIndex' instead
-        type: string
-      PositionLevel:
-        minimum: 0
-        type: integer
-      createdAt:
-        type: string
-      deletedAt:
-        allOf:
-        - $ref: '#/definitions/gorm.DeletedAt'
-        description: Add index and uniqueIndex tag
-      id:
-        description: Manually define fields from gorm.Model to add tags
-        type: integer
-      updatedAt:
-        type: string
-    required:
-    - Name
-    - Position
     type: object
   models.RoleName:
     enum:
@@ -371,82 +299,37 @@ definitions:
     x-enum-varnames:
     - RoleAdmin
     - RoleUser
-  models.User:
+  models.RoleSwagger:
     properties:
-      Attendances:
-        description: One-to-Many Relationships
-        items:
-          $ref: '#/definitions/models.Attendance'
-        type: array
+      CreatedAt:
+        type: string
+      ID:
+        type: integer
+      Name:
+        $ref: '#/definitions/models.RoleName'
+      Position:
+        type: string
+      PositionLevel:
+        type: integer
+      UpdatedAt:
+        type: string
+    type: object
+  models.UserSwagger:
+    properties:
+      CreatedAt:
+        type: string
       Email:
         type: string
-      LeaveRequests:
-        items:
-          $ref: '#/definitions/models.LeaveRequest'
-        type: array
-      Password:
-        maxLength: 72
-        minLength: 8
-        type: string
+      ID:
+        type: integer
       Role:
-        $ref: '#/definitions/models.Role'
-      Subordinates:
-        description: No constraint tag here to avoid conflict
-        items:
-          $ref: '#/definitions/models.User'
-        type: array
-      SupervisorID:
-        description: |-
-          Supervisor/Subordinate Relationship (Corrected)
-          The constraint is defined here as the primary direction of the relationship.
+        $ref: '#/definitions/models.RoleSwagger'
+      RoleID:
         type: integer
+      UpdatedAt:
+        type: string
       Username:
-        maxLength: 32
-        minLength: 3
         type: string
-      createdAt:
-        type: string
-      deletedAt:
-        $ref: '#/definitions/gorm.DeletedAt'
-      id:
-        type: integer
-      roleID:
-        type: integer
-      supervisor:
-        $ref: '#/definitions/models.User'
-      updatedAt:
-        type: string
-      userDetail:
-        allOf:
-        - $ref: '#/definitions/models.UserDetail'
-        description: |-
-          UserDetail Relationship (Corrected)
-          This tag only informs GORM how to join, the actual constraint is in UserDetail model.
-    required:
-    - Email
-    - Password
-    - Username
-    type: object
-  models.UserDetail:
-    properties:
-      Name:
-        type: string
-      createdAt:
-        type: string
-      deletedAt:
-        $ref: '#/definitions/gorm.DeletedAt'
-      id:
-        type: integer
-      updatedAt:
-        type: string
-      user:
-        allOf:
-        - $ref: '#/definitions/models.User'
-        description: The constraint is now defined explicitly and only here.
-      userID:
-        description: The 'unique' tag enforces the one-to-one relationship at the
-          database level.
-        type: integer
     type: object
   models.ValidationStatus:
     enum:
@@ -496,7 +379,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.User'
+            $ref: '#/definitions/models.UserSwagger'
         "400":
           description: Validation error or duplicate user
           schema:
@@ -591,7 +474,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.User'
+            $ref: '#/definitions/models.UserSwagger'
         "401":
           description: Unauthorized
           schema:
@@ -643,7 +526,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.User'
+            $ref: '#/definitions/models.UserSwagger'
         "400":
           description: Validation error
           schema:
@@ -728,7 +611,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.Role'
+              $ref: '#/definitions/models.RoleSwagger'
             type: array
         "401":
           description: Unauthorized
@@ -770,7 +653,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.Role'
+            $ref: '#/definitions/models.RoleSwagger'
         "400":
           description: Validation error or role already exists
           schema:
@@ -877,7 +760,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Role'
+            $ref: '#/definitions/models.RoleSwagger'
         "400":
           description: Validation error
           schema:
@@ -925,7 +808,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.Role'
+              $ref: '#/definitions/models.RoleSwagger'
             type: array
         "401":
           description: Unauthorized
@@ -962,7 +845,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.Role'
+              $ref: '#/definitions/models.RoleSwagger'
             type: array
         "401":
           description: Unauthorized
@@ -999,7 +882,7 @@ paths:
           description: List of subordinate users
           schema:
             items:
-              $ref: '#/definitions/models.User'
+              $ref: '#/definitions/models.UserSwagger'
             type: array
         "401":
           description: Unauthorized or invalid token
@@ -1111,19 +994,19 @@ paths:
         "400":
           description: Invalid request, location too far from office, or invalid photo
           schema:
-            $ref: '#/definitions/docs.ErrorResponse'
+            $ref: '#/definitions/models.ErrorResponse'
         "401":
           description: Unauthorized or invalid token
           schema:
-            $ref: '#/definitions/docs.ErrorResponse'
+            $ref: '#/definitions/models.ErrorResponse'
         "429":
           description: Already checked in today
           schema:
-            $ref: '#/definitions/docs.ErrorResponse'
+            $ref: '#/definitions/models.ErrorResponse'
         "500":
           description: Server error
           schema:
-            $ref: '#/definitions/docs.ErrorResponse'
+            $ref: '#/definitions/models.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Check-in attendance
@@ -1156,7 +1039,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Attendance'
+            $ref: '#/definitions/models.AttendanceSwagger'
         "400":
           description: Invalid request, location too far, or invalid photo
           schema:
@@ -1196,7 +1079,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.Attendance'
+              $ref: '#/definitions/models.AttendanceSwagger'
             type: array
         "401":
           description: Unauthorized
@@ -1225,7 +1108,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.Attendance'
+              $ref: '#/definitions/models.AttendanceSwagger'
             type: array
         "401":
           description: Unauthorized
@@ -1273,7 +1156,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Attendance'
+            $ref: '#/definitions/models.AttendanceSwagger'
         "400":
           description: Invalid request
           schema:
@@ -1346,7 +1229,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.LeaveRequest'
+            $ref: '#/definitions/models.LeaveRequestSwagger'
         "400":
           description: Invalid request payload, dates, or attachment
           schema:
@@ -1382,7 +1265,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.LeaveRequest'
+              $ref: '#/definitions/models.LeaveRequestSwagger'
             type: array
         "401":
           description: Unauthorized
@@ -1414,7 +1297,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.LeaveRequest'
+              $ref: '#/definitions/models.LeaveRequestSwagger'
             type: array
         "401":
           description: Unauthorized
@@ -1456,7 +1339,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.LeaveRequest'
+            $ref: '#/definitions/models.LeaveRequestSwagger'
         "400":
           description: Invalid request payload
           schema:
@@ -1492,6 +1375,41 @@ paths:
       summary: Validate leave request
       tags:
       - leave
+  /user/profile:
+    get:
+      consumes:
+      - application/json
+      description: Get the profile of the currently authenticated user (non-admin)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Current user's profile
+          schema:
+            $ref: '#/definitions/models.UserSwagger'
+        "401":
+          description: Unauthorized or invalid token
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current user's profile
+      tags:
+      - users
 schemes:
 - http
 securityDefinitions:

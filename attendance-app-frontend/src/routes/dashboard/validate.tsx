@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, ExternalLink } from 'lucide-react'
+import { AlertCircle, ExternalLink, Eye, X, Check } from 'lucide-react'
 import RoleGuard from '@/components/RoleGuard'
 import SubordinateGuard from '@/components/SubordinateGuard'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -37,6 +37,25 @@ const getAuthHeaders = () => {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` }),
   }
+}
+
+// OPTIMIZATION: Extract query functions outside component to prevent recreation
+const fetchSubordinateAttendance = async () => {
+  const response = await fetch(`${API_BASE_URL}/user/attendance/subordinates`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to fetch attendance records')
+  const data = await response.json()
+  return Array.isArray(data) ? data : []
+}
+
+const fetchSubordinateLeaveRequests = async () => {
+  const response = await fetch(`${API_BASE_URL}/user/leave/subordinates`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to fetch leave requests')
+  const data = await response.json()
+  return Array.isArray(data) ? data : []
 }
 
 // Types
@@ -101,43 +120,41 @@ function ValidateAttendance() {
 function ValidateAttendanceContent() {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<'attendance' | 'leave'>('attendance')
+  
+  // OPTIMIZED: Group modal-related state untuk atomic updates
   const [isValidateModalOpen, setIsValidateModalOpen] = useState(false)
   const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | LeaveRequestRecord | null>(null)
-  const [validationAction, setValidationAction] = useState<'approve' | 'reject'>('approve')
+  const [validationAction, setValidationAction] = useState<'approve' | 'reject' | 'detail'>('approve')
   const [validationStatus, setValidationStatus] = useState<string>('')
   const [validationNote, setValidationNote] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   
-  // Pagination states
+  // OPTIMIZED: Group pagination state untuk atomic updates
   const [attendancePage, setAttendancePage] = useState(0)
   const [attendancePageSize, setAttendancePageSize] = useState(10)
   const [leavePage, setLeavePage] = useState(0)
   const [leavePageSize, setLeavePageSize] = useState(10)
 
-  // Fetch subordinate attendance records
+  // Auto-refetch for real-time updates
   const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery({
     queryKey: ['subordinate-attendance'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/user/attendance/subordinates`, {
-        headers: getAuthHeaders(),
-      })
-      if (!response.ok) throw new Error('Failed to fetch attendance records')
-      const data = await response.json()
-      return Array.isArray(data) ? data : []
-    },
+    queryFn: fetchSubordinateAttendance,
+    staleTime: 0,
+    refetchInterval: 3000, // Refetch every 3 seconds
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   })
 
   // Fetch subordinate leave requests
   const { data: leaveRequests = [], isLoading: leaveLoading } = useQuery({
     queryKey: ['subordinate-leave-requests'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/user/leave/subordinates`, {
-        headers: getAuthHeaders(),
-      })
-      if (!response.ok) throw new Error('Failed to fetch leave requests')
-      const data = await response.json()
-      return Array.isArray(data) ? data : []
-    },
+    queryFn: fetchSubordinateLeaveRequests,
+    staleTime: 0,
+    refetchInterval: 3000, // Refetch every 3 seconds
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   })
 
   // Validate attendance mutation
@@ -247,9 +264,23 @@ function ValidateAttendanceContent() {
   const formatStatusText = (status: string) => {
     switch (status.toUpperCase()) {
       case 'ON_TIME':
-        return 'On Time'
+        return 'Tepat Waktu'
+      case 'LATE':
+        return 'Terlambat'
       case 'DIDNT_CHECKOUT':
-        return "Didn't Checkout"
+        return 'Belum Check Out'
+      case 'PRESENT':
+        return 'Hadir'
+      case 'ABSENT':
+        return 'Tidak Hadir'
+      case 'LEAVE':
+        return 'Izin'
+      case 'PENDING':
+        return 'Menunggu'
+      case 'APPROVED':
+        return 'Disetujui'
+      case 'REJECTED':
+        return 'Ditolak'
       default:
         return status.charAt(0) + status.slice(1).toLowerCase()
     }
@@ -283,17 +314,7 @@ function ValidateAttendanceContent() {
     return `${baseURL}${relativePath}`
   }
 
-  const openValidateModal = (record: AttendanceRecord | LeaveRequestRecord, action: 'approve' | 'reject') => {
-    // Debug: Log the record to see URLs
-    console.log('Opening validation modal for record:', record)
-    if ('CheckInPhotoURL' in record) {
-      console.log('Check-in Photo URL:', record.CheckInPhotoURL)
-      console.log('Check-out Photo URL:', record.CheckOutPhotoURL)
-    }
-    if ('AttachmentURL' in record) {
-      console.log('Attachment URL:', record.AttachmentURL)
-    }
-
+  const openValidateModal = useCallback((record: AttendanceRecord | LeaveRequestRecord, action: 'approve' | 'reject' | 'detail') => {
     // Only reset form if it's a different record or different action
     // This allows X button to preserve form data when reopening same validation
     const isSameValidation = 
@@ -311,21 +332,33 @@ function ValidateAttendanceContent() {
     // Set default validation status based on action and record type
     if ('CheckInTime' in record) {
       // Attendance record
-      setValidationStatus(action === 'approve' ? 'PRESENT' : 'REJECTED')
+      if (action === 'detail') {
+        setValidationStatus(record.ValidationStatus)
+      } else if (action === 'approve') {
+        setValidationStatus('PRESENT')
+      } else {
+        setValidationStatus('REJECTED')
+      }
     } else {
       // Leave request
       setValidationStatus(action === 'approve' ? 'APPROVED' : 'REJECTED')
     }
     
     setIsValidateModalOpen(true)
-  }
+  }, [selectedRecord, validationAction])
 
-  const handleValidate = () => {
+  const handleValidate = useCallback(() => {
     if (!selectedRecord) return
+
+    // For attendance detail view, just close the modal
+    if (validationAction === 'detail') {
+      setIsValidateModalOpen(false)
+      return
+    }
 
     // Validate rejection requires a note
     if (validationAction === 'reject' && !validationNote.trim()) {
-      setErrorMessage('Please provide a reason for rejection')
+      setErrorMessage('Silakan berikan alasan penolakan')
       return
     }
 
@@ -344,42 +377,17 @@ function ValidateAttendanceContent() {
       }
       validateLeaveMutation.mutate({ id: selectedRecord.ID, payload })
     }
-  }
+  }, [selectedRecord, validationAction, validationNote, validationStatus, validateAttendanceMutation, validateLeaveMutation])
 
-  // Pagination helpers
-  const getCurrentPageData = () => {
-    if (activeTab === 'attendance') {
-      const start = attendancePage * attendancePageSize
-      const end = start + attendancePageSize
-      return attendanceRecords.slice(start, end)
-    } else {
-      const start = leavePage * leavePageSize
-      const end = start + leavePageSize
-      return leaveRequests.slice(start, end)
-    }
-  }
-
-  const getTotalPages = () => {
-    if (activeTab === 'attendance') {
-      return Math.ceil(attendanceRecords.length / attendancePageSize)
-    } else {
-      return Math.ceil(leaveRequests.length / leavePageSize)
-    }
-  }
-
-  const getCurrentPage = () => {
-    return activeTab === 'attendance' ? attendancePage : leavePage
-  }
-
-  const setCurrentPage = (page: number) => {
+  const setCurrentPage = useCallback((page: number) => {
     if (activeTab === 'attendance') {
       setAttendancePage(page)
     } else {
       setLeavePage(page)
     }
-  }
+  }, [activeTab])
 
-  const setCurrentPageSize = (size: number) => {
+  const setCurrentPageSize = useCallback((size: number) => {
     if (activeTab === 'attendance') {
       setAttendancePageSize(size)
       setAttendancePage(0)
@@ -387,6 +395,52 @@ function ValidateAttendanceContent() {
       setLeavePageSize(size)
       setLeavePage(0)
     }
+  }, [activeTab])
+
+  // OPTIMIZED: Memoize pagination data untuk prevent recalculation
+  const paginatedAttendance = useMemo(() => {
+    const sortedRecords = [...attendanceRecords].sort((a, b) => {
+      const dateA = new Date(a.CheckInTime || 0).getTime()
+      const dateB = new Date(b.CheckInTime || 0).getTime()
+      return dateB - dateA // Newest first
+    })
+    const start = attendancePage * attendancePageSize
+    const end = start + attendancePageSize
+    return sortedRecords.slice(start, end)
+  }, [attendanceRecords, attendancePage, attendancePageSize])
+
+  const paginatedLeave = useMemo(() => {
+    const sortedRequests = [...leaveRequests].sort((a, b) => {
+      const dateA = new Date(a.StartDate).getTime()
+      const dateB = new Date(b.StartDate).getTime()
+      return dateB - dateA // Newest first
+    })
+    const start = leavePage * leavePageSize
+    const end = start + leavePageSize
+    return sortedRequests.slice(start, end)
+  }, [leaveRequests, leavePage, leavePageSize])
+
+  const totalAttendancePages = useMemo(() => 
+    Math.ceil(attendanceRecords.length / attendancePageSize),
+    [attendanceRecords.length, attendancePageSize]
+  )
+
+  const totalLeavePages = useMemo(() =>
+    Math.ceil(leaveRequests.length / leavePageSize),
+    [leaveRequests.length, leavePageSize]
+  )
+
+  // Pagination helpers
+  const getCurrentPageData = () => {
+    return activeTab === 'attendance' ? paginatedAttendance : paginatedLeave
+  }
+
+  const getTotalPages = () => {
+    return activeTab === 'attendance' ? totalAttendancePages : totalLeavePages
+  }
+
+  const getCurrentPage = () => {
+    return activeTab === 'attendance' ? attendancePage : leavePage
   }
 
   const paginatedData = getCurrentPageData()
@@ -394,8 +448,8 @@ function ValidateAttendanceContent() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Validate Subordinates</h1>
-        <p className="text-gray-600">Review and validate attendance records and leave requests from your subordinates</p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Validasi Absensi</h1>
+        <p className="text-gray-600">Tinjau dan validasi catatan absensi dan pengajuan izin dari bawahan Anda</p>
       </div>
 
       {/* Tabs */}
@@ -408,7 +462,7 @@ function ValidateAttendanceContent() {
               : 'border-transparent text-gray-600 hover:text-gray-900'
           }`}
         >
-          Attendance Records
+          Catatan Absensi
         </button>
         <button
           onClick={() => setActiveTab('leave')}
@@ -418,7 +472,7 @@ function ValidateAttendanceContent() {
               : 'border-transparent text-gray-600 hover:text-gray-900'
           }`}
         >
-          Leave Requests
+          Pengajuan Izin
         </button>
       </div>
 
@@ -429,27 +483,27 @@ function ValidateAttendanceContent() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Employee</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Date</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">User</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Tanggal</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Check In</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Check Out</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Duration</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Durasi</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Validation</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Actions</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Validasi</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {attendanceLoading ? (
                   <tr>
                     <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
-                      Loading records...
+                      Memuat data...
                     </td>
                   </tr>
                 ) : attendanceRecords.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
-                      No pending attendance records to validate
+                      Tidak ada catatan absensi yang perlu divalidasi
                     </td>
                   </tr>
                 ) : (
@@ -477,22 +531,23 @@ function ValidateAttendanceContent() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => openValidateModal(record, 'reject')}
-                            className="bg-red-50 border-red-300 text-red-600 hover:bg-red-100 rounded-sm"
-                            title="Reject"
-                            disabled={record.ValidationStatus !== 'PENDING'}
+                            onClick={() => openValidateModal(record, 'detail')}
+                            className="bg-blue-50 border-blue-300 text-blue-600 hover:bg-blue-100 rounded-sm"
+                            title="Detail"
                           >
-                            Reject
+                            <Eye className="h-4 w-4 mr-1" />
+                            Detail
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => openValidateModal(record, 'approve')}
-                            className="bg-green-50 border-green-300 text-green-600 hover:bg-green-100 rounded-sm"
-                            title="Approve"
-                            disabled={record.ValidationStatus !== 'PENDING'}
+                            onClick={() => openValidateModal(record, 'reject')}
+                            className="bg-red-50 border-red-300 text-red-600 hover:bg-red-100 rounded-sm"
+                            title="Reject"
+                            disabled={record.ValidationStatus !== 'PRESENT'}
                           >
-                            Approve
+                            <X className="h-4 w-4 mr-1" />
+                            Tolak
                           </Button>
                         </div>
                       </td>
@@ -506,7 +561,7 @@ function ValidateAttendanceContent() {
           {/* Pagination */}
           <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-700">Rows per page:</span>
+              <span className="text-sm text-gray-700">Baris per halaman:</span>
               <Select
                 value={attendancePageSize.toString()}
                 onValueChange={(value) => setCurrentPageSize(Number(value))}
@@ -526,7 +581,7 @@ function ValidateAttendanceContent() {
 
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-700">
-                Page {getCurrentPage() + 1} of {getTotalPages() || 1}
+                Halaman {getCurrentPage() + 1} dari {getTotalPages() || 1}
               </span>
               <div className="flex gap-1">
                 <Button
@@ -536,7 +591,7 @@ function ValidateAttendanceContent() {
                   disabled={getCurrentPage() === 0}
                   className="rounded-sm"
                 >
-                  Previous
+                  Sebelumnya
                 </Button>
                 <Button
                   variant="outline"
@@ -545,7 +600,7 @@ function ValidateAttendanceContent() {
                   disabled={getCurrentPage() >= getTotalPages() - 1}
                   className="rounded-sm"
                 >
-                  Next
+                  Selanjutnya
                 </Button>
               </div>
             </div>
@@ -560,25 +615,25 @@ function ValidateAttendanceContent() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Employee</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Leave Type</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Period</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Reason</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">User</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Tipe Izin</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Periode</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Alasan</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Actions</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {leaveLoading ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                      Loading records...
+                      Memuat data...
                     </td>
                   </tr>
                 ) : leaveRequests.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                      No pending leave requests to validate
+                      Tidak ada pengajuan izin yang perlu divalidasi
                     </td>
                   </tr>
                 ) : (
@@ -604,12 +659,23 @@ function ValidateAttendanceContent() {
                           <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => openValidateModal(request, 'detail')}
+                            className="bg-blue-50 border-blue-300 text-blue-600 hover:bg-blue-100 rounded-sm"
+                            title="Detail"
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Detail
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => openValidateModal(request, 'reject')}
                             className="bg-red-50 border-red-300 text-red-600 hover:bg-red-100 rounded-sm"
                             title="Reject"
                             disabled={request.Status !== 'PENDING'}
                           >
-                            Reject
+                            <X className="h-4 w-4 mr-1" />
+                            Tolak
                           </Button>
                           <Button
                             variant="outline"
@@ -619,7 +685,8 @@ function ValidateAttendanceContent() {
                             title="Approve"
                             disabled={request.Status !== 'PENDING'}
                           >
-                            Approve
+                            <Check className="h-4 w-4 mr-1" />
+                            Setujui
                           </Button>
                         </div>
                       </td>
@@ -633,7 +700,7 @@ function ValidateAttendanceContent() {
           {/* Pagination */}
           <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-700">Rows per page:</span>
+              <span className="text-sm text-gray-700">Baris per halaman:</span>
               <Select
                 value={leavePageSize.toString()}
                 onValueChange={(value) => setCurrentPageSize(Number(value))}
@@ -653,7 +720,7 @@ function ValidateAttendanceContent() {
 
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-700">
-                Page {getCurrentPage() + 1} of {getTotalPages() || 1}
+                Halaman {getCurrentPage() + 1} dari {getTotalPages() || 1}
               </span>
               <div className="flex gap-1">
                 <Button
@@ -663,7 +730,7 @@ function ValidateAttendanceContent() {
                   disabled={getCurrentPage() === 0}
                   className="rounded-sm"
                 >
-                  Previous
+                  Sebelumnya
                 </Button>
                 <Button
                   variant="outline"
@@ -672,7 +739,7 @@ function ValidateAttendanceContent() {
                   disabled={getCurrentPage() >= getTotalPages() - 1}
                   className="rounded-sm"
                 >
-                  Next
+                  Selanjutnya
                 </Button>
               </div>
             </div>
@@ -694,13 +761,20 @@ function ValidateAttendanceContent() {
         >
           <DialogHeader>
             <DialogTitle>
-              {validationAction === 'approve' ? 'Approve' : 'Reject'}{' '}
-              {activeTab === 'attendance' ? 'Attendance Record' : 'Leave Request'}
+              {validationAction === 'detail' 
+                ? 'Detail Catatan Absensi'
+                : validationAction === 'approve' 
+                ? 'Setujui' 
+                : 'Tolak'}{' '}
+              {validationAction !== 'detail' && activeTab === 'attendance' ? 'Catatan Absensi' : ''}
+              {validationAction !== 'detail' && activeTab === 'leave' ? 'Pengajuan Izin' : ''}
             </DialogTitle>
             <DialogDescription>
-              {validationAction === 'approve'
-                ? 'Confirm approval and add optional notes.'
-                : 'Provide a reason for rejection.'}
+              {validationAction === 'detail'
+                ? 'Lihat detail lengkap catatan absensi.'
+                : validationAction === 'approve'
+                ? 'Konfirmasi persetujuan dan tambahkan catatan opsional.'
+                : 'Berikan alasan untuk penolakan.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -714,16 +788,16 @@ function ValidateAttendanceContent() {
           <div className="grid gap-4 py-4">
             {/* Record Details */}
             <div className="p-4 bg-gray-50 rounded-sm border">
-              <h3 className="font-semibold text-gray-900 mb-3">Details</h3>
+              <h3 className="font-semibold text-gray-900 mb-3">Detail</h3>
               {selectedRecord && 'CheckInTime' in selectedRecord ? (
                 // Attendance Record
                 <div className="grid gap-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Employee:</span>
+                    <span className="text-gray-600">User:</span>
                     <span className="font-medium text-gray-900">{selectedRecord.User.Username}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Date:</span>
+                    <span className="text-gray-600">Tanggal:</span>
                     <span className="font-medium text-gray-900">{formatDate(selectedRecord.CheckInTime || '')}</span>
                   </div>
                   <div className="flex justify-between">
@@ -735,7 +809,7 @@ function ValidateAttendanceContent() {
                     <span className="font-medium text-gray-900">{formatTime(selectedRecord.CheckOutTime)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Duration:</span>
+                    <span className="text-gray-600">Durasi:</span>
                     <span className="font-medium text-gray-900">
                       {calculateDuration(selectedRecord.CheckInTime, selectedRecord.CheckOutTime)}
                     </span>
@@ -751,35 +825,35 @@ function ValidateAttendanceContent() {
                 // Leave Request
                 <div className="grid gap-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Employee:</span>
+                    <span className="text-gray-600">User:</span>
                     <span className="font-medium text-gray-900">{selectedRecord.User.Username}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Leave Type:</span>
+                    <span className="text-gray-600">Tipe Izin:</span>
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-sm text-xs font-medium border bg-purple-100 text-purple-800 border-purple-300">
                       {formatLeaveType(selectedRecord.LeaveType)}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Period:</span>
+                    <span className="text-gray-600">Periode:</span>
                     <span className="font-medium text-gray-900">
                       {formatDate(selectedRecord.StartDate)} - {formatDate(selectedRecord.EndDate)}
                     </span>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-gray-600">Reason:</span>
+                    <span className="text-gray-600">Alasan:</span>
                     <span className="font-medium text-gray-900">{selectedRecord.Reason}</span>
                   </div>
                   {selectedRecord.AttachmentURL && (
                     <div className="flex flex-col gap-1">
-                      <span className="text-gray-600">Attachment:</span>
+                      <span className="text-gray-600">Lampiran:</span>
                       <a 
-                        href={selectedRecord.AttachmentURL} 
+                        href={getFullFileURL(selectedRecord.AttachmentURL)} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800 underline text-sm flex items-center gap-1"
                       >
-                        View Attachment <ExternalLink className="h-3 w-3" />
+                        Lihat Lampiran <ExternalLink className="h-3 w-3" />
                       </a>
                     </div>
                   )}
@@ -793,24 +867,26 @@ function ValidateAttendanceContent() {
                 {/* Attendance Photos Preview */}
                 {'CheckInPhotoURL' in selectedRecord && (selectedRecord.CheckInPhotoURL || selectedRecord.CheckOutPhotoURL) && (
                   <div className="grid gap-3">
-                    <h3 className="font-semibold text-gray-900">Photos</h3>
+                    <h3 className="font-semibold text-gray-900">Foto</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Check-in Photo */}
                       {selectedRecord.CheckInPhotoURL && (
                         <div className="border rounded-sm overflow-hidden bg-gray-50">
                           <div className="bg-gray-100 px-3 py-2 border-b">
-                            <p className="text-sm font-medium text-gray-700">Check-in Photo</p>
+                            <p className="text-sm font-medium text-gray-700">Foto Check-in</p>
                           </div>
                           <div className="p-2">
                             <img 
                               src={getFullFileURL(selectedRecord.CheckInPhotoURL)} 
-                              alt="Check-in" 
+                              alt="Check-in"
+                              loading="lazy"
+                              decoding="async"
                               className="w-full h-auto rounded-sm cursor-pointer hover:opacity-90 transition-opacity"
                               onClick={() => window.open(getFullFileURL(selectedRecord.CheckInPhotoURL), '_blank')}
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement
                                 target.onerror = null
-                                target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="16" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3EImage not available%3C/text%3E%3C/svg%3E'
+                                target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="16" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3EGambar tidak tersedia%3C/text%3E%3C/svg%3E'
                               }}
                             />
                           </div>
@@ -821,18 +897,20 @@ function ValidateAttendanceContent() {
                       {selectedRecord.CheckOutPhotoURL && (
                         <div className="border rounded-sm overflow-hidden bg-gray-50">
                           <div className="bg-gray-100 px-3 py-2 border-b">
-                            <p className="text-sm font-medium text-gray-700">Check-out Photo</p>
+                            <p className="text-sm font-medium text-gray-700">Foto Check-out</p>
                           </div>
                           <div className="p-2">
                             <img 
                               src={getFullFileURL(selectedRecord.CheckOutPhotoURL)} 
-                              alt="Check-out" 
+                              alt="Check-out"
+                              loading="lazy"
+                              decoding="async"
                               className="w-full h-auto rounded-sm cursor-pointer hover:opacity-90 transition-opacity"
                               onClick={() => window.open(getFullFileURL(selectedRecord.CheckOutPhotoURL), '_blank')}
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement
                                 target.onerror = null
-                                target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="16" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3EImage not available%3C/text%3E%3C/svg%3E'
+                                target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="16" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3EGambar tidak tersedia%3C/text%3E%3C/svg%3E'
                               }}
                             />
                           </div>
@@ -845,13 +923,13 @@ function ValidateAttendanceContent() {
                 {/* Leave Attachment Preview */}
                 {'AttachmentURL' in selectedRecord && selectedRecord.AttachmentURL && (
                   <div className="grid gap-3">
-                    <h3 className="font-semibold text-gray-900">Attachment</h3>
+                    <h3 className="font-semibold text-gray-900">Lampiran</h3>
                     <div className="border rounded-sm overflow-hidden bg-gray-50">
                       {isPDF(selectedRecord.AttachmentURL) ? (
                         // PDF Preview
                         <div className="p-4">
                           <div className="flex items-center justify-between mb-3">
-                            <p className="text-sm font-medium text-gray-700">PDF Document</p>
+                            <p className="text-sm font-medium text-gray-700">Dokumen PDF</p>
                             <Button
                               variant="outline"
                               size="sm"
@@ -859,7 +937,7 @@ function ValidateAttendanceContent() {
                               className="rounded-sm"
                             >
                               <ExternalLink className="h-4 w-4 mr-1" />
-                              Open in New Tab
+                              Buka di Tab Baru
                             </Button>
                           </div>
                           <iframe
@@ -873,13 +951,15 @@ function ValidateAttendanceContent() {
                         <div className="p-2">
                           <img 
                             src={getFullFileURL(selectedRecord.AttachmentURL)} 
-                            alt="Leave Attachment" 
+                            alt="Leave Attachment"
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-auto rounded-sm cursor-pointer hover:opacity-90 transition-opacity"
                             onClick={() => window.open(getFullFileURL(selectedRecord.AttachmentURL), '_blank')}
                             onError={(e) => {
                               const target = e.target as HTMLImageElement
                               target.onerror = null
-                              target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="16" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3EImage not available%3C/text%3E%3C/svg%3E'
+                              target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="16" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3EGambar tidak tersedia%3C/text%3E%3C/svg%3E'
                             }}
                           />
                         </div>
@@ -891,41 +971,43 @@ function ValidateAttendanceContent() {
             )}
 
             {/* Validation Status */}
-            {selectedRecord && 'CheckInTime' in selectedRecord && (
+            {selectedRecord && 'CheckInTime' in selectedRecord && validationAction !== 'detail' && (
               <div className="grid gap-2">
-                <Label htmlFor="validation-status">Validation Status *</Label>
+                <Label htmlFor="validation-status">Status Validasi *</Label>
                 <Select value={validationStatus} onValueChange={setValidationStatus}>
                   <SelectTrigger className="rounded-sm">
-                    <SelectValue placeholder="Select validation status" />
+                    <SelectValue placeholder="Pilih status validasi" />
                   </SelectTrigger>
                   <SelectContent className="rounded-sm">
-                    <SelectItem value="PRESENT">Present</SelectItem>
-                    <SelectItem value="ABSENT">Absent</SelectItem>
-                    <SelectItem value="LEAVE">Leave</SelectItem>
-                    <SelectItem value="REJECTED">Rejected</SelectItem>
+                    <SelectItem value="PRESENT">Hadir</SelectItem>
+                    <SelectItem value="ABSENT">Tidak Hadir</SelectItem>
+                    <SelectItem value="LEAVE">Izin</SelectItem>
+                    <SelectItem value="REJECTED">Ditolak</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             )}
 
             {/* Validation Note */}
-            <div className="grid gap-2">
-              <Label htmlFor="validation-note">
-                {validationAction === 'approve' ? 'Notes (Optional)' : 'Rejection Reason *'}
-              </Label>
-              <Textarea
-                id="validation-note"
-                value={validationNote}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setValidationNote(e.target.value)}
-                placeholder={
-                  validationAction === 'approve'
-                    ? 'Add any additional notes...'
-                    : 'Please provide a reason for rejection...'
-                }
-                className="rounded-sm"
-                rows={4}
-              />
-            </div>
+            {validationAction !== 'detail' && (
+              <div className="grid gap-2">
+                <Label htmlFor="validation-note">
+                  {validationAction === 'approve' ? 'Catatan (Opsional)' : 'Alasan Penolakan *'}
+                </Label>
+                <Textarea
+                  id="validation-note"
+                  value={validationNote}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setValidationNote(e.target.value)}
+                  placeholder={
+                    validationAction === 'approve'
+                      ? 'Tambahkan catatan tambahan...'
+                      : 'Silakan berikan alasan penolakan...'
+                  }
+                  className="rounded-sm"
+                  rows={4}
+                />
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -943,23 +1025,25 @@ function ValidateAttendanceContent() {
               className="rounded-sm"
               disabled={validateAttendanceMutation.isPending || validateLeaveMutation.isPending}
             >
-              Cancel
+              {validationAction === 'detail' ? 'Tutup' : 'Batal'}
             </Button>
-            <Button
-              onClick={handleValidate}
-              disabled={validateAttendanceMutation.isPending || validateLeaveMutation.isPending}
-              className={
-                validationAction === 'approve'
-                  ? 'bg-green-600 hover:bg-green-700 text-white rounded-sm'
-                  : 'bg-red-600 hover:bg-red-700 text-white rounded-sm'
-              }
-            >
-              {validateAttendanceMutation.isPending || validateLeaveMutation.isPending
-                ? 'Processing...'
-                : validationAction === 'approve'
-                ? 'Approve'
-                : 'Reject'}
-            </Button>
+            {validationAction !== 'detail' && (
+              <Button
+                onClick={handleValidate}
+                disabled={validateAttendanceMutation.isPending || validateLeaveMutation.isPending}
+                className={
+                  validationAction === 'approve'
+                    ? 'bg-green-600 hover:bg-green-700 text-white rounded-sm'
+                    : 'bg-red-600 hover:bg-red-700 text-white rounded-sm'
+                }
+              >
+                {validateAttendanceMutation.isPending || validateLeaveMutation.isPending
+                  ? 'Memproses...'
+                  : validationAction === 'approve'
+                  ? 'Setujui'
+                  : 'Tolak'}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -129,20 +129,33 @@ function UserManagementContent() {
       // Fetch non-admin users
       const nonAdminsResponse = await fetch(`${API_BASE_URL}/admin/users/non-admins`, {
         headers: getAuthHeaders(),
+        cache: 'no-store',
       })
       if (!nonAdminsResponse.ok) throw new Error('Failed to fetch non-admin users')
-      const nonAdmins = (await nonAdminsResponse.json()) as User[]
+      const nonAdminsData = await nonAdminsResponse.json()
 
       // Fetch admin users
       const adminsResponse = await fetch(`${API_BASE_URL}/admin/users/admins`, {
         headers: getAuthHeaders(),
+        cache: 'no-store',
       })
       if (!adminsResponse.ok) throw new Error('Failed to fetch admin users')
-      const admins = (await adminsResponse.json()) as User[]
+      const adminsData = await adminsResponse.json()
+
+      // CRITICAL FIX: Handle null responses from API
+      const nonAdmins = Array.isArray(nonAdminsData) ? nonAdminsData : []
+      const admins = Array.isArray(adminsData) ? adminsData : []
 
       // Merge both arrays
-      return [...admins, ...nonAdmins]
+      const merged = [...admins, ...nonAdmins]
+      return merged
     },
+    staleTime: 0,
+    gcTime: 0,
+    refetchInterval: 3000, // Refetch every 3 seconds
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   })
 
   // Fetch roles
@@ -151,10 +164,17 @@ function UserManagementContent() {
     queryFn: async () => {
       const response = await fetch(`${API_BASE_URL}/admin/users/roles`, {
         headers: getAuthHeaders(),
+        cache: 'no-store',
       })
       if (!response.ok) throw new Error('Failed to fetch roles')
       return response.json() as Promise<Role[]>
     },
+    staleTime: 0,
+    gcTime: 0,
+    refetchInterval: 3000, // Refetch every 3 seconds
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   })
 
   // Fetch potential supervisors
@@ -164,22 +184,34 @@ function UserManagementContent() {
       // Fetch non-admin users
       const nonAdminsResponse = await fetch(`${API_BASE_URL}/admin/users/non-admins`, {
         headers: getAuthHeaders(),
+        cache: 'no-store',
       })
       if (!nonAdminsResponse.ok) throw new Error('Failed to fetch non-admin users')
-      const nonAdmins = (await nonAdminsResponse.json()) as User[]
+      const nonAdminsData = await nonAdminsResponse.json()
 
       // Fetch admin users
       const adminsResponse = await fetch(`${API_BASE_URL}/admin/users/admins`, {
         headers: getAuthHeaders(),
+        cache: 'no-store',
       })
       if (!adminsResponse.ok) throw new Error('Failed to fetch admin users')
-      const admins = (await adminsResponse.json()) as User[]
+      const adminsData = await adminsResponse.json()
+
+      // CRITICAL FIX: Handle null responses from API
+      const nonAdmins = Array.isArray(nonAdminsData) ? nonAdminsData : []
+      const admins = Array.isArray(adminsData) ? adminsData : []
 
       // Merge and filter by position level
       const allUsers = [...admins, ...nonAdmins]
       return allUsers.filter((user) => user.PositionLevel < formData.PositionLevel)
     },
     enabled: formData.PositionLevel > 0,
+    staleTime: 0,
+    gcTime: 0,
+    refetchInterval: 3000, // Refetch every 3 seconds
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   })
 
   // Create user mutation
@@ -197,8 +229,10 @@ function UserManagementContent() {
       }
       return response.json()
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['users'] })
+      await queryClient.invalidateQueries({ queryKey: ['supervisors'] })
+      await queryClient.refetchQueries({ queryKey: ['users'] })
       setIsCreateModalOpen(false)
       resetForm()
       setErrorMessage('')
@@ -234,8 +268,10 @@ function UserManagementContent() {
       }
       return response.json()
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['users'] })
+      await queryClient.invalidateQueries({ queryKey: ['supervisors'] })
+      await queryClient.refetchQueries({ queryKey: ['users'] })
       setIsEditModalOpen(false)
       setSelectedUser(null)
       resetForm()
@@ -267,8 +303,10 @@ function UserManagementContent() {
       if (!response.ok) throw new Error('Failed to delete user')
       return response.json()
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['users'] })
+      await queryClient.invalidateQueries({ queryKey: ['supervisors'] })
+      await queryClient.refetchQueries({ queryKey: ['users'] })
     },
   })
 
@@ -333,7 +371,7 @@ function UserManagementContent() {
   }
 
   const handleDeleteUser = (id: number) => {
-    if (confirm('Are you sure you want to delete this user?')) {
+    if (confirm('Apakah Anda yakin ingin menghapus user ini?')) {
       deleteUserMutation.mutate(id)
     }
   }
@@ -430,7 +468,7 @@ function UserManagementContent() {
     },
     {
       accessorKey: 'Position',
-      header: 'Position',
+      header: 'Posisi',
       enableSorting: false,
     },
     {
@@ -441,7 +479,7 @@ function UserManagementContent() {
             className="flex items-center gap-2 font-semibold"
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
           >
-            Position Level
+            Level Posisi
             {column.getIsSorted() === 'asc' ? (
               <ChevronUp className="h-4 w-4" />
             ) : column.getIsSorted() === 'desc' ? (
@@ -460,7 +498,7 @@ function UserManagementContent() {
     },
     {
       id: 'actions',
-      header: 'Actions',
+      header: 'Aksi',
       cell: ({ row }) => {
         const user = row.original
         return (
@@ -480,10 +518,10 @@ function UserManagementContent() {
               size="sm"
               onClick={() => handleDeleteUser(user.ID)}
               className="bg-red-50 border-red-300 text-red-600 hover:bg-red-100 rounded-sm"
-              title="Delete"
+              title="Hapus"
             >
               <Trash2 className="h-4 w-4" />
-              Delete
+              Hapus
             </Button>
           </div>
         )
@@ -525,7 +563,7 @@ function UserManagementContent() {
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">User Management</h1>
-        <p className="text-gray-600">Manage user accounts and permissions</p>
+        <p className="text-gray-600">Kelola akun dan hak akses user</p>
       </div>
 
       {/* Action Bar */}
@@ -534,7 +572,7 @@ function UserManagementContent() {
         <div className="relative w-full md:w-96">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
-            placeholder="Search by email, role, or position..."
+            placeholder="Cari berdasarkan email, role, atau posisi..."
             value={globalFilter ?? ''}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGlobalFilter(e.target.value)}
             className="pl-10 rounded-sm"
@@ -566,7 +604,7 @@ function UserManagementContent() {
                   // Don't clear form - keep prefilled data if exists
                 }}
               >
-                Create User
+                Buat User
               </Button>
             </DialogTrigger>
             <DialogContent 
@@ -575,9 +613,9 @@ function UserManagementContent() {
               onEscapeKeyDown={(e) => e.preventDefault()}
             >
               <DialogHeader>
-                <DialogTitle>Create New User</DialogTitle>
+                <DialogTitle>Buat User Baru</DialogTitle>
                 <DialogDescription>
-                  Add a new user to the system. Fill in all required fields.
+                  Tambahkan user baru ke sistem. Isi semua field yang diperlukan.
                 </DialogDescription>
               </DialogHeader>
               
@@ -628,7 +666,7 @@ function UserManagementContent() {
                   )}
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="name">Full Name *</Label>
+                  <Label htmlFor="name">Nama Lengkap *</Label>
                   <Input
                     id="name"
                     value={formData.Name}
@@ -640,7 +678,7 @@ function UserManagementContent() {
                   )}
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="position">Position *</Label>
+                  <Label htmlFor="position">Posisi *</Label>
                   <Select
                     value={formData.Position}
                     onValueChange={(value) => {
@@ -656,7 +694,7 @@ function UserManagementContent() {
                     }}
                   >
                     <SelectTrigger id="position" className="rounded-sm">
-                      <SelectValue placeholder="Select position" />
+                      <SelectValue placeholder="Pilih posisi" />
                     </SelectTrigger>
                     <SelectContent className="rounded-sm">
                       {[...roles].sort((a, b) => a.PositionLevel - b.PositionLevel).map((role) => (
@@ -669,7 +707,7 @@ function UserManagementContent() {
                 </div>
                 {formData.PositionLevel > 0 && supervisors.length > 0 && (
                   <div className="grid gap-2">
-                    <Label htmlFor="supervisor">Supervisor (Optional)</Label>
+                    <Label htmlFor="supervisor">Supervisor (Opsional)</Label>
                     <Select
                       value={formData.SupervisorID?.toString()}
                       onValueChange={(value) =>
@@ -677,10 +715,10 @@ function UserManagementContent() {
                       }
                     >
                       <SelectTrigger id="supervisor" className="rounded-sm">
-                        <SelectValue placeholder="Select supervisor" />
+                        <SelectValue placeholder="Pilih supervisor" />
                       </SelectTrigger>
                       <SelectContent className="rounded-sm">
-                        <SelectItem value="0">None</SelectItem>
+                        <SelectItem value="0">Tidak Ada</SelectItem>
                         {supervisors.map((supervisor) => (
                           <SelectItem key={supervisor.ID} value={supervisor.ID.toString()}>
                             {supervisor.Name} - {supervisor.Position} (Level {supervisor.PositionLevel})
@@ -700,14 +738,14 @@ function UserManagementContent() {
                   }}
                   className="rounded-sm"
                 >
-                  Cancel
+                  Batal
                 </Button>
                 <Button
                   onClick={handleCreateUser}
                   disabled={createUserMutation.isPending}
                   className="bg-[#428bff] hover:bg-[#3b7ee6] rounded-sm"
                 >
-                  {createUserMutation.isPending ? 'Creating...' : 'Create User'}
+                  {createUserMutation.isPending ? 'Membuat...' : 'Buat User'}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -737,13 +775,13 @@ function UserManagementContent() {
               {isLoading ? (
                 <tr>
                   <td colSpan={columns.length} className="px-6 py-12 text-center text-gray-500">
-                    Loading users...
+                    Memuat user...
                   </td>
                 </tr>
               ) : table.getRowModel().rows.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length} className="px-6 py-12 text-center text-gray-500">
-                    No users found
+                    Tidak ada user ditemukan
                   </td>
                 </tr>
               ) : (
@@ -764,7 +802,7 @@ function UserManagementContent() {
         {/* Pagination */}
         <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-700">Rows per page:</span>
+            <span className="text-sm text-gray-700">Baris per halaman:</span>
             <Select
               value={pagination.pageSize.toString()}
               onValueChange={(value) => {
@@ -786,7 +824,7 @@ function UserManagementContent() {
 
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-700">
-              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+              Halaman {table.getState().pagination.pageIndex + 1} dari {table.getPageCount()}
             </span>
             <div className="flex gap-1">
               <Button
@@ -796,7 +834,7 @@ function UserManagementContent() {
                 disabled={!table.getCanPreviousPage()}
                 className="rounded-sm"
               >
-                Previous
+                Sebelumnya
               </Button>
               <Button
                 variant="outline"
@@ -805,7 +843,7 @@ function UserManagementContent() {
                 disabled={!table.getCanNextPage()}
                 className="rounded-sm"
               >
-                Next
+                Selanjutnya
               </Button>
             </div>
           </div>
@@ -832,7 +870,7 @@ function UserManagementContent() {
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
-              Update user information. Leave password empty to keep current password.
+              Perbarui informasi user. Kosongkan password untuk tetap menggunakan password saat ini.
             </DialogDescription>
           </DialogHeader>
           
@@ -857,7 +895,7 @@ function UserManagementContent() {
               )}
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-password">Password (leave empty to keep current)</Label>
+              <Label htmlFor="edit-password">Password (kosongkan untuk tetap menggunakan password saat ini)</Label>
               <Input
                 id="edit-password"
                 type="password"
@@ -883,7 +921,7 @@ function UserManagementContent() {
               )}
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-name">Full Name</Label>
+              <Label htmlFor="edit-name">Nama Lengkap</Label>
               <Input
                 id="edit-name"
                 value={formData.Name}
@@ -895,7 +933,7 @@ function UserManagementContent() {
               )}
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-position">Position</Label>
+              <Label htmlFor="edit-position">Posisi</Label>
               <Select
                 value={formData.Position}
                 onValueChange={(value) => {
@@ -938,7 +976,7 @@ function UserManagementContent() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="rounded-sm">
-                    <SelectItem value="0">None</SelectItem>
+                    <SelectItem value="0">Tidak Ada</SelectItem>
                     {supervisors.map((supervisor) => (
                       <SelectItem key={supervisor.ID} value={supervisor.ID.toString()}>
                         {supervisor.Name} - {supervisor.Position} (Level {supervisor.PositionLevel})
@@ -959,14 +997,14 @@ function UserManagementContent() {
               }}
               className="rounded-sm"
             >
-              Cancel
+              Batal
             </Button>
             <Button
               onClick={handleEditUser}
               disabled={updateUserMutation.isPending}
               className="bg-[#428bff] hover:bg-[#3b7ee6] rounded-sm"
             >
-              {updateUserMutation.isPending ? 'Updating...' : 'Update User'}
+              {updateUserMutation.isPending ? 'Memperbarui...' : 'Perbarui User'}
             </Button>
           </DialogFooter>
         </DialogContent>
