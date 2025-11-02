@@ -4,6 +4,8 @@ import (
 	"attendance-app/handlers"
 	"attendance-app/handlers/attendance"
 	"attendance-app/handlers/leave"
+	"attendance-app/handlers/locations"
+	"attendance-app/handlers/settings"
 	UserManagement "attendance-app/handlers/userManagement"
 	"attendance-app/middleware"
 	"attendance-app/models"
@@ -61,6 +63,24 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 			admin := auth.Group("/admin")
 			admin.Use(middleware.RoleMiddleware(models.RoleAdmin))
 			{
+				// Settings endpoints
+				adminSettings := admin.Group("/settings")
+				{
+					adminSettings.GET("", settings.GetAllSettings)
+					adminSettings.GET("/:key", settings.GetSettingByKey)
+					adminSettings.PUT("", settings.UpdateSettings)
+				}
+
+				// Locations endpoints
+				adminLocations := admin.Group("/locations")
+				{
+					adminLocations.GET("", locations.GetAllLocations)
+					adminLocations.GET("/:id", locations.GetLocationByID)
+					adminLocations.POST("", locations.CreateLocation)
+					adminLocations.PUT("/:id", locations.UpdateLocation)
+					adminLocations.DELETE("/:id", locations.DeleteLocation)
+				}
+
 				users := admin.Group("/users")
 				{
 					users.POST("/", UserManagement.CreateUser)
