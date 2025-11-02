@@ -2,7 +2,7 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    "attendance-app-frontattendance-app-frontend/prettier.config.js",
+    "attendance-app-frontend/prettier.config.js",
     "prettier.config.js",
     "vite.config.js"
   ],
