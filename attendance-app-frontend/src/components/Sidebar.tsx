@@ -1,0 +1,162 @@
+import { 
+  Users, 
+  Shield, 
+  History, 
+  CheckCircle, 
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Home
+} from 'lucide-react'
+import { Link, useLocation } from '@tanstack/react-router'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { useUserData } from '@/hooks/useUserData'
+import { useHasSubordinates } from '@/hooks/useSubordinates'
+import { useEffect, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+
+interface SidebarProps {
+  isOpen: boolean
+  onToggle: () => void
+  onMobileMenuClose?: () => void
+}
+
+interface MenuItem {
+  id: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  href: string
+  isAdminOnly?: boolean
+  isUserOnly?: boolean
+}
+
+const allMenuItems: MenuItem[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/dashboard' },
+  // Admin-only pages
+  { id: 'user-management', label: 'Manajemen User', icon: Users, href: '/dashboard/user-management', isAdminOnly: true },
+  { id: 'role-management', label: 'Manajemen Role', icon: Shield, href: '/dashboard/role-management', isAdminOnly: true },
+  { id: 'settings', label: 'Pengaturan', icon: Settings, href: '/dashboard/settings', isAdminOnly: true },
+  // User-only pages
+  { id: 'history', label: 'Riwayat', icon: History, href: '/dashboard/history', isUserOnly: true },
+  { id: 'validate', label: 'Validasi', icon: CheckCircle, href: '/dashboard/validate', isUserOnly: true },
+]
+
+export default function Sidebar({ isOpen, onToggle, onMobileMenuClose }: SidebarProps) {
+  const location = useLocation()
+  const { isAdmin, userId } = useUserData()
+  const { hasSubordinates, isLoading: subordinatesLoading } = useHasSubordinates()
+  const queryClient = useQueryClient()
+  const previousUserIdRef = useRef(userId)
+
+  // Invalidate subordinates query when user changes (for login/logout scenarios)
+  useEffect(() => {
+    if (previousUserIdRef.current !== userId) {
+      // User has changed, invalidate subordinates cache
+      queryClient.invalidateQueries({ queryKey: ['subordinates'] })
+      previousUserIdRef.current = userId
+    }
+  }, [userId, queryClient])
+
+  // Filter menu items based on user role
+  const menuItems = allMenuItems.filter(item => {
+    // Dashboard is always visible
+    if (item.id === 'dashboard') return true
+    
+    // Admin-only items
+    if (item.isAdminOnly) {
+      return isAdmin
+    }
+    
+    // User-only items  
+    if (item.isUserOnly) {
+      // Special case for validate - only show to non-admin users who have subordinates
+      if (item.id === 'validate') {
+        return !isAdmin && !subordinatesLoading && hasSubordinates
+      }
+      return !isAdmin
+    }
+    
+    return true
+  })
+
+  return (
+    <div 
+      className={cn(
+        'flex flex-col h-full bg-white border-r transition-all duration-300 ease-in-out',
+        'border-gray-300',
+        isOpen ? 'w-64' : 'w-20'
+      )}
+    >
+      {/* Logo Section */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-300 h-[65px]">
+        {isOpen ? (
+          <>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-[#428bff] flex items-center justify-center text-white font-bold text-sm">
+                T
+              </div>
+              <span className="font-bold text-lg text-gray-900">ATTENDAPP</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onToggle}
+              className="h-8 w-8 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          </>
+        ) : (
+          <div className="flex justify-center w-full">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onToggle}
+              className="h-8 w-8 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation Menu */}
+      <nav className="flex-1 p-4">
+        <div className="space-y-2">
+          {menuItems.map((item) => {
+            const IconComponent = item.icon
+            const isActive = location.pathname === item.href
+            
+            return (
+              <Link
+                key={item.id}
+                to={item.href}
+                onClick={onMobileMenuClose}
+                className={cn(
+                  'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors duration-200',
+                  'border border-transparent hover:border-gray-300 hover:bg-gray-50 no-underline',
+                  isActive && 'bg-[#428bff] text-white border-gray-300',
+                  !isActive && 'text-gray-700 hover:text-gray-900'
+                )}
+                title={!isOpen ? item.label : undefined}
+              >
+                <IconComponent 
+                  className={cn(
+                    'h-5 w-5 flex-shrink-0',
+                    isActive ? 'text-white' : 'text-gray-600'
+                  )} 
+                />
+                {isOpen && (
+                  <span className="font-medium">
+                    {item.label}
+                  </span>
+                )}
+              </Link>
+            )
+          })}
+        </div>
+      </nav>
+    </div>
+  )
+}

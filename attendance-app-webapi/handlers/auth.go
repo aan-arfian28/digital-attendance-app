@@ -19,15 +19,26 @@ var jwtKey = []byte(config.Config("JWT_SECRET_KEY"))
 
 // JWT Datas Template
 type Claims struct {
+	Id       uint   `json:"id"`
 	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
 
 type loginPayload struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Username string `json:"username" binding:"required" example:"john_doe"`
+	Password string `json:"password" binding:"required" example:"secretpassword123"`
 }
 
+// @Summary User login
+// @Description Authenticate user and return JWT token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param login body loginPayload true "Login credentials"
+// @Success 200 {object} map[string]string "Returns JWT token"
+// @Failure 400 {object} map[string]string "Invalid request payload or validation error"
+// @Failure 401 {object} map[string]string "Invalid username or password"
+// @Router /login [post]
 func Login(c *gin.Context) {
 
 	var payload loginPayload
@@ -62,9 +73,11 @@ func Login(c *gin.Context) {
 	if err != nil {
 		log.Fatalf("Invalid JWT_EXP_TIME configuration: %v", err)
 	}
+	log.Println(&user)
 
 	expirationTime := time.Now().Add(jwtExpiryTime)
 	claims := &Claims{
+		Id:       user.ID,
 		Username: user.Username,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
@@ -81,6 +94,15 @@ func Login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"token": tokenString})
 }
 
+// @Summary User logout
+// @Description Invalidate the current JWT token
+// @Tags auth
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]string "Successfully logged out"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Router /logout [post]
 func Logout(c *gin.Context) {
 	authHeader := c.GetHeader("Authorization")
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")

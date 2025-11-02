@@ -1,18 +1,39 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import svgr from "vite-plugin-svgr";
+import { defineConfig } from 'vite'
+import { tanstackStart } from '@tanstack/react-start/plugin/vite'
+import viteReact from '@vitejs/plugin-react'
+import viteTsConfigPaths from 'vite-tsconfig-paths'
+import tailwindcss from '@tailwindcss/vite'
 
-// https://vite.dev/config/
-export default defineConfig({
+const config = defineConfig({
   plugins: [
-    react(),
-    svgr({
-      svgrOptions: {
-        icon: true,
-        // This will transform your SVG to a React component
-        exportType: "named",
-        namedExport: "ReactComponent",
+    viteTsConfigPaths({
+      projects: ['./tsconfig.json'],
+    }),
+    tailwindcss(),
+    tanstackStart({
+      spa: {
+        enabled: true,
       },
     }),
+    viteReact(),
   ],
-});
+
+  build: {
+    target: 'esnext',
+    minify: false, // TEMPORARY: Disable minification for debugging
+    chunkSizeWarningLimit: 600,
+    reportCompressedSize: false,
+  },
+  server: {
+    host: true,
+    allowedHosts: ['cluster-gotten-sciences-marathon.trycloudflare.com'],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      }
+    }
+  },
+})
+
+export default config
