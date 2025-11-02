@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
-import { Settings, Save, Globe, MapPin, Plus, Edit, Trash2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Save, Plus, Edit, Trash2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import {
@@ -19,7 +19,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle } from 'lucide-react'
 import RoleGuard from '@/components/RoleGuard'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
@@ -126,12 +125,12 @@ function SettingsPageContent() {
   })
 
   // Update settings when data is loaded
-  useState(() => {
+  useEffect(() => {
     if (settings) {
       setCompanyName(settings.company_name || '')
       setDefaultLocationId(settings.default_location_id || '')
     }
-  })
+  }, [settings])
 
   // Update settings mutation
   const updateSettingsMutation = useMutation({
@@ -308,11 +307,14 @@ function SettingsPageContent() {
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Settings className="h-6 w-6 text-[#428bff]" />
-          <h1 className="text-2xl font-bold text-gray-900">Pengaturan</h1>
-        </div>
+      {/* Page Title */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Pengaturan</h1>
+        <p className="text-gray-600">Konfigurasi pengaturan dan preferensi aplikasi</p>
+      </div>
+
+      {/* Save Button */}
+      <div className="mb-6">
         <Button 
           onClick={handleSaveSettings}
           disabled={updateSettingsMutation.isPending}
@@ -322,10 +324,6 @@ function SettingsPageContent() {
           {updateSettingsMutation.isPending ? 'Menyimpan...' : 'Simpan Perubahan'}
         </Button>
       </div>
-
-      <p className="text-gray-600 mb-8">
-        Konfigurasi pengaturan dan preferensi aplikasi.
-      </p>
 
       {/* Pesan Sukses */}
       {successMessage && (
@@ -344,11 +342,8 @@ function SettingsPageContent() {
 
       <div className="space-y-8">
         {/* Pengaturan Umum */}
-        <div className="border border-gray-300 bg-white p-6 rounded-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <Globe className="h-5 w-5 text-[#428bff]" />
-            <h2 className="text-lg font-semibold text-gray-900">Pengaturan Umum</h2>
-          </div>
+        <div className="bg-white border border-gray-300 rounded-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Pengaturan Umum</h2>
           
           {settingsLoading || locationsLoading ? (
             <div className="text-center py-8 text-gray-500">Memuat pengaturan...</div>
@@ -389,12 +384,9 @@ function SettingsPageContent() {
         </div>
 
         {/* Manajemen Lokasi */}
-        <div className="border border-gray-300 bg-white p-6 rounded-sm">
+        <div className="bg-white border border-gray-300 rounded-sm p-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <MapPin className="h-5 w-5 text-[#428bff]" />
-              <h2 className="text-lg font-semibold text-gray-900">Manajemen Lokasi</h2>
-            </div>
+            <h2 className="text-lg font-semibold text-gray-900">Manajemen Lokasi</h2>
             <Button
               onClick={openCreateLocationModal}
               className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm"

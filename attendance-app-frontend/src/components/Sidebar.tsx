@@ -93,7 +93,7 @@ export default function Sidebar({ isOpen, onToggle, onMobileMenuClose }: Sidebar
         {isOpen ? (
           <>
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-[#428bff] flex items-center justify-center text-white font-bold text-sm">
+              <div className="w-8 h-8 bg-[#428bff] rounded-sm flex items-center justify-center text-white font-bold text-sm">
                 T
               </div>
               <span className="font-bold text-lg text-gray-900">ATTENDAPP</span>
@@ -134,7 +134,7 @@ export default function Sidebar({ isOpen, onToggle, onMobileMenuClose }: Sidebar
                 to={item.href}
                 onClick={onMobileMenuClose}
                 className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors duration-200',
+                  'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors duration-200 rounded-sm',
                   'border border-transparent hover:border-gray-300 hover:bg-gray-50 no-underline',
                   isActive && 'bg-[#428bff] text-white border-gray-300',
                   !isActive && 'text-gray-700 hover:text-gray-900'
