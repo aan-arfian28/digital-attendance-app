@@ -7,6 +7,7 @@ import (
 	"attendance-app/utils"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -106,10 +107,24 @@ func CheckIn(c *gin.Context) {
 		return
 	}
 
-	// Find the valid office location
+	// Get default location from settings
+	var defaultLocationSetting models.Setting
+	if err := db.Where("`key` = ?", "default_location_id").First(&defaultLocationSetting).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Default location not configured in settings"})
+		return
+	}
+
+	// Convert location ID from string to uint
+	locationID, err := strconv.ParseUint(defaultLocationSetting.Value, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid location ID in settings"})
+		return
+	}
+
+	// Find the valid office location using default_location_id from settings
 	var location models.Location
-	if err := db.First(&location).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "No valid office locations configured"})
+	if err := db.First(&location, uint(locationID)).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Default location not found"})
 		return
 	}
 
@@ -132,10 +147,10 @@ func CheckIn(c *gin.Context) {
 
 	if result.Error != nil {
 		// Create new attendance record if none exists
-		locationID := location.ID
+		locID := location.ID
 		attendance = models.Attendance{
 			UserID:           userId,
-			LocationID:       &locationID,
+			LocationID:       &locID,
 			CheckInTime:      &now,
 			CheckInLatitude:  req.Latitude,
 			CheckInLongitude: req.Longitude,
@@ -209,10 +224,24 @@ func CheckOut(c *gin.Context) {
 		return
 	}
 
-	// Find the valid office location
+	// Get default location from settings
+	var defaultLocationSetting models.Setting
+	if err := db.Where("`key` = ?", "default_location_id").First(&defaultLocationSetting).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Default location not configured in settings"})
+		return
+	}
+
+	// Convert location ID from string to uint
+	locationID, err := strconv.ParseUint(defaultLocationSetting.Value, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid location ID in settings"})
+		return
+	}
+
+	// Find the valid office location using default_location_id from settings
 	var location models.Location
-	if err := db.First(&location).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "No valid office locations configured"})
+	if err := db.First(&location, uint(locationID)).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Default location not found"})
 		return
 	}
 
@@ -231,10 +260,11 @@ func CheckOut(c *gin.Context) {
 	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 
 	var attendance models.Attendance
-	result := db.Where("user_id = ? AND check_in_time >= ?", userId, startOfDay).First(&attendance)
+	// Only allow checkout if user actually checked in (not ABSENT)
+	result := db.Where("user_id = ? AND check_in_time >= ? AND validation_status != ?", userId, startOfDay, models.Absent).First(&attendance)
 
 	if result.Error != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No check-in record found for today"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "No check-in record found for today. Cannot checkout without checking in first."})
 		return
 	}
 

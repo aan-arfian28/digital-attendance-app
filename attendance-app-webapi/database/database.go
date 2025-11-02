@@ -30,6 +30,7 @@ func InitDB() *gorm.DB {
 		&models.UserDetail{},
 		&models.Attendance{},
 		&models.LeaveRequest{},
+		&models.Setting{},
 	)
 
 	if err != nil {
@@ -65,6 +66,37 @@ func InitDB() *gorm.DB {
 				log.Printf("Failed to create default location: %v", err)
 			} else {
 				log.Println("Created default office location")
+			}
+		}
+	}
+
+	//Create Default Settings if not exist
+	var companyNameSetting models.Setting
+	if err := DB.Where("`key` = ?", "company_name").First(&companyNameSetting).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			companyNameSetting = models.Setting{
+				Key:   "company_name",
+				Value: "Digital Attendance Company",
+			}
+			if err := DB.Create(&companyNameSetting).Error; err != nil {
+				log.Printf("Failed to create company_name setting: %v", err)
+			} else {
+				log.Println("Created default company_name setting")
+			}
+		}
+	}
+
+	var defaultLocationSetting models.Setting
+	if err := DB.Where("`key` = ?", "default_location_id").First(&defaultLocationSetting).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			defaultLocationSetting = models.Setting{
+				Key:   "default_location_id",
+				Value: "1",
+			}
+			if err := DB.Create(&defaultLocationSetting).Error; err != nil {
+				log.Printf("Failed to create default_location_id setting: %v", err)
+			} else {
+				log.Println("Created default default_location_id setting")
 			}
 		}
 	}

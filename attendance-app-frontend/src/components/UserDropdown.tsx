@@ -37,12 +37,12 @@ export default function UserDropdown({
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          className="relative h-10 w-auto px-2 py-1 border-none hover:bg-gray-100"
+          className="relative h-10 w-auto px-2 py-1 border-none hover:bg-gray-100 rounded-sm"
         >
           <div className="flex items-center gap-2">
-            <Avatar className="h-8 w-8">
+            <Avatar className="h-8 w-8 rounded-sm">
               {userAvatar && <AvatarImage src={userAvatar} alt={userName} />}
-              <AvatarFallback className="bg-blue-500 text-white text-sm">
+              <AvatarFallback className="bg-blue-500 text-white text-sm rounded-sm">
                 {initials}
               </AvatarFallback>
             </Avatar>
@@ -53,7 +53,7 @@ export default function UserDropdown({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-56 border-gray-300"
+        className="w-56 border-gray-300 rounded-sm"
         align="end"
         forceMount
       >
