@@ -33,7 +33,7 @@ type UpdateLocationRequest struct {
 // @Tags locations
 // @Accept json
 // @Produce json
-// @Success 200 {array} models.Location
+// @Success 200 {array} models.LocationSwagger
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 403 {object} map[string]string "Forbidden - Only admins can access locations"
 // @Failure 500 {object} map[string]string "Server error"
@@ -57,7 +57,7 @@ func GetAllLocations(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path int true "Location ID"
-// @Success 200 {object} models.Location
+// @Success 200 {object} models.LocationSwagger
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 403 {object} map[string]string "Forbidden - Only admins can access locations"
 // @Failure 404 {object} map[string]string "Location not found"
@@ -87,7 +87,7 @@ func GetLocationByID(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param location body CreateLocationRequest true "Location data"
-// @Success 201 {object} models.Location
+// @Success 201 {object} models.LocationSwagger
 // @Failure 400 {object} map[string]string "Invalid request"
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 403 {object} map[string]string "Forbidden - Only admins can create locations"
@@ -136,7 +136,7 @@ func CreateLocation(c *gin.Context) {
 // @Produce json
 // @Param id path int true "Location ID"
 // @Param location body UpdateLocationRequest true "Location data"
-// @Success 200 {object} models.Location
+// @Success 200 {object} models.LocationSwagger
 // @Failure 400 {object} map[string]string "Invalid request"
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 403 {object} map[string]string "Forbidden - Only admins can update locations"

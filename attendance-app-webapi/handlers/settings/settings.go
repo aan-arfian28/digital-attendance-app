@@ -50,7 +50,7 @@ func GetAllSettings(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param key path string true "Setting key"
-// @Success 200 {object} models.Setting
+// @Success 200 {object} models.SettingSwagger
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 403 {object} map[string]string "Forbidden - Only admins can access settings"
 // @Failure 404 {object} map[string]string "Setting not found"

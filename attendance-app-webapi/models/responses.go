@@ -81,3 +81,13 @@ type LocationSwagger struct {
 	Longitude float64   `json:"Longitude"`
 	Radius    uint      `json:"Radius"`
 }
+
+// SettingSwagger represents setting for Swagger (without gorm.Model)
+type SettingSwagger struct {
+	ID        uint      `json:"ID"`
+	CreatedAt time.Time `json:"CreatedAt"`
+	UpdatedAt time.Time `json:"UpdatedAt"`
+	Key       string    `json:"Key"`
+	Value     string    `json:"Value"`
+	UpdatedBy *uint     `json:"UpdatedBy,omitempty"`
+}
