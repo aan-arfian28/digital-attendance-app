@@ -134,6 +134,7 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 
 					// Supervisor-only endpoints
 					attendances.GET("/subordinates", attendance.GetSubordinateAttendanceRecords)
+					attendances.GET("/subordinates/export/excel", attendance.ExportSubordinateAttendanceToExcel)
 					attendances.PUT("/update/:id", attendance.UpdateSubordinateAttendanceRecord)
 				}
 
@@ -146,6 +147,7 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 
 					// Supervisor-only endpoints
 					leaves.GET("/subordinates", leave.GetSubordinateLeaveRequests)
+					leaves.GET("/subordinates/export/excel", leave.ExportSubordinateLeaveRequestsToExcel)
 					leaves.PUT("/validate/:id", leave.ValidateLeaveRequest)
 				}
 			}

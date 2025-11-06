@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, ExternalLink, Eye, X, Check } from 'lucide-react'
+import { AlertCircle, ExternalLink, Eye, X, Check, Download } from 'lucide-react'
 import RoleGuard from '@/components/RoleGuard'
 import SubordinateGuard from '@/components/SubordinateGuard'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -128,6 +128,7 @@ function ValidateAttendanceContent() {
   const [validationStatus, setValidationStatus] = useState<string>('')
   const [validationNote, setValidationNote] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const [isExporting, setIsExporting] = useState(false)
   
   // OPTIMIZED: Group pagination state untuk atomic updates
   const [attendancePage, setAttendancePage] = useState(0)
@@ -314,6 +315,61 @@ function ValidateAttendanceContent() {
     return `${baseURL}${relativePath}`
   }
 
+  // Export to Excel
+  const exportAttendanceToExcel = async () => {
+    setIsExporting(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/attendance/subordinates/export/excel`, {
+        headers: getAuthHeaders(),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to export subordinate attendance')
+      }
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `subordinate_attendance_${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Export error:', error)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const exportLeaveToExcel = async () => {
+    setIsExporting(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/leave/subordinates/export/excel`, {
+        headers: getAuthHeaders(),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to export subordinate leave requests')
+      }
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `subordinate_leave_requests_${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Export error:', error)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const openValidateModal = useCallback((record: AttendanceRecord | LeaveRequestRecord, action: 'approve' | 'reject' | 'detail') => {
     // Only reset form if it's a different record or different action
     // This allows X button to preserve form data when reopening same validation
@@ -450,6 +506,19 @@ function ValidateAttendanceContent() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Validasi Absensi</h1>
         <p className="text-gray-600">Tinjau dan validasi catatan absensi dan pengajuan izin dari bawahan Anda</p>
+      </div>
+
+      {/* Export Button */}
+      <div className="flex justify-start mb-6">
+        <Button
+          variant="outline"
+          onClick={activeTab === 'attendance' ? exportAttendanceToExcel : exportLeaveToExcel}
+          disabled={isExporting}
+          className="border-gray-300 rounded-sm disabled:opacity-50"
+        >
+          <Download className="h-4 w-4 mr-2" />
+          {isExporting ? 'Exporting...' : 'Export Excel'}
+        </Button>
       </div>
 
       {/* Tabs */}
