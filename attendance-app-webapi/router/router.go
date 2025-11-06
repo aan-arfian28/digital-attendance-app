@@ -104,6 +104,7 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 					roles := users.Group("/roles")
 					{
 						roles.GET("", UserManagement.GetRoles)
+						roles.GET("/export/excel", UserManagement.ExportRolesToExcel)
 						roles.POST("", UserManagement.CreateRole)
 						roles.PUT("/:id", UserManagement.UpdateRole)
 						roles.DELETE("/:id", UserManagement.DeleteRole)

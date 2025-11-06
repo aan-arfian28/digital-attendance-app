@@ -1220,3 +1220,118 @@ func ExportUsersToExcel(c *gin.Context) {
 		return
 	}
 }
+
+// @Summary Export roles to Excel
+// @Description Export all roles (including soft-deleted) to Excel file
+// @Tags roles
+// @Produce application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+// @Success 200 {file} binary "Excel file download"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden - Only admins can export roles"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /admin/users/roles/export/excel [get]
+// @Security BearerAuth
+func ExportRolesToExcel(c *gin.Context) {
+	DB := c.MustGet("db").(*gorm.DB)
+
+	// Fetch all roles including soft-deleted
+	var roles []models.Role
+	if err := DB.Unscoped().
+		Order("position_level ASC, id ASC").
+		Find(&roles).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch roles"})
+		return
+	}
+
+	// Create new Excel file
+	f := excelize.NewFile()
+	defer func() {
+		if err := f.Close(); err != nil {
+			return
+		}
+	}()
+
+	sheetName := "Roles"
+	index, err := f.NewSheet(sheetName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create Excel sheet"})
+		return
+	}
+
+	// Set headers
+	headers := []string{"ID", "Role", "Position", "Position Level", "Created At", "Updated At", "Deleted At"}
+	for i, header := range headers {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+		f.SetCellValue(sheetName, cell, header)
+	}
+
+	// Style for headers
+	headerStyle, err := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true},
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"#E0E0E0"}, Pattern: 1},
+	})
+	if err == nil {
+		f.SetCellStyle(sheetName, "A1", "G1", headerStyle)
+	}
+
+	// Write role data
+	for i, role := range roles {
+		row := i + 2
+
+		// ID
+		cell, _ := excelize.CoordinatesToCellName(1, row)
+		f.SetCellValue(sheetName, cell, role.ID)
+
+		// Role Name
+		cell, _ = excelize.CoordinatesToCellName(2, row)
+		f.SetCellValue(sheetName, cell, role.Name)
+
+		// Position
+		cell, _ = excelize.CoordinatesToCellName(3, row)
+		f.SetCellValue(sheetName, cell, role.Position)
+
+		// Position Level
+		cell, _ = excelize.CoordinatesToCellName(4, row)
+		f.SetCellValue(sheetName, cell, role.PositionLevel)
+
+		// Created At
+		cell, _ = excelize.CoordinatesToCellName(5, row)
+		f.SetCellValue(sheetName, cell, role.CreatedAt.Format("2006-01-02 15:04:05"))
+
+		// Updated At
+		cell, _ = excelize.CoordinatesToCellName(6, row)
+		f.SetCellValue(sheetName, cell, role.UpdatedAt.Format("2006-01-02 15:04:05"))
+
+		// Deleted At
+		cell, _ = excelize.CoordinatesToCellName(7, row)
+		if role.DeletedAt.Valid {
+			f.SetCellValue(sheetName, cell, role.DeletedAt.Time.Format("2006-01-02 15:04:05"))
+		} else {
+			f.SetCellValue(sheetName, cell, "")
+		}
+	}
+
+	// Auto-fit columns
+	for i := 1; i <= len(headers); i++ {
+		col, _ := excelize.ColumnNumberToName(i)
+		f.SetColWidth(sheetName, col, col, 18)
+	}
+
+	// Set active sheet
+	f.SetActiveSheet(index)
+	f.DeleteSheet("Sheet1")
+
+	// Generate filename with current date
+	filename := fmt.Sprintf("roles_%s.xlsx", time.Now().Format("2006-01-02"))
+
+	// Set headers for file download
+	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	c.Header("Content-Transfer-Encoding", "binary")
+
+	// Write to response
+	if err := f.Write(c.Writer); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write Excel file"})
+		return
+	}
+}
