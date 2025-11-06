@@ -15,7 +15,7 @@ export const useUserData = () => {
         // Convenient getters
         userId: user?.ID,
         username: user?.Username,
-        name: user?.UserDetail?.Name,
+        name: user?.Name,
         email: user?.Email,
         roleId: user?.Role?.ID,
         roleName: user?.Role?.Name as RoleName | undefined,
@@ -31,8 +31,8 @@ export const useUserData = () => {
         isManager: user?.Role?.Name === 'manager',
 
         // Display helpers
-        displayName: user?.UserDetail?.Name || user?.Username || 'User',
-        initials: getInitials(user?.UserDetail?.Name || user?.Username),
+        displayName: user?.Name || user?.Username || 'User',
+        initials: getInitials(user?.Name || user?.Username),
 
         // Permission helpers
         hasRole: (role: RoleName) => user?.Role?.Name === role,

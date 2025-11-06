@@ -16,15 +16,13 @@ type CreateUserRequest struct {
 	Username     string `json:"Username" validate:"required,min=3,max=32" example:"john_doe"`
 	Password     string `json:"Password" validate:"required,min=8,max=72" example:"SecurePass123!"`
 	Email        string `json:"Email" validate:"required,email" example:"john@example.com"`
+	Name         string `json:"Name" validate:"required" example:"John Doe"`
 	SupervisorID *uint  `json:"SupervisorID,omitempty" example:"1"`
 	Role         struct {
 		Name          models.RoleName `json:"Name" validate:"required" example:"user"`
 		Position      string          `json:"Position" validate:"required" example:"Manager"`
 		PositionLevel uint            `json:"PositionLevel" validate:"gte=0" example:"2"`
 	} `json:"Role" validate:"required"`
-	UserDetail struct {
-		Name string `json:"Name" validate:"required" example:"John Doe"`
-	} `json:"UserDetail" validate:"required"`
 }
 
 // @Summary Create new user
@@ -120,11 +118,9 @@ func CreateUser(c *gin.Context) {
 		Username:     req.Username,
 		Password:     hashedPassword,
 		Email:        req.Email,
+		Name:         req.Name,
 		Role:         &role,
 		SupervisorID: req.SupervisorID,
-		UserDetail: models.UserDetail{
-			Name: req.UserDetail.Name,
-		},
 	}
 
 	// 7. Validate supervisor if present
@@ -197,9 +193,7 @@ func GetUser(c *gin.Context) {
 
 	// Load user with all related data
 	if err := db.Preload("Role").
-		Preload("UserDetail").
 		Preload("Supervisor").
-		Preload("Supervisor.UserDetail").
 		Preload("Supervisor.Role").
 		First(&user, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -225,15 +219,13 @@ type UpdateUserRequest struct {
 	Username     string  `json:"Username,omitempty" validate:"omitempty,min=3,max=32" example:"john_doe_updated"`
 	Password     *string `json:"Password,omitempty" validate:"omitempty,min=8,max=72" example:"NewSecurePass123!"`
 	Email        string  `json:"Email,omitempty" validate:"omitempty,email" example:"john.updated@example.com"`
+	Name         string  `json:"Name,omitempty" validate:"omitempty" example:"John Doe Updated"`
 	SupervisorID *uint   `json:"SupervisorID,omitempty" example:"2"`
 	Role         struct {
 		Name          models.RoleName `json:"Name,omitempty" validate:"omitempty" example:"user"`
 		Position      string          `json:"Position,omitempty" validate:"omitempty" example:"Senior Manager"`
 		PositionLevel uint            `json:"PositionLevel,omitempty" validate:"omitempty,gte=0" example:"3"`
 	} `json:"Role,omitempty"`
-	UserDetail struct {
-		Name string `json:"Name,omitempty" validate:"omitempty" example:"John Doe Updated"`
-	} `json:"UserDetail,omitempty"`
 }
 
 // @Summary Update user details
@@ -267,7 +259,7 @@ func UpdateUser(c *gin.Context) {
 	}()
 
 	// Load existing user with related data
-	if err := tx.Preload("Role").Preload("UserDetail").First(&user, id).Error; err != nil {
+	if err := tx.Preload("Role").First(&user, id).Error; err != nil {
 		tx.Rollback()
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
@@ -410,14 +402,8 @@ func UpdateUser(c *gin.Context) {
 	}
 
 	// Update user details if provided
-	if req.UserDetail.Name != "" {
-		user.UserDetail.Name = req.UserDetail.Name
-		if err := tx.Model(&models.UserDetail{}).Where("user_id = ?", user.ID).
-			Update("name", req.UserDetail.Name).Error; err != nil {
-			tx.Rollback()
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user details"})
-			return
-		}
+	if req.Name != "" {
+		user.Name = req.Name
 	}
 
 	// Save user changes
@@ -433,8 +419,8 @@ func UpdateUser(c *gin.Context) {
 	}
 
 	// Clear sensitive data and reload user with fresh data
-	if err := DB.Preload("Role").Preload("UserDetail").Preload("Supervisor").
-		Preload("Supervisor.UserDetail").Preload("Supervisor.Role").First(&user, user.ID).Error; err != nil {
+	if err := DB.Preload("Role").Preload("Supervisor").
+		Preload("Supervisor.Role").First(&user, user.ID).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reload user data"})
 		return
 	}
@@ -490,13 +476,6 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 
-	// Delete user's details first
-	if err := tx.Where("user_id = ?", user.ID).Delete(&models.UserDetail{}).Error; err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user details"})
-		return
-	}
-
 	// Update supervisor_id to null for any subordinates
 	if err := tx.Model(&models.User{}).Where("supervisor_id = ?", user.ID).
 		Update("supervisor_id", nil).Error; err != nil {
@@ -538,7 +517,7 @@ func GetAllAdminUsers(c *gin.Context) {
 
 	DB := db.(*gorm.DB)
 
-	if err := DB.Joins("Role").Joins("UserDetail").Where("Role.name = ?", "admin").Preload("Supervisor").Preload("Supervisor.UserDetail").Find(&users).Error; err != nil {
+	if err := DB.Joins("Role").Where("Role.name = ?", "admin").Preload("Supervisor").Find(&users).Error; err != nil {
 		c.JSON(500, gin.H{"error": "failed to retrieve non-admin users"})
 		return
 	}
@@ -550,7 +529,7 @@ func GetAllAdminUsers(c *gin.Context) {
 		response := GetAllNonAdminUsersResponse{
 			ID:            user.ID,
 			Username:      user.Username,
-			Name:          user.UserDetail.Name,
+			Name:          user.Name,
 			Email:         user.Email,
 			Role:          user.Role.Name,
 			Position:      user.Role.Position,
@@ -564,7 +543,7 @@ func GetAllAdminUsers(c *gin.Context) {
 				SupervisorName string `json:"SupervisorName"`
 			}{
 				SupervisorID:   user.Supervisor.ID,
-				SupervisorName: user.Supervisor.UserDetail.Name,
+				SupervisorName: user.Supervisor.Name,
 			}
 		}
 		userResponses = append(userResponses, response)
@@ -602,7 +581,7 @@ func GetAllNonAdminUsers(c *gin.Context) {
 	var users []models.User
 	DB := c.MustGet("db").(*gorm.DB)
 
-	if err := DB.Joins("Role").Joins("UserDetail").Where("Role.name <> ?", "admin").Preload("Supervisor").Preload("Supervisor.UserDetail").Find(&users).Error; err != nil {
+	if err := DB.Joins("Role").Where("Role.name <> ?", "admin").Preload("Supervisor").Find(&users).Error; err != nil {
 		c.JSON(500, gin.H{"error": "failed to retrieve non-admin users"})
 		return
 	}
@@ -614,7 +593,7 @@ func GetAllNonAdminUsers(c *gin.Context) {
 		response := GetAllNonAdminUsersResponse{
 			ID:            user.ID,
 			Username:      user.Username,
-			Name:          user.UserDetail.Name,
+			Name:          user.Name,
 			Email:         user.Email,
 			Role:          user.Role.Name,
 			Position:      user.Role.Position,
@@ -628,7 +607,7 @@ func GetAllNonAdminUsers(c *gin.Context) {
 				SupervisorName string `json:"SupervisorName"`
 			}{
 				SupervisorID:   user.Supervisor.ID,
-				SupervisorName: user.Supervisor.UserDetail.Name,
+				SupervisorName: user.Supervisor.Name,
 			}
 		}
 		userResponses = append(userResponses, response)
@@ -1016,9 +995,7 @@ func GetUserSubordinates(c *gin.Context) {
 	var subordinates []models.User
 	if err := DB.Where("supervisor_id = ?", uid).
 		Preload("Role").
-		Preload("UserDetail").
 		Preload("Supervisor").
-		Preload("Supervisor.UserDetail").
 		Preload("Supervisor.Role").
 		Find(&subordinates).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve subordinates"})
@@ -1062,9 +1039,7 @@ func GetMyProfile(c *gin.Context) {
 	// Load user with all related data
 	var user models.User
 	if err := DB.Preload("Role").
-		Preload("UserDetail").
 		Preload("Supervisor").
-		Preload("Supervisor.UserDetail").
 		Preload("Supervisor.Role").
 		First(&user, uid).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -1083,4 +1058,3 @@ func GetMyProfile(c *gin.Context) {
 
 	c.JSON(http.StatusOK, user)
 }
-

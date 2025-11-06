@@ -27,7 +27,6 @@ func InitDB() *gorm.DB {
 		&models.Location{},
 		&models.Role{},
 		&models.User{},
-		&models.UserDetail{},
 		&models.Attendance{},
 		&models.LeaveRequest{},
 		&models.Setting{},

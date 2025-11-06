@@ -74,14 +74,12 @@ interface CreateUserData {
   Username: string
   Password: string
   Email: string
+  Name: string
   SupervisorID?: number
   Role: {
     Name: 'admin' | 'user'
     Position: string
     PositionLevel: number
-  }
-  UserDetail: {
-    Name: string
   }
 }
 
@@ -332,14 +330,12 @@ function UserManagementContent() {
       Username: formData.Username,
       Password: formData.Password,
       Email: formData.Email,
+      Name: formData.Name,
       SupervisorID: formData.SupervisorID,
       Role: {
         Name: formData.Role,
         Position: formData.Position,
         PositionLevel: formData.PositionLevel,
-      },
-      UserDetail: {
-        Name: formData.Name,
       },
     }
 
@@ -352,14 +348,12 @@ function UserManagementContent() {
     const updateData: Partial<CreateUserData> = {
       Username: formData.Username,
       Email: formData.Email,
+      Name: formData.Name,
       SupervisorID: formData.SupervisorID,
       Role: {
         Name: formData.Role as 'admin' | 'user',
         Position: formData.Position,
         PositionLevel: formData.PositionLevel,
-      },
-      UserDetail: {
-        Name: formData.Name,
       },
     }
 
