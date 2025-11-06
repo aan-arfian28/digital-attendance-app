@@ -130,6 +130,7 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 					attendances.POST("/check-in", attendance.CheckIn)
 					attendances.POST("/check-out", attendance.CheckOut)
 					attendances.GET("/my-records", attendance.GetMyAttendanceRecords)
+					attendances.GET("/export/excel", attendance.ExportMyAttendanceToExcel)
 
 					// Supervisor-only endpoints
 					attendances.GET("/subordinates", attendance.GetSubordinateAttendanceRecords)
@@ -141,6 +142,7 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 				{
 					leaves.POST("", leave.SubmitLeaveRequest)
 					leaves.GET("/my-requests", leave.GetMyLeaveRequests)
+					leaves.GET("/export/excel", leave.ExportMyLeaveRequestsToExcel)
 
 					// Supervisor-only endpoints
 					leaves.GET("/subordinates", leave.GetSubordinateLeaveRequests)
