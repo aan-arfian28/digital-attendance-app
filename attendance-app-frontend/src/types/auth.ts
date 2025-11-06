@@ -22,10 +22,6 @@ export interface Role {
     PositionLevel: number
 }
 
-export interface UserDetail {
-    Name: string
-}
-
 export interface Supervisor {
     SupervisorID: number
     SupervisorName: string
@@ -36,9 +32,9 @@ export interface User {
     ID: number
     Username: string
     Email: string
+    Name: string
     SupervisorID?: number
     Role: Role
-    UserDetail: UserDetail
     Supervisor?: Supervisor
 }
 
@@ -47,8 +43,8 @@ export interface UserProfile {
     ID: number
     Username: string
     Email: string
+    Name: string
     SupervisorID?: number
     Role: Role
-    UserDetail: UserDetail
     Supervisor?: Supervisor
 }
