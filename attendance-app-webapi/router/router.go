@@ -3,6 +3,7 @@ package router
 import (
 	"attendance-app/handlers"
 	"attendance-app/handlers/attendance"
+	emailHandler "attendance-app/handlers/email"
 	"attendance-app/handlers/leave"
 	"attendance-app/handlers/locations"
 	"attendance-app/handlers/settings"
@@ -79,6 +80,14 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 					adminLocations.POST("", locations.CreateLocation)
 					adminLocations.PUT("/:id", locations.UpdateLocation)
 					adminLocations.DELETE("/:id", locations.DeleteLocation)
+				}
+
+				// Email endpoints (testing and manual sending)
+				adminEmail := admin.Group("/email")
+				{
+					adminEmail.POST("/test", emailHandler.TestEmail)
+					adminEmail.POST("/send-reminder", emailHandler.SendReminderToAll)
+					adminEmail.GET("/scheduler-status", emailHandler.GetSchedulerStatus)
 				}
 
 				users := admin.Group("/users")
