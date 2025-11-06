@@ -62,6 +62,11 @@ func main() {
 	attendanceScheduler.Start()
 	defer attendanceScheduler.Stop()
 
+	// Initialize and start the reminder scheduler (for email notifications)
+	reminderScheduler := scheduler.NewReminderScheduler(DB)
+	reminderScheduler.Start()
+	defer reminderScheduler.Stop()
+
 	// Set up Swagger info
 	docs.SwaggerInfo.Title = "Digital Attendance API"
 	docs.SwaggerInfo.Description = "API service for digital attendance system with role-based access control"
