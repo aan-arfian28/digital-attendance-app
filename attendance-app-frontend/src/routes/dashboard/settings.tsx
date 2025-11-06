@@ -99,6 +99,13 @@ function SettingsPageContent() {
     Longitude: 0,
     Radius: 100,
   })
+  const [savedLocationForm, setSavedLocationForm] = useState<LocationFormData>({
+    Name: '',
+    Address: '',
+    Latitude: 0,
+    Longitude: 0,
+    Radius: 100,
+  })
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
@@ -256,8 +263,16 @@ function SettingsPageContent() {
     setErrorMessage('')
   }
 
+  const saveLocationFormState = () => {
+    setSavedLocationForm({ ...locationForm })
+  }
+
+  const restoreLocationFormState = () => {
+    setLocationForm({ ...savedLocationForm })
+  }
+
   const openCreateLocationModal = () => {
-    resetLocationForm()
+    restoreLocationFormState()
     setIsLocationModalOpen(true)
   }
 
@@ -453,8 +468,24 @@ function SettingsPageContent() {
       </div>
 
       {/* Modal Lokasi */}
-      <Dialog open={isLocationModalOpen} onOpenChange={setIsLocationModalOpen}>
-        <DialogContent className="max-w-2xl rounded-sm">
+      <Dialog open={isLocationModalOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsLocationModalOpen(false)
+        }
+      }}>
+        <DialogContent 
+          className="max-w-2xl rounded-sm"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+          onCloseAutoFocus={() => {
+            if (!isEditMode) {
+              saveLocationFormState()
+            } else {
+              resetLocationForm()
+              setIsLocationModalOpen(false)
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>{isEditMode ? 'Ubah Lokasi' : 'Tambah Lokasi Baru'}</DialogTitle>
             <DialogDescription>
@@ -563,8 +594,8 @@ function SettingsPageContent() {
             <Button
               variant="outline"
               onClick={() => {
-                setIsLocationModalOpen(false)
-                resetLocationForm()
+                resetLocationForm() 
+                setIsLocationModalOpen(false) 
               }}
               className="rounded-sm"
             >
