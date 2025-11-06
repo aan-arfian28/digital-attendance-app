@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useUserData } from '@/hooks/useUserData'
 import { useHasSubordinates } from '@/hooks/useSubordinates'
+import { useCompanySettings } from '@/hooks/useCompanySettings'
 import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -46,6 +47,7 @@ export default function Sidebar({ isOpen, onToggle, onMobileMenuClose }: Sidebar
   const location = useLocation()
   const { isAdmin, userId } = useUserData()
   const { hasSubordinates, isLoading: subordinatesLoading } = useHasSubordinates()
+  const { companyName } = useCompanySettings()
   const queryClient = useQueryClient()
   const previousUserIdRef = useRef(userId)
 
@@ -96,7 +98,7 @@ export default function Sidebar({ isOpen, onToggle, onMobileMenuClose }: Sidebar
               <div className="w-8 h-8 bg-[#428bff] rounded-sm flex items-center justify-center text-white font-bold text-sm">
                 T
               </div>
-              <span className="font-bold text-lg text-gray-900">ATTENDAPP</span>
+              <span className="font-bold text-lg text-gray-900">{companyName}</span>
             </div>
             <Button
               variant="ghost"

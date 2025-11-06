@@ -43,6 +43,46 @@ const fetchSubordinateAttendanceDashboard = async () => {
   return response.json()
 }
 
+// Admin stats queries
+const fetchAdminUsers = async () => {
+  const adminResponse = await fetch(`${API_BASE_URL}/admin/users/admins`, {
+    headers: getAuthHeaders(),
+  })
+  const nonAdminResponse = await fetch(`${API_BASE_URL}/admin/users/non-admins`, {
+    headers: getAuthHeaders(),
+  })
+  
+  if (!adminResponse.ok || !nonAdminResponse.ok) {
+    throw new Error('Failed to fetch users')
+  }
+  
+  const admins = await adminResponse.json()
+  const nonAdmins = await nonAdminResponse.json()
+  
+  return {
+    admins: Array.isArray(admins) ? admins : [],
+    nonAdmins: Array.isArray(nonAdmins) ? nonAdmins : [],
+  }
+}
+
+const fetchAdminRoles = async () => {
+  const response = await fetch(`${API_BASE_URL}/admin/users/roles`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to fetch roles')
+  const data = await response.json()
+  return Array.isArray(data) ? data : []
+}
+
+const fetchAdminLocations = async () => {
+  const response = await fetch(`${API_BASE_URL}/admin/locations`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to fetch locations')
+  const data = await response.json()
+  return Array.isArray(data) ? data : []
+}
+
 interface AttendanceRecord {
   ID: number
   UserID: number
@@ -117,6 +157,37 @@ function DashboardHome() {
     staleTime: 2 * 60 * 1000, // 2 minutes
     refetchOnWindowFocus: false,
   })
+
+  // Fetch admin stats for dashboard
+  const { data: adminUsers = { admins: [], nonAdmins: [] }, isLoading: adminUsersLoading } = useQuery({
+    queryKey: ['admin-users-stats'],
+    queryFn: fetchAdminUsers,
+    enabled: isAdmin,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  })
+
+  const { data: adminRoles = [], isLoading: adminRolesLoading } = useQuery({
+    queryKey: ['admin-roles-stats'],
+    queryFn: fetchAdminRoles,
+    enabled: isAdmin,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  })
+
+  const { data: adminLocations = [], isLoading: adminLocationsLoading } = useQuery({
+    queryKey: ['admin-locations-stats'],
+    queryFn: fetchAdminLocations,
+    enabled: isAdmin,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  })
+
+  // Calculate stats
+  const totalUsers = (adminUsers.admins?.length || 0) + (adminUsers.nonAdmins?.length || 0)
+  const totalRoles = adminRoles.length || 0
+  const totalLocations = adminLocations.length || 0
+  const statsLoading = adminUsersLoading || adminRolesLoading || adminLocationsLoading
 
   // Helper functions
   const formatTime = (dateString: string | null) => {
@@ -365,7 +436,7 @@ function DashboardHome() {
                   <h3 className="font-semibold text-gray-900">Total User</h3>
                   <Users className="h-5 w-5 text-[#428bff]" />
                 </div>
-                <p className="text-2xl font-bold text-[#428bff]">150</p>
+                <p className="text-2xl font-bold text-[#428bff]">{statsLoading ? '-' : totalUsers}</p>
                 <p className="text-sm text-gray-600 mt-1">User aktif dalam sistem</p>
               </div>
 
@@ -374,17 +445,17 @@ function DashboardHome() {
                   <h3 className="font-semibold text-gray-900">Total Role</h3>
                   <Shield className="h-5 w-5 text-[#428bff]" />
                 </div>
-                <p className="text-2xl font-bold text-[#428bff]">4</p>
+                <p className="text-2xl font-bold text-[#428bff]">{statsLoading ? '-' : totalRoles}</p>
                 <p className="text-sm text-gray-600 mt-1">Role sistem yang dikonfigurasi</p>
               </div>
 
               <div className="bg-white border border-gray-300 rounded-sm p-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-gray-900">Status Sistem</h3>
+                  <h3 className="font-semibold text-gray-900">Total Lokasi</h3>
                   <Settings className="h-5 w-5 text-[#428bff]" />
                 </div>
-                <p className="text-2xl font-bold text-green-600">Aktif</p>
-                <p className="text-sm text-gray-600 mt-1">Semua sistem berjalan normal</p>
+                <p className="text-2xl font-bold text-[#428bff]">{statsLoading ? '-' : totalLocations}</p>
+                <p className="text-sm text-gray-600 mt-1">Lokasi absensi terkonfigurasi</p>
               </div>
             </div>
           </div>
