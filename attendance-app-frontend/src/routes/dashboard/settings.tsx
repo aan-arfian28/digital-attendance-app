@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import RoleGuard from '@/components/RoleGuard'
+import { updateCompanyNameInStorage } from '@/hooks/useCompanySettings'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 export const Route = createFileRoute('/dashboard/settings')({
@@ -113,8 +114,8 @@ function SettingsPageContent() {
   const { data: settings, isLoading: settingsLoading } = useQuery({
     queryKey: ['settings'],
     queryFn: fetchSettings,
-    staleTime: 0,
-    refetchInterval: 3000,
+    staleTime: 1000 * 3,
+    refetchInterval: 1000 * 30,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
@@ -124,8 +125,8 @@ function SettingsPageContent() {
   const { data: locations = [], isLoading: locationsLoading } = useQuery({
     queryKey: ['locations'],
     queryFn: fetchLocations,
-    staleTime: 0,
-    refetchInterval: 3000,
+    staleTime: 1000 * 3,
+    refetchInterval: 1000 * 30,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
@@ -155,6 +156,10 @@ function SettingsPageContent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings'] })
+      // Update localStorage with new company name
+      updateCompanyNameInStorage(companyName)
+      // Invalidate company settings cache to reflect changes
+      queryClient.invalidateQueries({ queryKey: ['company-settings'] })
       setSuccessMessage('Pengaturan berhasil diperbarui!')
       setErrorMessage('')
       setTimeout(() => setSuccessMessage(''), 3000)
