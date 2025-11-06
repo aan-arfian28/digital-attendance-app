@@ -4,10 +4,12 @@ package leave
 import (
 	"attendance-app/models"
 	"attendance-app/storage"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
 )
 
@@ -393,4 +395,301 @@ func ValidateLeaveRequest(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, leaveRequest)
+}
+
+// @Summary Export my leave requests to Excel
+// @Description Export current user's leave requests to Excel file
+// @Tags leave
+// @Security BearerAuth
+// @Produce application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+// @Success 200 {file} binary "Excel file download"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /user/leave/export/excel [get]
+func ExportMyLeaveRequestsToExcel(c *gin.Context) {
+	db := c.MustGet("db").(*gorm.DB)
+	userId := c.MustGet("userId").(uint)
+
+	// Fetch current user's leave requests with preloads
+	var leaveRequests []models.LeaveRequest
+	if err := db.Where("user_id = ?", userId).
+		Preload("Approver").
+		Order("start_date DESC").
+		Find(&leaveRequests).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch leave requests"})
+		return
+	}
+
+	// Create new Excel file
+	f := excelize.NewFile()
+	defer func() {
+		if err := f.Close(); err != nil {
+			return
+		}
+	}()
+
+	sheetName := "Leave Requests"
+	index, err := f.NewSheet(sheetName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create Excel sheet"})
+		return
+	}
+
+	// Set headers
+	headers := []string{
+		"ID", "Leave Type", "Start Date", "End Date", "Reason", "Attachment URL",
+		"Status", "Approver Name", "Approver Notes", "Created At", "Updated At",
+	}
+	for i, header := range headers {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+		f.SetCellValue(sheetName, cell, header)
+	}
+
+	// Style for headers
+	headerStyle, err := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true},
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"#E0E0E0"}, Pattern: 1},
+	})
+	if err == nil {
+		f.SetCellStyle(sheetName, "A1", "K1", headerStyle)
+	}
+
+	// Write leave request data
+	for i, leave := range leaveRequests {
+		row := i + 2
+
+		// ID
+		cell, _ := excelize.CoordinatesToCellName(1, row)
+		f.SetCellValue(sheetName, cell, leave.ID)
+
+		// Leave Type
+		cell, _ = excelize.CoordinatesToCellName(2, row)
+		f.SetCellValue(sheetName, cell, leave.LeaveType)
+
+		// Start Date
+		cell, _ = excelize.CoordinatesToCellName(3, row)
+		f.SetCellValue(sheetName, cell, leave.StartDate.Format("2006-01-02"))
+
+		// End Date
+		cell, _ = excelize.CoordinatesToCellName(4, row)
+		f.SetCellValue(sheetName, cell, leave.EndDate.Format("2006-01-02"))
+
+		// Reason
+		cell, _ = excelize.CoordinatesToCellName(5, row)
+		f.SetCellValue(sheetName, cell, leave.Reason)
+
+		// Attachment URL
+		cell, _ = excelize.CoordinatesToCellName(6, row)
+		f.SetCellValue(sheetName, cell, leave.AttachmentURL)
+
+		// Status
+		cell, _ = excelize.CoordinatesToCellName(7, row)
+		f.SetCellValue(sheetName, cell, leave.Status)
+
+		// Approver Name
+		cell, _ = excelize.CoordinatesToCellName(8, row)
+		if leave.Approver != nil {
+			f.SetCellValue(sheetName, cell, leave.Approver.Name)
+		} else {
+			f.SetCellValue(sheetName, cell, "")
+		}
+
+		// Approver Notes
+		cell, _ = excelize.CoordinatesToCellName(9, row)
+		f.SetCellValue(sheetName, cell, leave.ApproverNotes)
+
+		// Created At
+		cell, _ = excelize.CoordinatesToCellName(10, row)
+		f.SetCellValue(sheetName, cell, leave.CreatedAt.Format("2006-01-02 15:04:05"))
+
+		// Updated At
+		cell, _ = excelize.CoordinatesToCellName(11, row)
+		f.SetCellValue(sheetName, cell, leave.UpdatedAt.Format("2006-01-02 15:04:05"))
+	}
+
+	// Auto-fit columns
+	for i := 1; i <= len(headers); i++ {
+		col, _ := excelize.ColumnNumberToName(i)
+		f.SetColWidth(sheetName, col, col, 20)
+	}
+
+	// Set active sheet
+	f.SetActiveSheet(index)
+	f.DeleteSheet("Sheet1")
+
+	// Generate filename with current date
+	filename := fmt.Sprintf("my_leave_requests_%s.xlsx", time.Now().Format("2006-01-02"))
+
+	// Set headers for file download
+	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	c.Header("Content-Transfer-Encoding", "binary")
+
+	// Write to response
+	if err := f.Write(c.Writer); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write Excel file"})
+		return
+	}
+}
+
+// @Summary Export subordinate leave requests to Excel
+// @Description Export subordinate leave requests to Excel file (supervisor only)
+// @Tags leave
+// @Security BearerAuth
+// @Produce application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+// @Success 200 {file} binary "Excel file download"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden - Not a supervisor"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /user/leave/subordinates/export/excel [get]
+func ExportSubordinateLeaveRequestsToExcel(c *gin.Context) {
+	db := c.MustGet("db").(*gorm.DB)
+	supervisorId := c.MustGet("userId").(uint)
+
+	// Get subordinate IDs
+	var subordinateIds []uint
+	if err := db.Model(&models.User{}).Where("supervisor_id = ?", supervisorId).Pluck("id", &subordinateIds).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch subordinates"})
+		return
+	}
+
+	if len(subordinateIds) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No subordinates found"})
+		return
+	}
+
+	// Fetch subordinate leave requests with preloads
+	var leaveRequests []models.LeaveRequest
+	if err := db.Where("user_id IN ?", subordinateIds).
+		Preload("User").
+		Preload("Approver").
+		Order("start_date DESC").
+		Find(&leaveRequests).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch leave requests"})
+		return
+	}
+
+	// Create new Excel file
+	f := excelize.NewFile()
+	defer func() {
+		if err := f.Close(); err != nil {
+			return
+		}
+	}()
+
+	sheetName := "Subordinate Leave Requests"
+	index, err := f.NewSheet(sheetName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create Excel sheet"})
+		return
+	}
+
+	// Set headers
+	headers := []string{
+		"ID", "User ID", "Username", "Email", "Leave Type", "Start Date", "End Date",
+		"Reason", "Attachment URL", "Status", "Approver Name", "Approver Notes",
+		"Created At", "Updated At",
+	}
+	for i, header := range headers {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+		f.SetCellValue(sheetName, cell, header)
+	}
+
+	// Style for headers
+	headerStyle, err := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true},
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"#E0E0E0"}, Pattern: 1},
+	})
+	if err == nil {
+		f.SetCellStyle(sheetName, "A1", "N1", headerStyle)
+	}
+
+	// Write leave request data
+	for i, leave := range leaveRequests {
+		row := i + 2
+
+		// ID
+		cell, _ := excelize.CoordinatesToCellName(1, row)
+		f.SetCellValue(sheetName, cell, leave.ID)
+
+		// User ID
+		cell, _ = excelize.CoordinatesToCellName(2, row)
+		f.SetCellValue(sheetName, cell, leave.UserID)
+
+		// Username
+		cell, _ = excelize.CoordinatesToCellName(3, row)
+		f.SetCellValue(sheetName, cell, leave.User.Username)
+
+		// Email
+		cell, _ = excelize.CoordinatesToCellName(4, row)
+		f.SetCellValue(sheetName, cell, leave.User.Email)
+
+		// Leave Type
+		cell, _ = excelize.CoordinatesToCellName(5, row)
+		f.SetCellValue(sheetName, cell, leave.LeaveType)
+
+		// Start Date
+		cell, _ = excelize.CoordinatesToCellName(6, row)
+		f.SetCellValue(sheetName, cell, leave.StartDate.Format("2006-01-02"))
+
+		// End Date
+		cell, _ = excelize.CoordinatesToCellName(7, row)
+		f.SetCellValue(sheetName, cell, leave.EndDate.Format("2006-01-02"))
+
+		// Reason
+		cell, _ = excelize.CoordinatesToCellName(8, row)
+		f.SetCellValue(sheetName, cell, leave.Reason)
+
+		// Attachment URL
+		cell, _ = excelize.CoordinatesToCellName(9, row)
+		f.SetCellValue(sheetName, cell, leave.AttachmentURL)
+
+		// Status
+		cell, _ = excelize.CoordinatesToCellName(10, row)
+		f.SetCellValue(sheetName, cell, leave.Status)
+
+		// Approver Name
+		cell, _ = excelize.CoordinatesToCellName(11, row)
+		if leave.Approver != nil {
+			f.SetCellValue(sheetName, cell, leave.Approver.Name)
+		} else {
+			f.SetCellValue(sheetName, cell, "")
+		}
+
+		// Approver Notes
+		cell, _ = excelize.CoordinatesToCellName(12, row)
+		f.SetCellValue(sheetName, cell, leave.ApproverNotes)
+
+		// Created At
+		cell, _ = excelize.CoordinatesToCellName(13, row)
+		f.SetCellValue(sheetName, cell, leave.CreatedAt.Format("2006-01-02 15:04:05"))
+
+		// Updated At
+		cell, _ = excelize.CoordinatesToCellName(14, row)
+		f.SetCellValue(sheetName, cell, leave.UpdatedAt.Format("2006-01-02 15:04:05"))
+	}
+
+	// Auto-fit columns
+	for i := 1; i <= len(headers); i++ {
+		col, _ := excelize.ColumnNumberToName(i)
+		f.SetColWidth(sheetName, col, col, 20)
+	}
+
+	// Set active sheet
+	f.SetActiveSheet(index)
+	f.DeleteSheet("Sheet1")
+
+	// Generate filename with current date
+	filename := fmt.Sprintf("subordinate_leave_requests_%s.xlsx", time.Now().Format("2006-01-02"))
+
+	// Set headers for file download
+	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	c.Header("Content-Transfer-Encoding", "binary")
+
+	// Write to response
+	if err := f.Write(c.Writer); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write Excel file"})
+		return
+	}
 }

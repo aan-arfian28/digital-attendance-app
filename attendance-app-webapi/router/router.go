@@ -93,6 +93,7 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 				users := admin.Group("/users")
 				{
 					users.POST("/", UserManagement.CreateUser)
+					users.GET("/export/excel", UserManagement.ExportUsersToExcel)
 					users.GET("/:id", UserManagement.GetUser)
 					users.PUT("/:id", UserManagement.UpdateUser)
 					users.DELETE("/:id", UserManagement.DeleteUser)
@@ -103,6 +104,7 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 					roles := users.Group("/roles")
 					{
 						roles.GET("", UserManagement.GetRoles)
+						roles.GET("/export/excel", UserManagement.ExportRolesToExcel)
 						roles.POST("", UserManagement.CreateRole)
 						roles.PUT("/:id", UserManagement.UpdateRole)
 						roles.DELETE("/:id", UserManagement.DeleteRole)
@@ -128,9 +130,11 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 					attendances.POST("/check-in", attendance.CheckIn)
 					attendances.POST("/check-out", attendance.CheckOut)
 					attendances.GET("/my-records", attendance.GetMyAttendanceRecords)
+					attendances.GET("/export/excel", attendance.ExportMyAttendanceToExcel)
 
 					// Supervisor-only endpoints
 					attendances.GET("/subordinates", attendance.GetSubordinateAttendanceRecords)
+					attendances.GET("/subordinates/export/excel", attendance.ExportSubordinateAttendanceToExcel)
 					attendances.PUT("/update/:id", attendance.UpdateSubordinateAttendanceRecord)
 				}
 
@@ -139,9 +143,11 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 				{
 					leaves.POST("", leave.SubmitLeaveRequest)
 					leaves.GET("/my-requests", leave.GetMyLeaveRequests)
+					leaves.GET("/export/excel", leave.ExportMyLeaveRequestsToExcel)
 
 					// Supervisor-only endpoints
 					leaves.GET("/subordinates", leave.GetSubordinateLeaveRequests)
+					leaves.GET("/subordinates/export/excel", leave.ExportSubordinateLeaveRequestsToExcel)
 					leaves.PUT("/validate/:id", leave.ValidateLeaveRequest)
 				}
 			}

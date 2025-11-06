@@ -107,6 +107,7 @@ function UserManagementContent() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [errorMessage, setErrorMessage] = useState<string>('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [isExporting, setIsExporting] = useState(false)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -388,30 +389,34 @@ function UserManagementContent() {
     setIsEditModalOpen(true)
   }
 
-  // Export to CSV
-  const exportToCSV = () => {
-    const headers = ['ID', 'Email', 'Role', 'Position', 'Position Level', 'Supervisor']
-    const rows = users.map((user) => [
-      user.ID,
-      user.Email,
-      user.Role,
-      user.Position,
-      user.PositionLevel,
-      user.Supervisor?.SupervisorName || 'N/A',
-    ])
+  // Export to Excel
+  const exportToExcel = async () => {
+    setIsExporting(true)
+    try {
+      const token = localStorage.getItem('auth_token')
+      const response = await fetch(`${API_BASE_URL}/admin/users/export/excel`, {
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      })
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) => row.join(',')),
-    ].join('\n')
+      if (!response.ok) {
+        throw new Error('Failed to export users')
+      }
 
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `users_${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `users_${new Date().toISOString().split('T')[0]}.xlsx`
+      a.click()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Export failed:', error)
+      alert('Failed to export users. Please try again.')
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   // Table columns - Part 1
@@ -577,11 +582,12 @@ function UserManagementContent() {
         <div className="flex gap-3">
           <Button
             variant="outline"
-            onClick={exportToCSV}
+            onClick={exportToExcel}
+            disabled={isExporting}
             className="border-gray-300 rounded-sm"
           >
             <Download className="h-4 w-4 mr-2" />
-            Export CSV
+            {isExporting ? 'Exporting...' : 'Export Excel'}
           </Button>
           
           <Dialog open={isCreateModalOpen} onOpenChange={(open) => {

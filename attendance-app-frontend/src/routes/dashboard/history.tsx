@@ -97,6 +97,7 @@ function AttendanceHistoryContent() {
   const [leavePageSize, setLeavePageSize] = useState(10)
   const [attendanceSortOrder, setAttendanceSortOrder] = useState<'asc' | 'desc' | null>('desc') // Default: newest first
   const [leaveSortOrder, setLeaveSortOrder] = useState<'asc' | 'desc' | null>('desc') // Default: newest first
+  const [isExporting, setIsExporting] = useState(false)
   
   // Detail modal states
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
@@ -170,53 +171,59 @@ function AttendanceHistoryContent() {
     setIsDetailModalOpen(true)
   }, [])
 
-  // Export to CSV
-  const exportAttendanceToCSV = () => {
-    const headers = ['Tanggal', 'Check In', 'Check Out', 'Durasi', 'Status', 'Validasi']
-    const rows = attendanceRecords.map((record: AttendanceRecord) => [
-      formatDate(record.CheckInTime),
-      formatTime(record.CheckInTime),
-      record.CheckOutTime ? formatTime(record.CheckOutTime) : '-',
-      calculateDuration(record.CheckInTime, record.CheckOutTime),
-      record.Status === 'ON_TIME' ? 'Tepat Waktu' : record.Status === 'LATE' ? 'Terlambat' : record.Status,
-      record.ValidationStatus,
-    ])
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) => row.map(cell => `"${cell}"`).join(',')),
-    ].join('\n')
-
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `attendance_history_${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
+  // Export to Excel
+  const exportAttendanceToExcel = async () => {
+    setIsExporting(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/attendance/export/excel`, {
+        headers: getAuthHeaders(),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to export attendance')
+      }
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `my_attendance_${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Export error:', error)
+    } finally {
+      setIsExporting(false)
+    }
   }
 
-  const exportLeaveToCSV = () => {
-    const headers = ['Periode', 'Tipe', 'Alasan', 'Status']
-    const rows = leaveRecords.map((record: LeaveRequestRecord) => [
-      `${formatDate(record.StartDate)} - ${formatDate(record.EndDate)}`,
-      record.LeaveType === 'SICK' ? 'Sakit' : 'Izin',
-      record.Reason,
-      record.Status === 'APPROVED' ? 'Disetujui' : record.Status === 'REJECTED' ? 'Ditolak' : 'Menunggu',
-    ])
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) => row.map(cell => `"${cell}"`).join(',')),
-    ].join('\n')
-
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `leave_history_${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
+  const exportLeaveToExcel = async () => {
+    setIsExporting(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/leave/export/excel`, {
+        headers: getAuthHeaders(),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to export leave requests')
+      }
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `my_leave_requests_${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Export error:', error)
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   // Sorting helpers
@@ -329,11 +336,12 @@ function AttendanceHistoryContent() {
       <div className="flex justify-start mb-6">
         <Button
           variant="outline"
-          onClick={activeTab === 'attendance' ? exportAttendanceToCSV : exportLeaveToCSV}
-          className="border-gray-300 rounded-sm"
+          onClick={activeTab === 'attendance' ? exportAttendanceToExcel : exportLeaveToExcel}
+          disabled={isExporting}
+          className="border-gray-300 rounded-sm disabled:opacity-50"
         >
           <Download className="h-4 w-4 mr-2" />
-          Export CSV
+          {isExporting ? 'Exporting...' : 'Export Excel'}
         </Button>
       </div>
 

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
 )
 
@@ -427,4 +428,378 @@ func UpdateSubordinateAttendanceRecord(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, attendance)
+}
+
+// @Summary Export my attendance records to Excel
+// @Description Export current user's attendance records to Excel file
+// @Tags attendance
+// @Security BearerAuth
+// @Produce application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+// @Success 200 {file} binary "Excel file download"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /user/attendance/export/excel [get]
+func ExportMyAttendanceToExcel(c *gin.Context) {
+	db := c.MustGet("db").(*gorm.DB)
+	userId := c.MustGet("userId").(uint)
+
+	// Fetch current user's attendance records with preloads
+	var attendances []models.Attendance
+	if err := db.Where("user_id = ?", userId).
+		Preload("Location").
+		Preload("Validator").
+		Order("check_in_time DESC").
+		Find(&attendances).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch attendance records"})
+		return
+	}
+
+	// Create new Excel file
+	f := excelize.NewFile()
+	defer func() {
+		if err := f.Close(); err != nil {
+			return
+		}
+	}()
+
+	sheetName := "Attendance"
+	index, err := f.NewSheet(sheetName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create Excel sheet"})
+		return
+	}
+
+	// Set headers
+	headers := []string{
+		"ID", "Check In Time", "Check Out Time", "Check In Latitude", "Check In Longitude",
+		"Check Out Latitude", "Check Out Longitude", "Check In Photo URL", "Check Out Photo URL",
+		"Location Name", "Location Address", "Status", "Validation Status", "Validator Name",
+		"Notes", "Created At", "Updated At",
+	}
+	for i, header := range headers {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+		f.SetCellValue(sheetName, cell, header)
+	}
+
+	// Style for headers
+	headerStyle, err := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true},
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"#E0E0E0"}, Pattern: 1},
+	})
+	if err == nil {
+		f.SetCellStyle(sheetName, "A1", "Q1", headerStyle)
+	}
+
+	// Write attendance data
+	for i, attendance := range attendances {
+		row := i + 2
+
+		// ID
+		cell, _ := excelize.CoordinatesToCellName(1, row)
+		f.SetCellValue(sheetName, cell, attendance.ID)
+
+		// Check In Time
+		cell, _ = excelize.CoordinatesToCellName(2, row)
+		f.SetCellValue(sheetName, cell, attendance.CheckInTime.Format("2006-01-02 15:04:05"))
+
+		// Check Out Time
+		cell, _ = excelize.CoordinatesToCellName(3, row)
+		if attendance.CheckOutTime != nil {
+			f.SetCellValue(sheetName, cell, attendance.CheckOutTime.Format("2006-01-02 15:04:05"))
+		} else {
+			f.SetCellValue(sheetName, cell, "")
+		}
+
+		// Check In Latitude
+		cell, _ = excelize.CoordinatesToCellName(4, row)
+		f.SetCellValue(sheetName, cell, attendance.CheckInLatitude)
+
+		// Check In Longitude
+		cell, _ = excelize.CoordinatesToCellName(5, row)
+		f.SetCellValue(sheetName, cell, attendance.CheckInLongitude)
+
+		// Check Out Latitude
+		cell, _ = excelize.CoordinatesToCellName(6, row)
+		f.SetCellValue(sheetName, cell, attendance.CheckOutLatitude)
+
+		// Check Out Longitude
+		cell, _ = excelize.CoordinatesToCellName(7, row)
+		f.SetCellValue(sheetName, cell, attendance.CheckOutLongitude)
+
+		// Check In Photo URL
+		cell, _ = excelize.CoordinatesToCellName(8, row)
+		f.SetCellValue(sheetName, cell, attendance.CheckInPhotoURL)
+
+		// Check Out Photo URL
+		cell, _ = excelize.CoordinatesToCellName(9, row)
+		f.SetCellValue(sheetName, cell, attendance.CheckOutPhotoURL)
+
+		// Location Name
+		cell, _ = excelize.CoordinatesToCellName(10, row)
+		if attendance.Location != nil {
+			f.SetCellValue(sheetName, cell, attendance.Location.Name)
+		} else {
+			f.SetCellValue(sheetName, cell, "")
+		}
+
+		// Location Address
+		cell, _ = excelize.CoordinatesToCellName(11, row)
+		if attendance.Location != nil {
+			f.SetCellValue(sheetName, cell, attendance.Location.Address)
+		} else {
+			f.SetCellValue(sheetName, cell, "")
+		}
+
+		// Status
+		cell, _ = excelize.CoordinatesToCellName(12, row)
+		f.SetCellValue(sheetName, cell, attendance.Status)
+
+		// Validation Status
+		cell, _ = excelize.CoordinatesToCellName(13, row)
+		f.SetCellValue(sheetName, cell, attendance.ValidationStatus)
+
+		// Validator Name
+		cell, _ = excelize.CoordinatesToCellName(14, row)
+		if attendance.Validator != nil {
+			f.SetCellValue(sheetName, cell, attendance.Validator.Name)
+		} else {
+			f.SetCellValue(sheetName, cell, "")
+		}
+
+		// Notes
+		cell, _ = excelize.CoordinatesToCellName(15, row)
+		f.SetCellValue(sheetName, cell, attendance.Notes)
+
+		// Created At
+		cell, _ = excelize.CoordinatesToCellName(16, row)
+		f.SetCellValue(sheetName, cell, attendance.CreatedAt.Format("2006-01-02 15:04:05"))
+
+		// Updated At
+		cell, _ = excelize.CoordinatesToCellName(17, row)
+		f.SetCellValue(sheetName, cell, attendance.UpdatedAt.Format("2006-01-02 15:04:05"))
+	}
+
+	// Auto-fit columns
+	for i := 1; i <= len(headers); i++ {
+		col, _ := excelize.ColumnNumberToName(i)
+		f.SetColWidth(sheetName, col, col, 20)
+	}
+
+	// Set active sheet
+	f.SetActiveSheet(index)
+	f.DeleteSheet("Sheet1")
+
+	// Generate filename with current date
+	filename := fmt.Sprintf("my_attendance_%s.xlsx", time.Now().Format("2006-01-02"))
+
+	// Set headers for file download
+	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	c.Header("Content-Transfer-Encoding", "binary")
+
+	// Write to response
+	if err := f.Write(c.Writer); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write Excel file"})
+		return
+	}
+}
+
+// @Summary Export subordinate attendance records to Excel
+// @Description Export subordinate attendance records to Excel file (supervisor only)
+// @Tags attendance
+// @Security BearerAuth
+// @Produce application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+// @Success 200 {file} binary "Excel file download"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden - Not a supervisor"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /user/attendance/subordinates/export/excel [get]
+func ExportSubordinateAttendanceToExcel(c *gin.Context) {
+	db := c.MustGet("db").(*gorm.DB)
+	supervisorId := c.MustGet("userId").(uint)
+
+	// Get subordinate IDs
+	var subordinateIds []uint
+	if err := db.Model(&models.User{}).Where("supervisor_id = ?", supervisorId).Pluck("id", &subordinateIds).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch subordinates"})
+		return
+	}
+
+	if len(subordinateIds) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No subordinates found"})
+		return
+	}
+
+	// Fetch subordinate attendance records with preloads
+	var attendances []models.Attendance
+	if err := db.Where("user_id IN ?", subordinateIds).
+		Preload("User").
+		Preload("Location").
+		Preload("Validator").
+		Order("check_in_time DESC").
+		Find(&attendances).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch attendance records"})
+		return
+	}
+
+	// Create new Excel file
+	f := excelize.NewFile()
+	defer func() {
+		if err := f.Close(); err != nil {
+			return
+		}
+	}()
+
+	sheetName := "Subordinate Attendance"
+	index, err := f.NewSheet(sheetName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create Excel sheet"})
+		return
+	}
+
+	// Set headers
+	headers := []string{
+		"ID", "User ID", "Username", "Email", "Check In Time", "Check Out Time",
+		"Check In Latitude", "Check In Longitude", "Check Out Latitude", "Check Out Longitude",
+		"Check In Photo URL", "Check Out Photo URL", "Location Name", "Location Address",
+		"Status", "Validation Status", "Validator Name", "Notes", "Created At", "Updated At",
+	}
+	for i, header := range headers {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+		f.SetCellValue(sheetName, cell, header)
+	}
+
+	// Style for headers
+	headerStyle, err := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true},
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"#E0E0E0"}, Pattern: 1},
+	})
+	if err == nil {
+		f.SetCellStyle(sheetName, "A1", "T1", headerStyle)
+	}
+
+	// Write attendance data
+	for i, attendance := range attendances {
+		row := i + 2
+
+		// ID
+		cell, _ := excelize.CoordinatesToCellName(1, row)
+		f.SetCellValue(sheetName, cell, attendance.ID)
+
+		// User ID
+		cell, _ = excelize.CoordinatesToCellName(2, row)
+		f.SetCellValue(sheetName, cell, attendance.UserID)
+
+		// Username
+		cell, _ = excelize.CoordinatesToCellName(3, row)
+		f.SetCellValue(sheetName, cell, attendance.User.Username)
+
+		// Email
+		cell, _ = excelize.CoordinatesToCellName(4, row)
+		f.SetCellValue(sheetName, cell, attendance.User.Email)
+
+		// Check In Time
+		cell, _ = excelize.CoordinatesToCellName(5, row)
+		f.SetCellValue(sheetName, cell, attendance.CheckInTime.Format("2006-01-02 15:04:05"))
+
+		// Check Out Time
+		cell, _ = excelize.CoordinatesToCellName(6, row)
+		if attendance.CheckOutTime != nil {
+			f.SetCellValue(sheetName, cell, attendance.CheckOutTime.Format("2006-01-02 15:04:05"))
+		} else {
+			f.SetCellValue(sheetName, cell, "")
+		}
+
+		// Check In Latitude
+		cell, _ = excelize.CoordinatesToCellName(7, row)
+		f.SetCellValue(sheetName, cell, attendance.CheckInLatitude)
+
+		// Check In Longitude
+		cell, _ = excelize.CoordinatesToCellName(8, row)
+		f.SetCellValue(sheetName, cell, attendance.CheckInLongitude)
+
+		// Check Out Latitude
+		cell, _ = excelize.CoordinatesToCellName(9, row)
+		f.SetCellValue(sheetName, cell, attendance.CheckOutLatitude)
+
+		// Check Out Longitude
+		cell, _ = excelize.CoordinatesToCellName(10, row)
+		f.SetCellValue(sheetName, cell, attendance.CheckOutLongitude)
+
+		// Check In Photo URL
+		cell, _ = excelize.CoordinatesToCellName(11, row)
+		f.SetCellValue(sheetName, cell, attendance.CheckInPhotoURL)
+
+		// Check Out Photo URL
+		cell, _ = excelize.CoordinatesToCellName(12, row)
+		f.SetCellValue(sheetName, cell, attendance.CheckOutPhotoURL)
+
+		// Location Name
+		cell, _ = excelize.CoordinatesToCellName(13, row)
+		if attendance.Location != nil {
+			f.SetCellValue(sheetName, cell, attendance.Location.Name)
+		} else {
+			f.SetCellValue(sheetName, cell, "")
+		}
+
+		// Location Address
+		cell, _ = excelize.CoordinatesToCellName(14, row)
+		if attendance.Location != nil {
+			f.SetCellValue(sheetName, cell, attendance.Location.Address)
+		} else {
+			f.SetCellValue(sheetName, cell, "")
+		}
+
+		// Status
+		cell, _ = excelize.CoordinatesToCellName(15, row)
+		f.SetCellValue(sheetName, cell, attendance.Status)
+
+		// Validation Status
+		cell, _ = excelize.CoordinatesToCellName(16, row)
+		f.SetCellValue(sheetName, cell, attendance.ValidationStatus)
+
+		// Validator Name
+		cell, _ = excelize.CoordinatesToCellName(17, row)
+		if attendance.Validator != nil {
+			f.SetCellValue(sheetName, cell, attendance.Validator.Name)
+		} else {
+			f.SetCellValue(sheetName, cell, "")
+		}
+
+		// Notes
+		cell, _ = excelize.CoordinatesToCellName(18, row)
+		f.SetCellValue(sheetName, cell, attendance.Notes)
+
+		// Created At
+		cell, _ = excelize.CoordinatesToCellName(19, row)
+		f.SetCellValue(sheetName, cell, attendance.CreatedAt.Format("2006-01-02 15:04:05"))
+
+		// Updated At
+		cell, _ = excelize.CoordinatesToCellName(20, row)
+		f.SetCellValue(sheetName, cell, attendance.UpdatedAt.Format("2006-01-02 15:04:05"))
+	}
+
+	// Auto-fit columns
+	for i := 1; i <= len(headers); i++ {
+		col, _ := excelize.ColumnNumberToName(i)
+		f.SetColWidth(sheetName, col, col, 20)
+	}
+
+	// Set active sheet
+	f.SetActiveSheet(index)
+	f.DeleteSheet("Sheet1")
+
+	// Generate filename with current date
+	filename := fmt.Sprintf("subordinate_attendance_%s.xlsx", time.Now().Format("2006-01-02"))
+
+	// Set headers for file download
+	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	c.Header("Content-Transfer-Encoding", "binary")
+
+	// Write to response
+	if err := f.Write(c.Writer); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write Excel file"})
+		return
+	}
 }

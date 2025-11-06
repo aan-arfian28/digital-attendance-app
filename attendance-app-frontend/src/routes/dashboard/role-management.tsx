@@ -87,6 +87,7 @@ function RoleManagementContent() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingRole, setEditingRole] = useState<Role | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
   
   // Form state
   const [formData, setFormData] = useState<CreateRoleData>({
@@ -255,22 +256,33 @@ function RoleManagementContent() {
     }
   }
 
-  // Export to CSV function
-  const exportToCSV = () => {
-    const csvContent = [
-      ['Role', 'Position', 'Position Level'],
-      ...roles.map(role => [role.Name, role.Position, role.PositionLevel.toString()])
-    ].map(row => row.join(',')).join('\n')
-
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `roles_${new Date().toISOString().split('T')[0]}.csv`
-    document.body.appendChild(a)
-    a.click()
-    window.URL.revokeObjectURL(url)
-    document.body.removeChild(a)
+  // Export to Excel function
+  const exportToExcel = async () => {
+    setIsExporting(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/users/roles/export/excel`, {
+        headers: getAuthHeaders(),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to export roles')
+      }
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `roles_${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Export error:', error)
+      setErrorMessage('Failed to export roles to Excel')
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   // Table columns definition
@@ -416,11 +428,12 @@ function RoleManagementContent() {
         <div className="flex gap-3">
           <Button
             variant="outline"
-            onClick={exportToCSV}
-            className="border-gray-300 rounded-sm"
+            onClick={exportToExcel}
+            disabled={isExporting}
+            className="border-gray-300 rounded-sm disabled:opacity-50"
           >
             <Download className="h-4 w-4 mr-2" />
-            Export CSV
+            {isExporting ? 'Exporting...' : 'Export Excel'}
           </Button>
           
           <Dialog open={isCreateModalOpen} onOpenChange={(open) => {
