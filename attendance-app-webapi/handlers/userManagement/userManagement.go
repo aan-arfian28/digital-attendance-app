@@ -544,13 +544,21 @@ func GetAllAdminUsers(c *gin.Context) {
 	// Validate sortBy field
 	allowedSortFields := map[string]bool{
 		"id": true, "name": true, "email": true, "username": true, "created_at": true,
+		"role": true, "position_level": true,
 	}
 	if !allowedSortFields[params.SortBy] {
 		params.SortBy = "id"
 	}
 
 	// Apply pagination and sorting (prepend table name to avoid ambiguity)
-	params.SortBy = "users." + params.SortBy
+	// Handle role-specific fields
+	if params.SortBy == "role" {
+		params.SortBy = "Role.name"
+	} else if params.SortBy == "position_level" {
+		params.SortBy = "Role.position_level"
+	} else {
+		params.SortBy = "users." + params.SortBy
+	}
 	var users []models.User
 	query = utils.ApplyPagination(query, params)
 	if err := query.Find(&users).Error; err != nil {
@@ -643,13 +651,21 @@ func GetAllNonAdminUsers(c *gin.Context) {
 	// Validate sortBy field
 	allowedSortFields := map[string]bool{
 		"id": true, "name": true, "email": true, "username": true, "created_at": true,
+		"role": true, "position_level": true,
 	}
 	if !allowedSortFields[params.SortBy] {
 		params.SortBy = "id"
 	}
 
 	// Apply pagination and sorting (prepend table name to avoid ambiguity)
-	params.SortBy = "users." + params.SortBy
+	// Handle role-specific fields
+	if params.SortBy == "role" {
+		params.SortBy = "Role.name"
+	} else if params.SortBy == "position_level" {
+		params.SortBy = "Role.position_level"
+	} else {
+		params.SortBy = "users." + params.SortBy
+	}
 	var users []models.User
 	query = utils.ApplyPagination(query, params)
 	if err := query.Find(&users).Error; err != nil {

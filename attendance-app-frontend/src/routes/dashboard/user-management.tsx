@@ -483,7 +483,36 @@ function UserManagementContent() {
     },
     {
       accessorKey: 'Role',
-      header: 'Role',
+      header: () => {
+        const isActive = sortBy === 'role'
+        const isAsc = sortOrder === 'asc'
+        
+        return (
+          <button
+            className="flex items-center gap-2 font-semibold"
+            onClick={() => {
+              if (isActive) {
+                setSortOrder(isAsc ? 'desc' : 'asc')
+              } else {
+                setSortBy('role')
+                setSortOrder('asc')
+              }
+            }}
+          >
+            Role
+            {isActive ? (
+              isAsc ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )
+            ) : (
+              <ChevronsUpDown className="h-4 w-4" />
+            )}
+          </button>
+        )
+      },
+      cell: ({ row }) => row.original.Role,
     },
     {
       accessorKey: 'Position',
@@ -491,7 +520,36 @@ function UserManagementContent() {
     },
     {
       accessorKey: 'PositionLevel',
-      header: 'Level Posisi',
+      header: () => {
+        const isActive = sortBy === 'position_level'
+        const isAsc = sortOrder === 'asc'
+        
+        return (
+          <button
+            className="flex items-center gap-2 font-semibold"
+            onClick={() => {
+              if (isActive) {
+                setSortOrder(isAsc ? 'desc' : 'asc')
+              } else {
+                setSortBy('position_level')
+                setSortOrder('asc')
+              }
+            }}
+          >
+            Level Posisi
+            {isActive ? (
+              isAsc ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )
+            ) : (
+              <ChevronsUpDown className="h-4 w-4" />
+            )}
+          </button>
+        )
+      },
+      cell: ({ row }) => row.original.PositionLevel,
     },
     {
       id: 'supervisor',
