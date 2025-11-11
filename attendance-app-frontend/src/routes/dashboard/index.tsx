@@ -20,35 +20,38 @@ const getAuthHeaders = () => {
 
 // OPTIMIZATION: Extract query functions outside component to prevent recreation
 const fetchMyAttendanceRecords = async () => {
-  const response = await fetch(`${API_BASE_URL}/user/attendance/my-records`, {
+  const response = await fetch(`${API_BASE_URL}/user/attendance/my-records?page=1&pageSize=10&sortBy=date&sortOrder=desc`, {
     headers: getAuthHeaders(),
   })
   if (!response.ok) throw new Error('Failed to fetch attendance records')
-  return response.json()
+  const data = await response.json()
+  return Array.isArray(data) ? data : (data.data || [])
 }
 
 const fetchMyLeaveRequests = async () => {
-  const response = await fetch(`${API_BASE_URL}/user/leave/my-requests`, {
+  const response = await fetch(`${API_BASE_URL}/user/leave/my-requests?page=1&pageSize=10&sortBy=start_date&sortOrder=desc`, {
     headers: getAuthHeaders(),
   })
   if (!response.ok) throw new Error('Failed to fetch leave requests')
-  return response.json()
+  const data = await response.json()
+  return Array.isArray(data) ? data : (data.data || [])
 }
 
 const fetchSubordinateAttendanceDashboard = async () => {
-  const response = await fetch(`${API_BASE_URL}/user/attendance/subordinates`, {
+  const response = await fetch(`${API_BASE_URL}/user/attendance/subordinates?page=1&pageSize=10&sortBy=date&sortOrder=desc`, {
     headers: getAuthHeaders(),
   })
   if (!response.ok) throw new Error('Failed to fetch subordinate attendance')
-  return response.json()
+  const data = await response.json()
+  return Array.isArray(data) ? data : (data.data || [])
 }
 
 // Admin stats queries
 const fetchAdminUsers = async () => {
-  const adminResponse = await fetch(`${API_BASE_URL}/admin/users/admins`, {
+  const adminResponse = await fetch(`${API_BASE_URL}/admin/users/admins?page=1&pageSize=1000`, {
     headers: getAuthHeaders(),
   })
-  const nonAdminResponse = await fetch(`${API_BASE_URL}/admin/users/non-admins`, {
+  const nonAdminResponse = await fetch(`${API_BASE_URL}/admin/users/non-admins?page=1&pageSize=1000`, {
     headers: getAuthHeaders(),
   })
   
@@ -56,22 +59,22 @@ const fetchAdminUsers = async () => {
     throw new Error('Failed to fetch users')
   }
   
-  const admins = await adminResponse.json()
-  const nonAdmins = await nonAdminResponse.json()
+  const adminsData = await adminResponse.json()
+  const nonAdminsData = await nonAdminResponse.json()
   
   return {
-    admins: Array.isArray(admins) ? admins : [],
-    nonAdmins: Array.isArray(nonAdmins) ? nonAdmins : [],
+    admins: Array.isArray(adminsData) ? adminsData : (adminsData.data || []),
+    nonAdmins: Array.isArray(nonAdminsData) ? nonAdminsData : (nonAdminsData.data || []),
   }
 }
 
 const fetchAdminRoles = async () => {
-  const response = await fetch(`${API_BASE_URL}/admin/users/roles`, {
+  const response = await fetch(`${API_BASE_URL}/admin/users/roles?page=1&pageSize=1000`, {
     headers: getAuthHeaders(),
   })
   if (!response.ok) throw new Error('Failed to fetch roles')
   const data = await response.json()
-  return Array.isArray(data) ? data : []
+  return Array.isArray(data) ? data : (data.data || [])
 }
 
 const fetchAdminLocations = async () => {

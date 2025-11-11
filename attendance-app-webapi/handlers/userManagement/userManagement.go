@@ -511,22 +511,54 @@ type GetAllAdminUsersResponse struct {
 }
 
 func GetAllAdminUsers(c *gin.Context) {
-	var users []models.User
 	db, exists := c.Get("db")
 	if !exists {
 		c.JSON(500, gin.H{"error": "database connection not found"})
 		return
 	}
-
 	DB := db.(*gorm.DB)
 
-	if err := DB.Joins("Role").Where("Role.name = ?", "admin").Preload("Supervisor").Find(&users).Error; err != nil {
-		c.JSON(500, gin.H{"error": "failed to retrieve non-admin users"})
+	// Get pagination params
+	params := utils.GetPaginationParams(c)
+
+	// Build base query
+	query := DB.Model(&models.User{}).
+		Joins("Role").
+		Where("Role.name = ?", "admin").
+		Preload("Supervisor")
+
+	// Apply search if provided
+	if params.Search != "" {
+		searchPattern := "%" + params.Search + "%"
+		query = query.Where("users.name LIKE ? OR users.email LIKE ? OR users.username LIKE ?",
+			searchPattern, searchPattern, searchPattern)
+	}
+
+	// Count total rows
+	var totalRows int64
+	if err := query.Count(&totalRows).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count admin users"})
 		return
 	}
 
-	// log.Println(users)
+	// Validate sortBy field
+	allowedSortFields := map[string]bool{
+		"id": true, "name": true, "email": true, "username": true, "created_at": true,
+	}
+	if !allowedSortFields[params.SortBy] {
+		params.SortBy = "id"
+	}
 
+	// Apply pagination and sorting (prepend table name to avoid ambiguity)
+	params.SortBy = "users." + params.SortBy
+	var users []models.User
+	query = utils.ApplyPagination(query, params)
+	if err := query.Find(&users).Error; err != nil {
+		c.JSON(500, gin.H{"error": "failed to retrieve admin users"})
+		return
+	}
+
+	// Build response
 	var userResponses []GetAllNonAdminUsersResponse
 	for _, user := range users {
 		response := GetAllNonAdminUsersResponse{
@@ -552,7 +584,9 @@ func GetAllAdminUsers(c *gin.Context) {
 		userResponses = append(userResponses, response)
 	}
 
-	c.JSON(http.StatusOK, userResponses)
+	// Build paginated response
+	paginatedResponse := utils.BuildPaginatedResponse(userResponses, totalRows, params)
+	c.JSON(http.StatusOK, paginatedResponse)
 }
 
 type GetAllNonAdminUsersResponse struct {
@@ -581,16 +615,49 @@ type GetAllNonAdminUsersResponse struct {
 // @Router /admin/users/non-admins [get]
 // @Security BearerAuth
 func GetAllNonAdminUsers(c *gin.Context) {
-	var users []models.User
 	DB := c.MustGet("db").(*gorm.DB)
 
-	if err := DB.Joins("Role").Where("Role.name <> ?", "admin").Preload("Supervisor").Find(&users).Error; err != nil {
+	// Get pagination params
+	params := utils.GetPaginationParams(c)
+
+	// Build base query
+	query := DB.Model(&models.User{}).
+		Joins("Role").
+		Where("Role.name <> ?", "admin").
+		Preload("Supervisor")
+
+	// Apply search if provided
+	if params.Search != "" {
+		searchPattern := "%" + params.Search + "%"
+		query = query.Where("users.name LIKE ? OR users.email LIKE ? OR users.username LIKE ?",
+			searchPattern, searchPattern, searchPattern)
+	}
+
+	// Count total rows
+	var totalRows int64
+	if err := query.Count(&totalRows).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count non-admin users"})
+		return
+	}
+
+	// Validate sortBy field
+	allowedSortFields := map[string]bool{
+		"id": true, "name": true, "email": true, "username": true, "created_at": true,
+	}
+	if !allowedSortFields[params.SortBy] {
+		params.SortBy = "id"
+	}
+
+	// Apply pagination and sorting (prepend table name to avoid ambiguity)
+	params.SortBy = "users." + params.SortBy
+	var users []models.User
+	query = utils.ApplyPagination(query, params)
+	if err := query.Find(&users).Error; err != nil {
 		c.JSON(500, gin.H{"error": "failed to retrieve non-admin users"})
 		return
 	}
 
-	// log.Println(users)
-
+	// Build response
 	var userResponses []GetAllNonAdminUsersResponse
 	for _, user := range users {
 		response := GetAllNonAdminUsersResponse{
@@ -616,7 +683,9 @@ func GetAllNonAdminUsers(c *gin.Context) {
 		userResponses = append(userResponses, response)
 	}
 
-	c.JSON(http.StatusOK, userResponses)
+	// Build paginated response
+	paginatedResponse := utils.BuildPaginatedResponse(userResponses, totalRows, params)
+	c.JSON(http.StatusOK, paginatedResponse)
 }
 
 // type GetAllAdminUsersResponse struct {
@@ -639,15 +708,46 @@ func GetAllNonAdminUsers(c *gin.Context) {
 // @Router /admin/users/roles [get]
 // @Security BearerAuth
 func GetRoles(c *gin.Context) {
-	var roles []models.Role
 	DB := c.MustGet("db").(*gorm.DB)
 
-	if err := DB.Order("position_level desc").Find(&roles).Error; err != nil {
+	// Get pagination params
+	params := utils.GetPaginationParams(c)
+
+	// Build base query
+	query := DB.Model(&models.Role{})
+
+	// Apply search if provided
+	if params.Search != "" {
+		searchPattern := "%" + params.Search + "%"
+		query = query.Where("name LIKE ? OR description LIKE ?", searchPattern, searchPattern)
+	}
+
+	// Count total rows
+	var totalRows int64
+	if err := query.Count(&totalRows).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count roles"})
+		return
+	}
+
+	// Validate sortBy field
+	allowedSortFields := map[string]bool{
+		"id": true, "name": true, "position_level": true, "created_at": true,
+	}
+	if !allowedSortFields[params.SortBy] {
+		params.SortBy = "position_level"
+	}
+
+	// Apply pagination and sorting
+	var roles []models.Role
+	query = utils.ApplyPagination(query, params)
+	if err := query.Find(&roles).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve roles"})
 		return
 	}
 
-	c.JSON(http.StatusOK, roles)
+	// Build paginated response
+	response := utils.BuildPaginatedResponse(roles, totalRows, params)
+	c.JSON(http.StatusOK, response)
 }
 
 // @Summary Get admin roles

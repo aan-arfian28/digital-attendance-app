@@ -310,13 +310,68 @@ func GetMyAttendanceRecords(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	userId := c.MustGet("userId").(uint)
 
-	var attendances []models.Attendance
-	if err := db.Where("user_id = ?", userId).Find(&attendances).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch attendance records"})
-		return
+	fmt.Printf("[DEBUG] GetMyAttendanceRecords - Start for userId: %d\n", userId)
+
+	// Get pagination params
+	params := utils.GetPaginationParams(c)
+	fmt.Printf("[DEBUG] Pagination params - Page: %d, PageSize: %d, Search: %s, SortBy: %s, SortOrder: %s\n",
+		params.Page, params.PageSize, params.Search, params.SortBy, params.SortOrder)
+
+	// Build base query
+	query := db.Model(&models.Attendance{}).
+		Where("user_id = ?", userId).
+		Preload("Location").
+		Preload("Validator")
+
+	// Apply search if provided
+	if params.Search != "" {
+		fmt.Printf("[DEBUG] Applying search filter: %s\n", params.Search)
+		searchPattern := "%" + params.Search + "%"
+		query = query.Where("attendance.status LIKE ? OR EXISTS (SELECT 1 FROM locations WHERE locations.id = attendance.location_id AND locations.name LIKE ?)", searchPattern, searchPattern)
 	}
 
-	c.JSON(http.StatusOK, attendances)
+	// Count total rows
+	var totalRows int64
+	if err := query.Count(&totalRows).Error; err != nil {
+		fmt.Printf("[ERROR] Failed to count attendance records: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count attendance records", "details": err.Error()})
+		return
+	}
+	fmt.Printf("[DEBUG] Total rows found: %d\n", totalRows)
+
+	// Validate sortBy field
+	allowedSortFields := map[string]bool{
+		"id": true, "check_in_time": true, "check_out_time": true,
+		"status": true, "created_at": true,
+	}
+	if !allowedSortFields[params.SortBy] {
+		fmt.Printf("[DEBUG] Invalid sortBy field '%s', using default 'check_in_time'\n", params.SortBy)
+		params.SortBy = "check_in_time"
+	}
+
+	// Apply pagination and sorting (don't add table prefix, GORM handles it)
+	fmt.Printf("[DEBUG] Applying sort: %s %s\n", params.SortBy, params.SortOrder)
+
+	var attendances []models.Attendance
+	query = utils.ApplyPagination(query, params)
+
+	// Log the SQL query
+	sqlQuery := query.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		return tx.Find(&attendances)
+	})
+	fmt.Printf("[DEBUG] SQL Query: %s\n", sqlQuery)
+
+	if err := query.Find(&attendances).Error; err != nil {
+		fmt.Printf("[ERROR] Failed to fetch attendance records: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch attendance records", "details": err.Error()})
+		return
+	}
+	fmt.Printf("[DEBUG] Retrieved %d attendance records\n", len(attendances))
+
+	// Build paginated response
+	response := utils.BuildPaginatedResponse(attendances, totalRows, params)
+	fmt.Printf("[DEBUG] Sending response with %d records, page %d of %d\n", len(attendances), params.Page, response.TotalPages)
+	c.JSON(http.StatusOK, response)
 }
 
 // @Summary Get subordinate attendance records
@@ -334,24 +389,87 @@ func GetSubordinateAttendanceRecords(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	supervisorId := c.MustGet("userId").(uint)
 
+	fmt.Printf("[DEBUG] GetSubordinateAttendanceRecords - Start for supervisorId: %d\n", supervisorId)
+
 	var subordinateIds []uint
 	if err := db.Model(&models.User{}).Where("supervisor_id = ?", supervisorId).Pluck("id", &subordinateIds).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch subordinates"})
+		fmt.Printf("[ERROR] Failed to fetch subordinates: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch subordinates", "details": err.Error()})
 		return
 	}
+
+	fmt.Printf("[DEBUG] Found %d subordinates: %v\n", len(subordinateIds), subordinateIds)
 
 	if len(subordinateIds) == 0 {
-		c.JSON(http.StatusOK, []models.Attendance{})
+		fmt.Printf("[DEBUG] No subordinates found, returning empty response\n")
+		// Return empty paginated response
+		response := utils.BuildPaginatedResponse([]models.Attendance{}, 0, utils.GetPaginationParams(c))
+		c.JSON(http.StatusOK, response)
 		return
 	}
+
+	// Get pagination params
+	params := utils.GetPaginationParams(c)
+	fmt.Printf("[DEBUG] Pagination params - Page: %d, PageSize: %d, Search: %s, SortBy: %s, SortOrder: %s\n",
+		params.Page, params.PageSize, params.Search, params.SortBy, params.SortOrder)
+
+	// Build base query
+	query := db.Model(&models.Attendance{}).
+		Where("user_id IN ?", subordinateIds).
+		Preload("User").
+		Preload("Location").
+		Preload("Validator")
+
+	// Apply search if provided
+	if params.Search != "" {
+		fmt.Printf("[DEBUG] Applying search filter: %s\n", params.Search)
+		searchPattern := "%" + params.Search + "%"
+		query = query.Where("attendance.status LIKE ? OR EXISTS (SELECT 1 FROM users WHERE users.id = attendance.user_id AND users.name LIKE ?) OR EXISTS (SELECT 1 FROM locations WHERE locations.id = attendance.location_id AND locations.name LIKE ?)",
+			searchPattern, searchPattern, searchPattern)
+	}
+
+	// Count total rows
+	var totalRows int64
+	if err := query.Count(&totalRows).Error; err != nil {
+		fmt.Printf("[ERROR] Failed to count attendance records: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count attendance records", "details": err.Error()})
+		return
+	}
+	fmt.Printf("[DEBUG] Total rows found: %d\n", totalRows)
+
+	// Validate sortBy field
+	allowedSortFields := map[string]bool{
+		"id": true, "check_in_time": true, "check_out_time": true,
+		"status": true, "created_at": true,
+	}
+	if !allowedSortFields[params.SortBy] {
+		fmt.Printf("[DEBUG] Invalid sortBy field '%s', using default 'check_in_time'\n", params.SortBy)
+		params.SortBy = "check_in_time"
+	}
+
+	// Apply pagination and sorting (don't add table prefix, GORM handles it)
+	fmt.Printf("[DEBUG] Applying sort: %s %s\n", params.SortBy, params.SortOrder)
 
 	var attendances []models.Attendance
-	if err := db.Preload("User").Where("user_id IN ?", subordinateIds).Find(&attendances).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch attendance records"})
+	query = utils.ApplyPagination(query, params)
+
+	// Log the SQL query
+	sqlQuery := query.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		return tx.Find(&attendances)
+	})
+	fmt.Printf("[DEBUG] SQL Query: %s\n", sqlQuery)
+
+	if err := query.Find(&attendances).Error; err != nil {
+		fmt.Printf("[ERROR] Failed to fetch attendance records: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch attendance records", "details": err.Error()})
 		return
 	}
+	fmt.Printf("[DEBUG] Retrieved %d attendance records\n", len(attendances))
 
-	c.JSON(http.StatusOK, attendances)
+	// Build paginated response
+	response := utils.BuildPaginatedResponse(attendances, totalRows, params)
+	fmt.Printf("[DEBUG] Sending response with %d records, page %d of %d\n", len(attendances), params.Page, response.TotalPages)
+	c.JSON(http.StatusOK, response)
 }
 
 // @Summary Update subordinate attendance record
