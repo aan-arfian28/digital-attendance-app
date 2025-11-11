@@ -527,10 +527,10 @@ func GetAllAdminUsers(c *gin.Context) {
 		Where("Role.name = ?", "admin").
 		Preload("Supervisor")
 
-	// Apply search if provided
+	// Apply search if provided (search by email, role name, or position)
 	if params.Search != "" {
 		searchPattern := "%" + params.Search + "%"
-		query = query.Where("users.name LIKE ? OR users.email LIKE ? OR users.username LIKE ?",
+		query = query.Where("users.email LIKE ? OR Role.name LIKE ? OR Role.position LIKE ?",
 			searchPattern, searchPattern, searchPattern)
 	}
 
@@ -626,10 +626,10 @@ func GetAllNonAdminUsers(c *gin.Context) {
 		Where("Role.name <> ?", "admin").
 		Preload("Supervisor")
 
-	// Apply search if provided
+	// Apply search if provided (search by email, role name, or position)
 	if params.Search != "" {
 		searchPattern := "%" + params.Search + "%"
-		query = query.Where("users.name LIKE ? OR users.email LIKE ? OR users.username LIKE ?",
+		query = query.Where("users.email LIKE ? OR Role.name LIKE ? OR Role.position LIKE ?",
 			searchPattern, searchPattern, searchPattern)
 	}
 
