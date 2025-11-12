@@ -502,15 +502,24 @@ func DeleteUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
 }
 
-type GetAllAdminUsersResponse struct {
-	ID       uint            `json:"ID"`
-	Username string          `json:"Username"`
-	Name     string          `json:"Name"`
-	Email    string          `json:"Email"`
-	Role     models.RoleName `json:"Role"`
-}
-
-func GetAllAdminUsers(c *gin.Context) {
+// @Summary Get all users with optional role filtering
+// @Description Get a paginated list of users filtered by role (admin, user, or all)
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param page query int false "Page number (default: 1)" example(1)
+// @Param pageSize query int false "Page size (default: 10)" example(10)
+// @Param search query string false "Search by email, role name, or position" example(admin)
+// @Param sortBy query string false "Sort by field (id, name, email, username, created_at, role, position_level)" example(name)
+// @Param sortOrder query string false "Sort order (asc, desc)" example(asc)
+// @Param role query string false "Filter by role: admin, user, or all (default: all)" example(all)
+// @Success 200 {object} utils.PaginatedResponse{data=[]GetAllNonAdminUsersResponse}
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden - Only admins can access"
+// @Failure 500 {object} map[string]string "Server error"
+// @Router /admin/users [get]
+// @Security BearerAuth
+func GetAllUsers(c *gin.Context) {
 	db, exists := c.Get("db")
 	if !exists {
 		c.JSON(500, gin.H{"error": "database connection not found"})
@@ -521,11 +530,21 @@ func GetAllAdminUsers(c *gin.Context) {
 	// Get pagination params
 	params := utils.GetPaginationParams(c)
 
+	// Get role filter param (default: all)
+	roleFilter := c.DefaultQuery("role", "all")
+
 	// Build base query
 	query := DB.Model(&models.User{}).
 		Joins("Role").
-		Where("Role.name = ?", "admin").
 		Preload("Supervisor")
+
+	// Apply role filter
+	if roleFilter == "admin" {
+		query = query.Where("Role.name = ?", "admin")
+	} else if roleFilter == "user" {
+		query = query.Where("Role.name <> ?", "admin")
+	}
+	// If roleFilter == "all", no additional WHERE clause needed
 
 	// Apply search if provided (search by email, role name, or position)
 	if params.Search != "" {
@@ -537,7 +556,7 @@ func GetAllAdminUsers(c *gin.Context) {
 	// Count total rows
 	var totalRows int64
 	if err := query.Count(&totalRows).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count admin users"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count users"})
 		return
 	}
 
@@ -562,7 +581,7 @@ func GetAllAdminUsers(c *gin.Context) {
 	var users []models.User
 	query = utils.ApplyPagination(query, params)
 	if err := query.Find(&users).Error; err != nil {
-		c.JSON(500, gin.H{"error": "failed to retrieve admin users"})
+		c.JSON(500, gin.H{"error": "failed to retrieve users"})
 		return
 	}
 
@@ -610,107 +629,6 @@ type GetAllNonAdminUsersResponse struct {
 		SupervisorName string `json:"SupervisorName"`
 	} `json:"Supervisor"`
 }
-
-// @Summary Get all non-admin users
-// @Description Retrieve a list of all users who are not administrators
-// @Tags users
-// @Accept json
-// @Produce json
-// @Success 200 {array} GetAllNonAdminUsersResponse
-// @Failure 401 {object} map[string]string "Unauthorized"
-// @Failure 403 {object} map[string]string "Forbidden - Only admins can view user list"
-// @Failure 500 {object} map[string]string "Server error"
-// @Router /admin/users/non-admins [get]
-// @Security BearerAuth
-func GetAllNonAdminUsers(c *gin.Context) {
-	DB := c.MustGet("db").(*gorm.DB)
-
-	// Get pagination params
-	params := utils.GetPaginationParams(c)
-
-	// Build base query
-	query := DB.Model(&models.User{}).
-		Joins("Role").
-		Where("Role.name <> ?", "admin").
-		Preload("Supervisor")
-
-	// Apply search if provided (search by email, role name, or position)
-	if params.Search != "" {
-		searchPattern := "%" + params.Search + "%"
-		query = query.Where("users.email LIKE ? OR Role.name LIKE ? OR Role.position LIKE ?",
-			searchPattern, searchPattern, searchPattern)
-	}
-
-	// Count total rows
-	var totalRows int64
-	if err := query.Count(&totalRows).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count non-admin users"})
-		return
-	}
-
-	// Validate sortBy field
-	allowedSortFields := map[string]bool{
-		"id": true, "name": true, "email": true, "username": true, "created_at": true,
-		"role": true, "position_level": true,
-	}
-	if !allowedSortFields[params.SortBy] {
-		params.SortBy = "id"
-	}
-
-	// Apply pagination and sorting (prepend table name to avoid ambiguity)
-	// Handle role-specific fields
-	if params.SortBy == "role" {
-		params.SortBy = "Role.name"
-	} else if params.SortBy == "position_level" {
-		params.SortBy = "Role.position_level"
-	} else {
-		params.SortBy = "users." + params.SortBy
-	}
-	var users []models.User
-	query = utils.ApplyPagination(query, params)
-	if err := query.Find(&users).Error; err != nil {
-		c.JSON(500, gin.H{"error": "failed to retrieve non-admin users"})
-		return
-	}
-
-	// Build response
-	var userResponses []GetAllNonAdminUsersResponse
-	for _, user := range users {
-		response := GetAllNonAdminUsersResponse{
-			ID:            user.ID,
-			Username:      user.Username,
-			Name:          user.Name,
-			Email:         user.Email,
-			Role:          user.Role.Name,
-			Position:      user.Role.Position,
-			PositionLevel: user.Role.PositionLevel,
-		}
-
-		// Safely add supervisor info if it exists
-		if user.Supervisor != nil {
-			response.Supervisor = &struct {
-				SupervisorID   uint   `json:"SupervisorID"`
-				SupervisorName string `json:"SupervisorName"`
-			}{
-				SupervisorID:   user.Supervisor.ID,
-				SupervisorName: user.Supervisor.Name,
-			}
-		}
-		userResponses = append(userResponses, response)
-	}
-
-	// Build paginated response
-	paginatedResponse := utils.BuildPaginatedResponse(userResponses, totalRows, params)
-	c.JSON(http.StatusOK, paginatedResponse)
-}
-
-// type GetAllAdminUsersResponse struct {
-// 	ID       uint            `json:"ID"`
-// 	Username string          `json:"Username"`
-// 	Name     string          `json:"Name"`
-// 	Email    string          `json:"Email"`
-// 	Role     models.RoleName `json:"Role"`
-// }
 
 // @Summary Get all roles
 // @Description Retrieve a list of all available roles in the system
@@ -1072,14 +990,14 @@ func DeleteRole(c *gin.Context) {
 }
 
 // @Summary Get user's subordinates
-// @Description Get a list of all users who report to the current user
+// @Description Get a list of all users who report to the current user (accessible via both /admin/users/subordinates and /user/subordinates)
 // @Tags users
 // @Accept json
 // @Produce json
 // @Success 200 {array} models.UserSwagger "List of subordinate users"
 // @Failure 401 {object} map[string]string "Unauthorized or invalid token"
 // @Failure 500 {object} map[string]string "Server error"
-// @Router /admin/users/subordinates [get]
+// @Router /user/subordinates [get]
 // @Security BearerAuth
 func GetUserSubordinates(c *gin.Context) {
 	DB := c.MustGet("db").(*gorm.DB)

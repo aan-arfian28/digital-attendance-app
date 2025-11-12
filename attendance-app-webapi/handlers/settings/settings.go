@@ -16,15 +16,14 @@ type SettingsResponse map[string]string
 type UpdateSettingsRequest map[string]string
 
 // @Summary Get all settings
-// @Description Retrieve all application settings as key-value pairs
+// @Description Retrieve all application settings as key-value pairs (accessible to all authenticated users)
 // @Tags settings
 // @Accept json
 // @Produce json
 // @Success 200 {object} SettingsResponse
 // @Failure 401 {object} map[string]string "Unauthorized"
-// @Failure 403 {object} map[string]string "Forbidden - Only admins can access settings"
 // @Failure 500 {object} map[string]string "Server error"
-// @Router /admin/settings [get]
+// @Router /user/settings [get]
 // @Security BearerAuth
 func GetAllSettings(c *gin.Context) {
 	DB := c.MustGet("db").(*gorm.DB)
@@ -45,17 +44,16 @@ func GetAllSettings(c *gin.Context) {
 }
 
 // @Summary Get setting by key
-// @Description Retrieve a single setting by its key
+// @Description Retrieve a single setting by its key (accessible to all authenticated users)
 // @Tags settings
 // @Accept json
 // @Produce json
 // @Param key path string true "Setting key"
 // @Success 200 {object} models.SettingSwagger
 // @Failure 401 {object} map[string]string "Unauthorized"
-// @Failure 403 {object} map[string]string "Forbidden - Only admins can access settings"
 // @Failure 404 {object} map[string]string "Setting not found"
 // @Failure 500 {object} map[string]string "Server error"
-// @Router /admin/settings/{key} [get]
+// @Router /user/settings/{key} [get]
 // @Security BearerAuth
 func GetSettingByKey(c *gin.Context) {
 	DB := c.MustGet("db").(*gorm.DB)

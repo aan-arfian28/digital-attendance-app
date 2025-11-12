@@ -138,39 +138,18 @@ function UserManagementContent() {
         pageSize: pageSize.toString(),
         sortBy,
         sortOrder,
+        role: 'all', // Fetch all users (both admin and non-admin)
         ...(debouncedSearch && { search: debouncedSearch }),
       })
       
-      // Fetch non-admin users
-      const nonAdminsResponse = await fetch(`${API_BASE_URL}/admin/users/non-admins?${params}`, {
+      // Fetch all users with single endpoint
+      const response = await fetch(`${API_BASE_URL}/admin/users?${params}`, {
         headers: getAuthHeaders(),
       })
-      if (!nonAdminsResponse.ok) throw new Error('Failed to fetch non-admin users')
-      const nonAdminsData: PaginatedResponse<User> = await nonAdminsResponse.json()
+      if (!response.ok) throw new Error('Failed to fetch users')
+      const data: PaginatedResponse<User> = await response.json()
 
-      // Fetch admin users
-      const adminsResponse = await fetch(`${API_BASE_URL}/admin/users/admins?${params}`, {
-        headers: getAuthHeaders(),
-      })
-      if (!adminsResponse.ok) throw new Error('Failed to fetch admin users')
-      const adminsData: PaginatedResponse<User> = await adminsResponse.json()
-
-      // Handle null responses
-      const nonAdmins = Array.isArray(nonAdminsData.data) ? nonAdminsData.data : []
-      const admins = Array.isArray(adminsData.data) ? adminsData.data : []
-
-      // Merge both arrays and return paginated structure
-      const merged = [...admins, ...nonAdmins]
-      const totalRows = (nonAdminsData.totalRows || 0) + (adminsData.totalRows || 0)
-      const totalPages = Math.max(nonAdminsData.totalPages || 1, adminsData.totalPages || 1)
-      
-      return {
-        data: merged,
-        page: page,
-        pageSize: pageSize,
-        totalRows: totalRows,
-        totalPages: totalPages,
-      } as PaginatedResponse<User>
+      return data
     },
     staleTime: 30000,
     refetchOnWindowFocus: false,
@@ -209,28 +188,18 @@ function UserManagementContent() {
         pageSize: '1000', // Large page size to get all users
         sortBy: 'name',
         sortOrder: 'asc',
+        role: 'all', // Fetch all users
       })
       
-      // Fetch non-admin users
-      const nonAdminsResponse = await fetch(`${API_BASE_URL}/admin/users/non-admins?${params}`, {
+      // Fetch all users with single endpoint
+      const response = await fetch(`${API_BASE_URL}/admin/users?${params}`, {
         headers: getAuthHeaders(),
       })
-      if (!nonAdminsResponse.ok) throw new Error('Failed to fetch non-admin users')
-      const nonAdminsData: PaginatedResponse<User> = await nonAdminsResponse.json()
+      if (!response.ok) throw new Error('Failed to fetch users')
+      const data: PaginatedResponse<User> = await response.json()
 
-      // Fetch admin users
-      const adminsResponse = await fetch(`${API_BASE_URL}/admin/users/admins?${params}`, {
-        headers: getAuthHeaders(),
-      })
-      if (!adminsResponse.ok) throw new Error('Failed to fetch admin users')
-      const adminsData: PaginatedResponse<User> = await adminsResponse.json()
-
-      // Handle null responses
-      const nonAdmins = Array.isArray(nonAdminsData.data) ? nonAdminsData.data : []
-      const admins = Array.isArray(adminsData.data) ? adminsData.data : []
-
-      // Merge and filter by position level
-      const allUsers = [...admins, ...nonAdmins]
+      // Handle null responses and filter by position level
+      const allUsers = Array.isArray(data.data) ? data.data : []
       return allUsers.filter((user) => user.PositionLevel < formData.PositionLevel)
     },
     enabled: formData.PositionLevel > 0,

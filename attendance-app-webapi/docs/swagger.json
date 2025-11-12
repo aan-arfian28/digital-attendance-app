@@ -4,7 +4,7 @@
     ],
     "swagger": "2.0",
     "info": {
-        "description": "API service for digital attendance system with role-based access control.",
+        "description": "Enter your JWT token in the format: Bearer {token}. For testing, you can use this admin test token (valid for 1 year): eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImV4cCI6MTc5MzMyODc5OX0.sKEg9JeUxDqHyD4vGwAb6pk9iLrebJfBpTJGPRnMSrY",
         "title": "Digital Attendance API",
         "termsOfService": "http://swagger.io/terms/",
         "contact": {
@@ -21,7 +21,771 @@
     "host": "localhost:8080",
     "basePath": "/api",
     "paths": {
+        "/admin/email/scheduler-status": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get current scheduler status including timezone, current time, and next scheduled jobs (Admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "email"
+                ],
+                "summary": "Get scheduler status",
+                "responses": {
+                    "200": {
+                        "description": "Scheduler status",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Only admins can access scheduler status",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/email/send-reminder": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Send clock-in or clock-out reminder to all users in the database (Admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "email"
+                ],
+                "summary": "Send reminder to all users",
+                "parameters": [
+                    {
+                        "enum": [
+                            "clock_in",
+                            "clock_out"
+                        ],
+                        "type": "string",
+                        "description": "Reminder type",
+                        "name": "type",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Email sent successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Only admins can send reminders",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/email/test": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Test email sending functionality (Admin only). Send clock-in reminder, clock-out reminder, or custom email.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "email"
+                ],
+                "summary": "Test email sending",
+                "parameters": [
+                    {
+                        "description": "Email test parameters",
+                        "name": "email",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/email.TestEmailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Email sent successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Only admins can test email",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/locations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve all locations",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "locations"
+                ],
+                "summary": "Get all locations",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.LocationSwagger"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Only admins can access locations",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new location",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "locations"
+                ],
+                "summary": "Create new location",
+                "parameters": [
+                    {
+                        "description": "Location data",
+                        "name": "location",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/locations.CreateLocationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.LocationSwagger"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Only admins can create locations",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/locations/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a single location by its ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "locations"
+                ],
+                "summary": "Get location by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Location ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.LocationSwagger"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Only admins can access locations",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Location not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing location",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "locations"
+                ],
+                "summary": "Update location",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Location ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Location data",
+                        "name": "location",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/locations.UpdateLocationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.LocationSwagger"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Only admins can update locations",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Location not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Soft delete a location",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "locations"
+                ],
+                "summary": "Delete location",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Location ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Location deleted successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Cannot delete location - it has associated attendance records",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Only admins can delete locations",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Location not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/settings": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update multiple settings at once (bulk update)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Update settings",
+                "parameters": [
+                    {
+                        "description": "Settings to update (key-value pairs)",
+                        "name": "settings",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/settings.UpdateSettingsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/settings.SettingsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Only admins can update settings",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/admin/users": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a paginated list of users filtered by role (admin, user, or all)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Get all users with optional role filtering",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "example": 1,
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 10,
+                        "description": "Page size (default: 10)",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "admin",
+                        "description": "Search by email, role name, or position",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "name",
+                        "description": "Sort by field (id, name, email, username, created_at, role, position_level)",
+                        "name": "sortBy",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "asc",
+                        "description": "Sort order (asc, desc)",
+                        "name": "sortOrder",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "all",
+                        "description": "Filter by role: admin, user, or all (default: all)",
+                        "name": "role",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.PaginatedResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/UserManagement.GetAllNonAdminUsersResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Only admins can access",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
             "post": {
                 "security": [
                     {
@@ -96,32 +860,29 @@
                 }
             }
         },
-        "/admin/users/non-admins": {
+        "/admin/users/export/excel": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve a list of all users who are not administrators",
+                "description": "Export all users (including soft-deleted) with complete details to Excel file",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
-                    "application/json"
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 ],
                 "tags": [
                     "users"
                 ],
-                "summary": "Get all non-admin users",
+                "summary": "Export all users to Excel",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Excel file with all users data",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/UserManagement.GetAllNonAdminUsersResponse"
-                            }
+                            "type": "file"
                         }
                     },
                     "401": {
@@ -134,7 +895,7 @@
                         }
                     },
                     "403": {
-                        "description": "Forbidden - Only admins can view user list",
+                        "description": "Forbidden - Only admins can export users",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -324,6 +1085,58 @@
                     },
                     "403": {
                         "description": "Forbidden - Only admins can view roles",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users/roles/export/excel": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Export all roles (including soft-deleted) to Excel file",
+                "produces": [
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                ],
+                "tags": [
+                    "roles"
+                ],
+                "summary": "Export roles to Excel",
+                "responses": {
+                    "200": {
+                        "description": "Excel file download",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Only admins can export roles",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -556,55 +1369,6 @@
                     },
                     "404": {
                         "description": "Role not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/admin/users/subordinates": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get a list of all users who report to the current user",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "users"
-                ],
-                "summary": "Get user's subordinates",
-                "responses": {
-                    "200": {
-                        "description": "List of subordinate users",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.UserSwagger"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized or invalid token",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1117,6 +1881,49 @@
                 }
             }
         },
+        "/user/attendance/export/excel": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Export current user's attendance records to Excel file",
+                "produces": [
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                ],
+                "tags": [
+                    "attendance"
+                ],
+                "summary": "Export my attendance records to Excel",
+                "responses": {
+                    "200": {
+                        "description": "Excel file download",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/user/attendance/my-records": {
             "get": {
                 "security": [
@@ -1186,6 +1993,58 @@
                             "items": {
                                 "$ref": "#/definitions/models.AttendanceSwagger"
                             }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Not a supervisor",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/user/attendance/subordinates/export/excel": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Export subordinate attendance records to Excel file (supervisor only)",
+                "produces": [
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                ],
+                "tags": [
+                    "attendance"
+                ],
+                "summary": "Export subordinate attendance records to Excel",
+                "responses": {
+                    "200": {
+                        "description": "Excel file download",
+                        "schema": {
+                            "type": "file"
                         }
                     },
                     "401": {
@@ -1337,6 +2196,7 @@
                     },
                     {
                         "type": "string",
+                        "example": "SICK",
                         "description": "Type of leave (SICK, PERMIT)",
                         "name": "leaveType",
                         "in": "formData",
@@ -1344,6 +2204,7 @@
                     },
                     {
                         "type": "string",
+                        "example": "2025-10-22",
                         "description": "Start date of leave (YYYY-MM-DD)",
                         "name": "startDate",
                         "in": "formData",
@@ -1351,6 +2212,7 @@
                     },
                     {
                         "type": "string",
+                        "example": "2025-10-24",
                         "description": "End date of leave (YYYY-MM-DD)",
                         "name": "endDate",
                         "in": "formData",
@@ -1358,6 +2220,7 @@
                     },
                     {
                         "type": "string",
+                        "example": "Medical_appointment_and_recovery",
                         "description": "Reason for leave request",
                         "name": "reason",
                         "in": "formData",
@@ -1378,6 +2241,49 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/user/leave/export/excel": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Export current user's leave requests to Excel file",
+                "produces": [
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                ],
+                "tags": [
+                    "leave"
+                ],
+                "summary": "Export my leave requests to Excel",
+                "responses": {
+                    "200": {
+                        "description": "Excel file download",
+                        "schema": {
+                            "type": "file"
                         }
                     },
                     "401": {
@@ -1480,6 +2386,58 @@
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/user/leave/subordinates/export/excel": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Export subordinate leave requests to Excel file (supervisor only)",
+                "produces": [
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                ],
+                "tags": [
+                    "leave"
+                ],
+                "summary": "Export subordinate leave requests to Excel",
+                "responses": {
+                    "200": {
+                        "description": "Excel file download",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Not a supervisor",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1644,6 +2602,165 @@
                     }
                 }
             }
+        },
+        "/user/settings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve all application settings as key-value pairs (accessible to all authenticated users)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Get all settings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/settings.SettingsResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/user/settings/{key}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a single setting by its key (accessible to all authenticated users)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Get setting by key",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Setting key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SettingSwagger"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Setting not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/user/subordinates": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a list of all users who report to the current user (accessible via both /admin/users/subordinates and /user/subordinates)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Get user's subordinates",
+                "responses": {
+                    "200": {
+                        "description": "List of subordinate users",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.UserSwagger"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized or invalid token",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1749,15 +2866,19 @@
             "type": "object",
             "required": [
                 "Email",
+                "Name",
                 "Password",
                 "Role",
-                "UserDetail",
                 "Username"
             ],
             "properties": {
                 "Email": {
                     "type": "string",
                     "example": "john@example.com"
+                },
+                "Name": {
+                    "type": "string",
+                    "example": "John Doe"
                 },
                 "Password": {
                     "type": "string",
@@ -1794,18 +2915,6 @@
                 "SupervisorID": {
                     "type": "integer",
                     "example": 1
-                },
-                "UserDetail": {
-                    "type": "object",
-                    "required": [
-                        "Name"
-                    ],
-                    "properties": {
-                        "Name": {
-                            "type": "string",
-                            "example": "John Doe"
-                        }
-                    }
                 },
                 "Username": {
                     "type": "string",
@@ -1859,6 +2968,10 @@
                     "type": "string",
                     "example": "john.updated@example.com"
                 },
+                "Name": {
+                    "type": "string",
+                    "example": "John Doe Updated"
+                },
                 "Password": {
                     "type": "string",
                     "maxLength": 72,
@@ -1891,20 +3004,48 @@
                     "type": "integer",
                     "example": 2
                 },
-                "UserDetail": {
-                    "type": "object",
-                    "properties": {
-                        "Name": {
-                            "type": "string",
-                            "example": "John Doe Updated"
-                        }
-                    }
-                },
                 "Username": {
                     "type": "string",
                     "maxLength": 32,
                     "minLength": 3,
                     "example": "john_doe_updated"
+                }
+            }
+        },
+        "email.TestEmailRequest": {
+            "type": "object",
+            "required": [
+                "recipients",
+                "type"
+            ],
+            "properties": {
+                "body": {
+                    "type": "string",
+                    "example": "\u003ch1\u003eTest Email\u003c/h1\u003e\u003cp\u003eThis is a test email.\u003c/p\u003e"
+                },
+                "recipients": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "user@example.com",
+                        "admin@example.com"
+                    ]
+                },
+                "subject": {
+                    "type": "string",
+                    "example": "Test Email Subject"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "clock_in",
+                        "clock_out",
+                        "custom"
+                    ],
+                    "example": "clock_in"
                 }
             }
         },
@@ -1922,6 +3063,70 @@
                 "username": {
                     "type": "string",
                     "example": "john_doe"
+                }
+            }
+        },
+        "locations.CreateLocationRequest": {
+            "type": "object",
+            "required": [
+                "Latitude",
+                "Longitude",
+                "Name",
+                "Radius"
+            ],
+            "properties": {
+                "Address": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "Jl. Sudirman No. 123, Jakarta"
+                },
+                "Latitude": {
+                    "type": "number",
+                    "example": -6.2
+                },
+                "Longitude": {
+                    "type": "number",
+                    "example": 106.816666
+                },
+                "Name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Head Office"
+                },
+                "Radius": {
+                    "type": "integer",
+                    "maximum": 50000,
+                    "minimum": 10,
+                    "example": 100
+                }
+            }
+        },
+        "locations.UpdateLocationRequest": {
+            "type": "object",
+            "properties": {
+                "Address": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "Jl. Sudirman No. 123, Jakarta"
+                },
+                "Latitude": {
+                    "type": "number",
+                    "example": -6.2
+                },
+                "Longitude": {
+                    "type": "number",
+                    "example": 106.816666
+                },
+                "Name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Head Office"
+                },
+                "Radius": {
+                    "type": "integer",
+                    "maximum": 50000,
+                    "minimum": 10,
+                    "example": 100
                 }
             }
         },
@@ -2066,6 +3271,35 @@
                 "Permit"
             ]
         },
+        "models.LocationSwagger": {
+            "type": "object",
+            "properties": {
+                "Address": {
+                    "type": "string"
+                },
+                "CreatedAt": {
+                    "type": "string"
+                },
+                "ID": {
+                    "type": "integer"
+                },
+                "Latitude": {
+                    "type": "number"
+                },
+                "Longitude": {
+                    "type": "number"
+                },
+                "Name": {
+                    "type": "string"
+                },
+                "Radius": {
+                    "type": "integer"
+                },
+                "UpdatedAt": {
+                    "type": "string"
+                }
+            }
+        },
         "models.Role": {
             "type": "object"
         },
@@ -2099,6 +3333,29 @@
                     "type": "integer"
                 },
                 "UpdatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.SettingSwagger": {
+            "type": "object",
+            "properties": {
+                "CreatedAt": {
+                    "type": "string"
+                },
+                "ID": {
+                    "type": "integer"
+                },
+                "Key": {
+                    "type": "string"
+                },
+                "UpdatedAt": {
+                    "type": "string"
+                },
+                "UpdatedBy": {
+                    "type": "integer"
+                },
+                "Value": {
                     "type": "string"
                 }
             }
@@ -2147,14 +3404,36 @@
                 "Rejected",
                 "DidntCheckout"
             ]
-        }
-    },
-    "securityDefinitions": {
-        "BearerAuth": {
-            "description": "For testing, you can use this admin test token (valid for 1 year):\u003cbr\u003eBearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImV4cCI6MTc5MzMyODc5OX0.sKEg9JeUxDqHyD4vGwAb6pk9iLrebJfBpTJGPRnMSrY",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
+        },
+        "settings.SettingsResponse": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
+        "settings.UpdateSettingsRequest": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
+        "utils.PaginatedResponse": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "page": {
+                    "type": "integer"
+                },
+                "pageSize": {
+                    "type": "integer"
+                },
+                "totalPages": {
+                    "type": "integer"
+                },
+                "totalRows": {
+                    "type": "integer"
+                }
+            }
         }
     }
 }
