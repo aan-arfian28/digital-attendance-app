@@ -4,6 +4,7 @@ package leave
 import (
 	"attendance-app/models"
 	"attendance-app/storage"
+	"attendance-app/utils"
 	"fmt"
 	"net/http"
 	"time"
@@ -236,13 +237,48 @@ func GetMyLeaveRequests(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	userId := c.MustGet("userId").(uint)
 
+	// Get pagination params
+	params := utils.GetPaginationParams(c)
+
+	// Build base query
+	query := db.Model(&models.LeaveRequest{}).
+		Where("user_id = ?", userId).
+		Preload("Approver")
+
+	// Apply search if provided
+	if params.Search != "" {
+		searchPattern := "%" + params.Search + "%"
+		query = query.Where("leave_type LIKE ? OR status LIKE ?", searchPattern, searchPattern)
+	}
+
+	// Count total rows
+	var totalRows int64
+	if err := query.Count(&totalRows).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count leave requests"})
+		return
+	}
+
+	// Validate sortBy field
+	allowedSortFields := map[string]bool{
+		"id": true, "start_date": true, "end_date": true, "leave_type": true,
+		"status": true, "created_at": true,
+	}
+	if !allowedSortFields[params.SortBy] {
+		params.SortBy = "start_date"
+	}
+
+	// Apply pagination and sorting
+	params.SortBy = "leave_requests." + params.SortBy
 	var leaveRequests []models.LeaveRequest
-	if err := db.Where("user_id = ?", userId).Find(&leaveRequests).Error; err != nil {
+	query = utils.ApplyPagination(query, params)
+	if err := query.Find(&leaveRequests).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch leave requests"})
 		return
 	}
 
-	c.JSON(http.StatusOK, leaveRequests)
+	// Build paginated response
+	response := utils.BuildPaginatedResponse(leaveRequests, totalRows, params)
+	c.JSON(http.StatusOK, response)
 }
 
 // @Summary Get subordinate leave requests
@@ -266,17 +302,57 @@ func GetSubordinateLeaveRequests(c *gin.Context) {
 	}
 
 	if len(subordinateIds) == 0 {
-		c.JSON(http.StatusOK, []models.LeaveRequest{})
+		// Return empty paginated response
+		response := utils.BuildPaginatedResponse([]models.LeaveRequest{}, 0, utils.GetPaginationParams(c))
+		c.JSON(http.StatusOK, response)
 		return
 	}
 
+	// Get pagination params
+	params := utils.GetPaginationParams(c)
+
+	// Build base query
+	query := db.Model(&models.LeaveRequest{}).
+		Where("user_id IN ?", subordinateIds).
+		Preload("User").
+		Preload("Approver")
+
+	// Apply search if provided
+	if params.Search != "" {
+		searchPattern := "%" + params.Search + "%"
+		query = query.Joins("LEFT JOIN users ON leave_requests.user_id = users.id").
+			Where("users.name LIKE ? OR leave_requests.leave_type LIKE ? OR leave_requests.status LIKE ?",
+				searchPattern, searchPattern, searchPattern)
+	}
+
+	// Count total rows
+	var totalRows int64
+	if err := query.Count(&totalRows).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count leave requests"})
+		return
+	}
+
+	// Validate sortBy field
+	allowedSortFields := map[string]bool{
+		"id": true, "start_date": true, "end_date": true, "leave_type": true,
+		"status": true, "created_at": true,
+	}
+	if !allowedSortFields[params.SortBy] {
+		params.SortBy = "start_date"
+	}
+
+	// Apply pagination and sorting
+	params.SortBy = "leave_requests." + params.SortBy
 	var leaveRequests []models.LeaveRequest
-	if err := db.Preload("User").Where("user_id IN ?", subordinateIds).Find(&leaveRequests).Error; err != nil {
+	query = utils.ApplyPagination(query, params)
+	if err := query.Find(&leaveRequests).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch leave requests"})
 		return
 	}
 
-	c.JSON(http.StatusOK, leaveRequests)
+	// Build paginated response
+	response := utils.BuildPaginatedResponse(leaveRequests, totalRows, params)
+	c.JSON(http.StatusOK, response)
 }
 
 // @Summary Validate leave request

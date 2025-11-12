@@ -3,15 +3,11 @@ import { useState } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
   flexRender,
   type ColumnDef,
-  type SortingState,
-  type ColumnFiltersState,
 } from '@tanstack/react-table'
 import { Search, Download, ChevronUp, ChevronDown, ChevronsUpDown, AlertCircle, Edit, Trash2 } from 'lucide-react'
+import { useDebounce } from '@/hooks/useDebounce'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -63,6 +59,14 @@ interface User {
   } | null
 }
 
+interface PaginatedResponse<T> {
+  data: T[]
+  page: number
+  pageSize: number
+  totalRows: number
+  totalPages: number
+}
+
 interface Role {
   ID: number
   Name: 'admin' | 'user'
@@ -95,13 +99,17 @@ function UserManagement() {
 
 function UserManagementContent() {
   const queryClient = useQueryClient()
-  const [sorting, setSorting] = useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [globalFilter, setGlobalFilter] = useState('')
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: 10,
-  })
+  
+  // Pagination state
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [search, setSearch] = useState('')
+  const [sortBy, setSortBy] = useState('id')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  
+  // Debounce search
+  const debouncedSearch = useDebounce(search, 500)
+  
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
@@ -121,96 +129,112 @@ function UserManagementContent() {
     SupervisorID: undefined as number | undefined,
   })
 
-  // Fetch users (both admins and non-admins)
-  const { data: users = [], isLoading } = useQuery({
-    queryKey: ['users'],
+  // Fetch users (both admins and non-admins) with pagination
+  const { data: paginatedData, isLoading } = useQuery({
+    queryKey: ['users', page, pageSize, debouncedSearch, sortBy, sortOrder],
     queryFn: async () => {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        pageSize: pageSize.toString(),
+        sortBy,
+        sortOrder,
+        ...(debouncedSearch && { search: debouncedSearch }),
+      })
+      
       // Fetch non-admin users
-      const nonAdminsResponse = await fetch(`${API_BASE_URL}/admin/users/non-admins`, {
+      const nonAdminsResponse = await fetch(`${API_BASE_URL}/admin/users/non-admins?${params}`, {
         headers: getAuthHeaders(),
-        cache: 'no-store',
       })
       if (!nonAdminsResponse.ok) throw new Error('Failed to fetch non-admin users')
-      const nonAdminsData = await nonAdminsResponse.json()
+      const nonAdminsData: PaginatedResponse<User> = await nonAdminsResponse.json()
 
       // Fetch admin users
-      const adminsResponse = await fetch(`${API_BASE_URL}/admin/users/admins`, {
+      const adminsResponse = await fetch(`${API_BASE_URL}/admin/users/admins?${params}`, {
         headers: getAuthHeaders(),
-        cache: 'no-store',
       })
       if (!adminsResponse.ok) throw new Error('Failed to fetch admin users')
-      const adminsData = await adminsResponse.json()
+      const adminsData: PaginatedResponse<User> = await adminsResponse.json()
 
-      // CRITICAL FIX: Handle null responses from API
-      const nonAdmins = Array.isArray(nonAdminsData) ? nonAdminsData : []
-      const admins = Array.isArray(adminsData) ? adminsData : []
+      // Handle null responses
+      const nonAdmins = Array.isArray(nonAdminsData.data) ? nonAdminsData.data : []
+      const admins = Array.isArray(adminsData.data) ? adminsData.data : []
 
-      // Merge both arrays
+      // Merge both arrays and return paginated structure
       const merged = [...admins, ...nonAdmins]
-      return merged
+      const totalRows = (nonAdminsData.totalRows || 0) + (adminsData.totalRows || 0)
+      const totalPages = Math.max(nonAdminsData.totalPages || 1, adminsData.totalPages || 1)
+      
+      return {
+        data: merged,
+        page: page,
+        pageSize: pageSize,
+        totalRows: totalRows,
+        totalPages: totalPages,
+      } as PaginatedResponse<User>
     },
-    staleTime: 0,
-    gcTime: 0,
-    refetchInterval: 3000, // Refetch every 3 seconds
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
 
-  // Fetch roles
-  const { data: roles = [] } = useQuery({
-    queryKey: ['roles'],
+  const users = paginatedData?.data || []
+  const totalPages = paginatedData?.totalPages || 1
+
+  // Fetch roles (all for dropdown)
+  const { data: rolesResponse } = useQuery({
+    queryKey: ['roles-all'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/admin/users/roles`, {
+      const params = new URLSearchParams({
+        page: '1',
+        pageSize: '100',
+        sortBy: 'position_level',
+        sortOrder: 'asc',
+      })
+      const response = await fetch(`${API_BASE_URL}/admin/users/roles?${params}`, {
         headers: getAuthHeaders(),
-        cache: 'no-store',
       })
       if (!response.ok) throw new Error('Failed to fetch roles')
-      return response.json() as Promise<Role[]>
+      return response.json() as Promise<PaginatedResponse<Role>>
     },
-    staleTime: 0,
-    gcTime: 0,
-    refetchInterval: 3000, // Refetch every 3 seconds
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
+    staleTime: 300000, // 5 minutes
   })
+
+  const roles = rolesResponse?.data || []
 
   // Fetch potential supervisors
   const { data: supervisors = [] } = useQuery({
     queryKey: ['supervisors', formData.PositionLevel],
     queryFn: async () => {
+      const params = new URLSearchParams({
+        page: '1',
+        pageSize: '1000', // Large page size to get all users
+        sortBy: 'name',
+        sortOrder: 'asc',
+      })
+      
       // Fetch non-admin users
-      const nonAdminsResponse = await fetch(`${API_BASE_URL}/admin/users/non-admins`, {
+      const nonAdminsResponse = await fetch(`${API_BASE_URL}/admin/users/non-admins?${params}`, {
         headers: getAuthHeaders(),
-        cache: 'no-store',
       })
       if (!nonAdminsResponse.ok) throw new Error('Failed to fetch non-admin users')
-      const nonAdminsData = await nonAdminsResponse.json()
+      const nonAdminsData: PaginatedResponse<User> = await nonAdminsResponse.json()
 
       // Fetch admin users
-      const adminsResponse = await fetch(`${API_BASE_URL}/admin/users/admins`, {
+      const adminsResponse = await fetch(`${API_BASE_URL}/admin/users/admins?${params}`, {
         headers: getAuthHeaders(),
-        cache: 'no-store',
       })
       if (!adminsResponse.ok) throw new Error('Failed to fetch admin users')
-      const adminsData = await adminsResponse.json()
+      const adminsData: PaginatedResponse<User> = await adminsResponse.json()
 
-      // CRITICAL FIX: Handle null responses from API
-      const nonAdmins = Array.isArray(nonAdminsData) ? nonAdminsData : []
-      const admins = Array.isArray(adminsData) ? adminsData : []
+      // Handle null responses
+      const nonAdmins = Array.isArray(nonAdminsData.data) ? nonAdminsData.data : []
+      const admins = Array.isArray(adminsData.data) ? adminsData.data : []
 
       // Merge and filter by position level
       const allUsers = [...admins, ...nonAdmins]
       return allUsers.filter((user) => user.PositionLevel < formData.PositionLevel)
     },
     enabled: formData.PositionLevel > 0,
-    staleTime: 0,
-    gcTime: 0,
-    refetchInterval: 3000, // Refetch every 3 seconds
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
+    staleTime: 60000,
   })
 
   // Create user mutation
@@ -423,17 +447,29 @@ function UserManagementContent() {
   const columns: ColumnDef<User>[] = [
     {
       accessorKey: 'ID',
-      header: ({ column }) => {
+      header: () => {
+        const isActive = sortBy === 'id'
+        const isAsc = sortOrder === 'asc'
+        
         return (
           <button
             className="flex items-center gap-2 font-semibold"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            onClick={() => {
+              if (isActive) {
+                setSortOrder(isAsc ? 'desc' : 'asc')
+              } else {
+                setSortBy('id')
+                setSortOrder('asc')
+              }
+            }}
           >
             ID
-            {column.getIsSorted() === 'asc' ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : column.getIsSorted() === 'desc' ? (
-              <ChevronDown className="h-4 w-4" />
+            {isActive ? (
+              isAsc ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )
             ) : (
               <ChevronsUpDown className="h-4 w-4" />
             )}
@@ -447,48 +483,73 @@ function UserManagementContent() {
     },
     {
       accessorKey: 'Role',
-      header: ({ column }) => {
+      header: () => {
+        const isActive = sortBy === 'role'
+        const isAsc = sortOrder === 'asc'
+        
         return (
           <button
             className="flex items-center gap-2 font-semibold"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            onClick={() => {
+              if (isActive) {
+                setSortOrder(isAsc ? 'desc' : 'asc')
+              } else {
+                setSortBy('role')
+                setSortOrder('asc')
+              }
+            }}
           >
             Role
-            {column.getIsSorted() === 'asc' ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : column.getIsSorted() === 'desc' ? (
-              <ChevronDown className="h-4 w-4" />
+            {isActive ? (
+              isAsc ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )
             ) : (
               <ChevronsUpDown className="h-4 w-4" />
             )}
           </button>
         )
       },
+      cell: ({ row }) => row.original.Role,
     },
     {
       accessorKey: 'Position',
       header: 'Posisi',
-      enableSorting: false,
     },
     {
       accessorKey: 'PositionLevel',
-      header: ({ column }) => {
+      header: () => {
+        const isActive = sortBy === 'position_level'
+        const isAsc = sortOrder === 'asc'
+        
         return (
           <button
             className="flex items-center gap-2 font-semibold"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            onClick={() => {
+              if (isActive) {
+                setSortOrder(isAsc ? 'desc' : 'asc')
+              } else {
+                setSortBy('position_level')
+                setSortOrder('asc')
+              }
+            }}
           >
             Level Posisi
-            {column.getIsSorted() === 'asc' ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : column.getIsSorted() === 'desc' ? (
-              <ChevronDown className="h-4 w-4" />
+            {isActive ? (
+              isAsc ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )
             ) : (
               <ChevronsUpDown className="h-4 w-4" />
             )}
           </button>
         )
       },
+      cell: ({ row }) => row.original.PositionLevel,
     },
     {
       id: 'supervisor',
@@ -532,30 +593,10 @@ function UserManagementContent() {
     data: users,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    onGlobalFilterChange: setGlobalFilter,
-    onPaginationChange: setPagination,
-    globalFilterFn: (row, _columnId, filterValue) => {
-      const search = filterValue.toLowerCase()
-      const user = row.original
-      
-      // Search only in email, role, and position
-      return (
-        user.Email.toLowerCase().includes(search) ||
-        user.Role.toLowerCase().includes(search) ||
-        user.Position.toLowerCase().includes(search)
-      )
-    },
-    state: {
-      sorting,
-      columnFilters,
-      globalFilter,
-      pagination,
-    },
+    manualPagination: true,
+    manualSorting: true,
+    manualFiltering: true,
+    pageCount: totalPages,
   })
 
   return (
@@ -572,8 +613,11 @@ function UserManagementContent() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
             placeholder="Cari berdasarkan email, role, atau posisi..."
-            value={globalFilter ?? ''}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGlobalFilter(e.target.value)}
+            value={search}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              setSearch(e.target.value)
+              setPage(1) // Reset to first page on search
+            }}
             className="pl-10 rounded-sm"
           />
         </div>
@@ -801,37 +845,43 @@ function UserManagementContent() {
 
         {/* Pagination */}
         <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-700">Baris per halaman:</span>
-            <Select
-              value={pagination.pageSize.toString()}
-              onValueChange={(value) => {
-                table.setPageSize(Number(value))
-              }}
-            >
-              <SelectTrigger className="w-20 rounded-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="rounded-sm">
-                {[10, 20, 50].map((size) => (
-                  <SelectItem key={size} value={size.toString()}>
-                    {size}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-700">Baris per halaman:</span>
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(value) => {
+                  setPageSize(Number(value))
+                  setPage(1)
+                }}
+              >
+                <SelectTrigger className="w-20 rounded-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-sm">
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <span className="text-sm text-gray-700">
+              Menampilkan {(page - 1) * pageSize + 1} ke{' '}
+              {Math.min(page * pageSize, paginatedData?.totalRows || 0)}{' '}
+              dari {paginatedData?.totalRows || 0} hasil
+            </span>
           </div>
 
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-700">
-              Halaman {table.getState().pagination.pageIndex + 1} dari {table.getPageCount()}
+              Halaman {page} dari {totalPages}
             </span>
             <div className="flex gap-1">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
                 className="rounded-sm"
               >
                 Sebelumnya
@@ -839,8 +889,8 @@ function UserManagementContent() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
                 className="rounded-sm"
               >
                 Selanjutnya

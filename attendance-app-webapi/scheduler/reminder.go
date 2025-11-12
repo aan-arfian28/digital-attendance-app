@@ -61,18 +61,6 @@ func (s *ReminderScheduler) Start() {
 		log.Printf("✓ Evening reminder scheduled (Entry ID: %d) - Cron: '0 17 * * *'", eveningEntryID)
 	}
 
-	// Add a test cron job that runs every minute for debugging
-	// TODO: Remove this after confirming cron scheduler works
-	testEntryID, err := s.cron.AddFunc("* * * * *", func() {
-		testTime := time.Now().In(location)
-		log.Printf("🔔 CRON HEARTBEAT: Test job executed at %s", testTime.Format("2006-01-02 15:04:05 MST"))
-	})
-	if err != nil {
-		log.Printf("ERROR: Failed to schedule test heartbeat: %v", err)
-	} else {
-		log.Printf("✓ Test heartbeat scheduled (Entry ID: %d) - Cron: '* * * * *' (every minute)", testEntryID)
-	}
-
 	s.cron.Start()
 	log.Printf("✓ Cron scheduler started successfully")
 
