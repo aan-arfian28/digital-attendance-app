@@ -3,7 +3,10 @@ package router
 import (
 	"attendance-app/handlers"
 	"attendance-app/handlers/attendance"
+	emailHandler "attendance-app/handlers/email"
 	"attendance-app/handlers/leave"
+	"attendance-app/handlers/locations"
+	"attendance-app/handlers/settings"
 	UserManagement "attendance-app/handlers/userManagement"
 	"attendance-app/middleware"
 	"attendance-app/models"
@@ -61,19 +64,44 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 			admin := auth.Group("/admin")
 			admin.Use(middleware.RoleMiddleware(models.RoleAdmin))
 			{
+				// Settings endpoints (admin only - write operations)
+				adminSettings := admin.Group("/settings")
+				{
+					adminSettings.PUT("", settings.UpdateSettings)
+				}
+
+				// Locations endpoints
+				adminLocations := admin.Group("/locations")
+				{
+					adminLocations.GET("", locations.GetAllLocations)
+					adminLocations.GET("/:id", locations.GetLocationByID)
+					adminLocations.POST("", locations.CreateLocation)
+					adminLocations.PUT("/:id", locations.UpdateLocation)
+					adminLocations.DELETE("/:id", locations.DeleteLocation)
+				}
+
+				// Email endpoints (testing and manual sending)
+				adminEmail := admin.Group("/email")
+				{
+					adminEmail.POST("/test", emailHandler.TestEmail)
+					adminEmail.POST("/send-reminder", emailHandler.SendReminderToAll)
+					adminEmail.GET("/scheduler-status", emailHandler.GetSchedulerStatus)
+				}
+
 				users := admin.Group("/users")
 				{
+					users.GET("", UserManagement.GetAllUsers)
 					users.POST("/", UserManagement.CreateUser)
+					users.GET("/export/excel", UserManagement.ExportUsersToExcel)
 					users.GET("/:id", UserManagement.GetUser)
 					users.PUT("/:id", UserManagement.UpdateUser)
 					users.DELETE("/:id", UserManagement.DeleteUser)
-					users.GET("/admins", UserManagement.GetAllAdminUsers)
-					users.GET("/non-admins", UserManagement.GetAllNonAdminUsers)
 					users.GET("/subordinates", UserManagement.GetUserSubordinates)
 
 					roles := users.Group("/roles")
 					{
 						roles.GET("", UserManagement.GetRoles)
+						roles.GET("/export/excel", UserManagement.ExportRolesToExcel)
 						roles.POST("", UserManagement.CreateRole)
 						roles.PUT("/:id", UserManagement.UpdateRole)
 						roles.DELETE("/:id", UserManagement.DeleteRole)
@@ -93,15 +121,24 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 				// Subordinates endpoint - get current user's subordinates
 				user.GET("/subordinates", UserManagement.GetUserSubordinates)
 
+				// Settings endpoints (read-only for all users)
+				userSettings := user.Group("/settings")
+				{
+					userSettings.GET("", settings.GetAllSettings)
+					userSettings.GET("/:key", settings.GetSettingByKey)
+				}
+
 				// Attendance endpoints
 				attendances := user.Group("/attendance")
 				{
 					attendances.POST("/check-in", attendance.CheckIn)
 					attendances.POST("/check-out", attendance.CheckOut)
 					attendances.GET("/my-records", attendance.GetMyAttendanceRecords)
+					attendances.GET("/export/excel", attendance.ExportMyAttendanceToExcel)
 
 					// Supervisor-only endpoints
 					attendances.GET("/subordinates", attendance.GetSubordinateAttendanceRecords)
+					attendances.GET("/subordinates/export/excel", attendance.ExportSubordinateAttendanceToExcel)
 					attendances.PUT("/update/:id", attendance.UpdateSubordinateAttendanceRecord)
 				}
 
@@ -110,9 +147,11 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 				{
 					leaves.POST("", leave.SubmitLeaveRequest)
 					leaves.GET("/my-requests", leave.GetMyLeaveRequests)
+					leaves.GET("/export/excel", leave.ExportMyLeaveRequestsToExcel)
 
 					// Supervisor-only endpoints
 					leaves.GET("/subordinates", leave.GetSubordinateLeaveRequests)
+					leaves.GET("/subordinates/export/excel", leave.ExportSubordinateLeaveRequestsToExcel)
 					leaves.PUT("/validate/:id", leave.ValidateLeaveRequest)
 				}
 			}

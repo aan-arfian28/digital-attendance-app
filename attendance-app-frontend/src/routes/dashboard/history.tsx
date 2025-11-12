@@ -3,13 +3,6 @@ import { useState, useCallback } from 'react'
 import { Download, ChevronUp, ChevronDown, ChevronsUpDown, Eye, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -17,8 +10,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import RoleGuard from '@/components/RoleGuard'
 import { useQuery } from '@tanstack/react-query'
 
@@ -37,26 +35,15 @@ const getAuthHeaders = () => {
   }
 }
 
-// OPTIMIZATION: Extract query functions outside component to prevent recreation
-const fetchMyAttendanceHistory = async () => {
-  const response = await fetch(`${API_BASE_URL}/user/attendance/my-records`, {
-    headers: getAuthHeaders(),
-  })
-  if (!response.ok) throw new Error('Failed to fetch attendance records')
-  const data = await response.json()
-  return Array.isArray(data) ? data : []
-}
-
-const fetchMyLeaveHistory = async () => {
-  const response = await fetch(`${API_BASE_URL}/user/leave/my-requests`, {
-    headers: getAuthHeaders(),
-  })
-  if (!response.ok) throw new Error('Failed to fetch leave requests')
-  const data = await response.json()
-  return Array.isArray(data) ? data : []
-}
-
 // Types
+interface PaginatedResponse<T> {
+  data: T[]
+  page: number
+  pageSize: number
+  totalRows: number
+  totalPages: number
+}
+
 interface AttendanceRecord {
   ID: number
   CheckInTime: string
@@ -93,36 +80,67 @@ function AttendanceHistory() {
 
 function AttendanceHistoryContent() {
   const [activeTab, setActiveTab] = useState<'attendance' | 'leave'>('attendance')
-  const [attendancePage, setAttendancePage] = useState(0)
+  
+  // Attendance pagination state
+  const [attendancePage, setAttendancePage] = useState(1)
   const [attendancePageSize, setAttendancePageSize] = useState(10)
-  const [leavePage, setLeavePage] = useState(0)
+  const [attendanceSortBy] = useState('check_in_time')
+  const [attendanceSortOrder, setAttendanceSortOrder] = useState<'asc' | 'desc'>('desc')
+  
+  // Leave pagination state
+  const [leavePage, setLeavePage] = useState(1)
   const [leavePageSize, setLeavePageSize] = useState(10)
-  const [attendanceSortOrder, setAttendanceSortOrder] = useState<'asc' | 'desc' | null>('desc') // Default: newest first
-  const [leaveSortOrder, setLeaveSortOrder] = useState<'asc' | 'desc' | null>('desc') // Default: newest first
+  const [leaveSortBy] = useState('start_date')
+  const [leaveSortOrder, setLeaveSortOrder] = useState<'asc' | 'desc'>('desc')
+  
+  const [isExporting, setIsExporting] = useState(false)
   
   // Detail modal states
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | LeaveRequestRecord | null>(null)
 
-  const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery({
-    queryKey: ['my-attendance'],
-    queryFn: fetchMyAttendanceHistory,
-    staleTime: 0,
-    refetchInterval: 3000, // Refetch every 3 seconds
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
+  const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
+    queryKey: ['my-attendance', attendancePage, attendancePageSize, attendanceSortBy, attendanceSortOrder],
+    queryFn: async (): Promise<PaginatedResponse<AttendanceRecord>> => {
+      const params = new URLSearchParams({
+        page: attendancePage.toString(),
+        pageSize: attendancePageSize.toString(),
+        sortBy: attendanceSortBy,
+        sortOrder: attendanceSortOrder,
+      })
+      const response = await fetch(`${API_BASE_URL}/user/attendance/my-records?${params}`, {
+        headers: getAuthHeaders(),
+      })
+      if (!response.ok) throw new Error('Failed to fetch attendance records')
+      return response.json()
+    },
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
 
-  const { data: leaveRecords = [], isLoading: leaveLoading } = useQuery({
-    queryKey: ['my-leave-requests'],
-    queryFn: fetchMyLeaveHistory,
-    staleTime: 0,
-    refetchInterval: 3000, // Refetch every 3 seconds
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
+  const { data: leaveData, isLoading: leaveLoading } = useQuery({
+    queryKey: ['my-leave-requests', leavePage, leavePageSize, leaveSortBy, leaveSortOrder],
+    queryFn: async (): Promise<PaginatedResponse<LeaveRequestRecord>> => {
+      const params = new URLSearchParams({
+        page: leavePage.toString(),
+        pageSize: leavePageSize.toString(),
+        sortBy: leaveSortBy,
+        sortOrder: leaveSortOrder,
+      })
+      const response = await fetch(`${API_BASE_URL}/user/leave/my-requests?${params}`, {
+        headers: getAuthHeaders(),
+      })
+      if (!response.ok) throw new Error('Failed to fetch leave requests')
+      return response.json()
+    },
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
+
+  const attendanceRecords = attendanceData?.data || []
+  const attendanceTotalPages = attendanceData?.totalPages || 1
+  const leaveRecords = leaveData?.data || []
+  const leaveTotalPages = leaveData?.totalPages || 1
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '-'
@@ -172,152 +190,72 @@ function AttendanceHistoryContent() {
     setIsDetailModalOpen(true)
   }, [])
 
-  // Export to CSV
-  const exportAttendanceToCSV = () => {
-    const headers = ['Tanggal', 'Check In', 'Check Out', 'Durasi', 'Status', 'Validasi']
-    const rows = attendanceRecords.map((record: AttendanceRecord) => [
-      formatDate(record.CheckInTime),
-      formatTime(record.CheckInTime),
-      record.CheckOutTime ? formatTime(record.CheckOutTime) : '-',
-      calculateDuration(record.CheckInTime, record.CheckOutTime),
-      record.Status === 'ON_TIME' ? 'Tepat Waktu' : record.Status === 'LATE' ? 'Terlambat' : record.Status,
-      record.ValidationStatus,
-    ])
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) => row.map(cell => `"${cell}"`).join(',')),
-    ].join('\n')
-
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `attendance_history_${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
-  }
-
-  const exportLeaveToCSV = () => {
-    const headers = ['Periode', 'Tipe', 'Alasan', 'Status']
-    const rows = leaveRecords.map((record: LeaveRequestRecord) => [
-      `${formatDate(record.StartDate)} - ${formatDate(record.EndDate)}`,
-      record.LeaveType === 'SICK' ? 'Sakit' : 'Izin',
-      record.Reason,
-      record.Status === 'APPROVED' ? 'Disetujui' : record.Status === 'REJECTED' ? 'Ditolak' : 'Menunggu',
-    ])
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) => row.map(cell => `"${cell}"`).join(',')),
-    ].join('\n')
-
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `leave_history_${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
-  }
-
-  // Sorting helpers
-  const sortAttendanceData = (data: AttendanceRecord[]) => {
-    if (!attendanceSortOrder) return data
-    
-    return [...data].sort((a, b) => {
-      const dateA = new Date(a.CheckInTime).getTime()
-      const dateB = new Date(b.CheckInTime).getTime()
+  // Export to Excel
+  const exportAttendanceToExcel = async () => {
+    setIsExporting(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/attendance/export/excel`, {
+        headers: getAuthHeaders(),
+      })
       
-      if (attendanceSortOrder === 'asc') {
-        return dateA - dateB
-      } else {
-        return dateB - dateA
+      if (!response.ok) {
+        throw new Error('Failed to export attendance')
       }
-    })
-  }
-
-  const sortLeaveData = (data: LeaveRequestRecord[]) => {
-    if (!leaveSortOrder) return data
-    
-    return [...data].sort((a, b) => {
-      const dateA = new Date(a.StartDate).getTime()
-      const dateB = new Date(b.StartDate).getTime()
       
-      if (leaveSortOrder === 'asc') {
-        return dateA - dateB
-      } else {
-        return dateB - dateA
-      }
-    })
-  }
-
-  const toggleAttendanceSort = () => {
-    if (attendanceSortOrder === 'desc') {
-      setAttendanceSortOrder('asc')
-    } else if (attendanceSortOrder === 'asc') {
-      setAttendanceSortOrder('desc')
-    } else {
-      setAttendanceSortOrder('desc')
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `my_attendance_${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Export error:', error)
+    } finally {
+      setIsExporting(false)
     }
+  }
+
+  const exportLeaveToExcel = async () => {
+    setIsExporting(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/leave/export/excel`, {
+        headers: getAuthHeaders(),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to export leave requests')
+      }
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `my_leave_requests_${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Export error:', error)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  // Toggle sorting handlers
+  const toggleAttendanceSort = () => {
+    setAttendanceSortOrder(attendanceSortOrder === 'asc' ? 'desc' : 'asc')
   }
 
   const toggleLeaveSort = () => {
-    if (leaveSortOrder === 'desc') {
-      setLeaveSortOrder('asc')
-    } else if (leaveSortOrder === 'asc') {
-      setLeaveSortOrder('desc')
-    } else {
-      setLeaveSortOrder('desc')
-    }
+    setLeaveSortOrder(leaveSortOrder === 'asc' ? 'desc' : 'asc')
   }
 
-  // Pagination helpers
-  const getCurrentPageData = () => {
-    if (activeTab === 'attendance') {
-      const sortedData = sortAttendanceData(attendanceRecords)
-      const start = attendancePage * attendancePageSize
-      const end = start + attendancePageSize
-      return sortedData.slice(start, end)
-    } else {
-      const sortedData = sortLeaveData(leaveRecords)
-      const start = leavePage * leavePageSize
-      const end = start + leavePageSize
-      return sortedData.slice(start, end)
-    }
-  }
-
-  const getTotalPages = () => {
-    if (activeTab === 'attendance') {
-      return Math.ceil(attendanceRecords.length / attendancePageSize)
-    } else {
-      return Math.ceil(leaveRecords.length / leavePageSize)
-    }
-  }
-
-  const getCurrentPage = () => {
-    return activeTab === 'attendance' ? attendancePage : leavePage
-  }
-
-  const setCurrentPage = (page: number) => {
-    if (activeTab === 'attendance') {
-      setAttendancePage(page)
-    } else {
-      setLeavePage(page)
-    }
-  }
-
-  const setCurrentPageSize = (size: number) => {
-    if (activeTab === 'attendance') {
-      setAttendancePageSize(size)
-      setAttendancePage(0)
-    } else {
-      setLeavePageSize(size)
-      setLeavePage(0)
-    }
-  }
-
-  const paginatedData = getCurrentPageData()
+  // Get current page data (backend handles pagination)
+  const paginatedData = activeTab === 'attendance' ? attendanceRecords : leaveRecords
 
   return (
     <div className="p-6">
@@ -331,11 +269,12 @@ function AttendanceHistoryContent() {
       <div className="flex justify-start mb-6">
         <Button
           variant="outline"
-          onClick={activeTab === 'attendance' ? exportAttendanceToCSV : exportLeaveToCSV}
-          className="border-gray-300 rounded-sm"
+          onClick={activeTab === 'attendance' ? exportAttendanceToExcel : exportLeaveToExcel}
+          disabled={isExporting}
+          className="border-gray-300 rounded-sm disabled:opacity-50"
         >
           <Download className="h-4 w-4 mr-2" />
-          Export CSV
+          {isExporting ? 'Exporting...' : 'Export Excel'}
         </Button>
       </div>
 
@@ -472,35 +411,43 @@ function AttendanceHistoryContent() {
 
           {/* Pagination */}
           <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-700">Baris per halaman:</span>
-              <Select
-                value={attendancePageSize.toString()}
-                onValueChange={(value) => setCurrentPageSize(Number(value))}
-              >
-                <SelectTrigger className="w-20 rounded-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="rounded-sm">
-                  {[10, 20, 50].map((size) => (
-                    <SelectItem key={size} value={size.toString()}>
-                      {size}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-700">Baris per halaman:</span>
+                <Select
+                  value={attendancePageSize.toString()}
+                  onValueChange={(value) => {
+                    setAttendancePageSize(Number(value))
+                    setAttendancePage(1)
+                  }}
+                >
+                  <SelectTrigger className="w-20 rounded-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-sm">
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <span className="text-sm text-gray-700">
+                Menampilkan {(attendancePage - 1) * attendancePageSize + 1} ke{' '}
+                {Math.min(attendancePage * attendancePageSize, attendanceData?.totalRows || 0)}{' '}
+                dari {attendanceData?.totalRows || 0} hasil
+              </span>
             </div>
 
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-700">
-                Halaman {getCurrentPage() + 1} dari {getTotalPages() || 1}
+                Halaman {attendancePage} dari {attendanceTotalPages}
               </span>
               <div className="flex gap-1">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(getCurrentPage() - 1)}
-                  disabled={getCurrentPage() === 0}
+                  onClick={() => setAttendancePage(p => Math.max(1, p - 1))}
+                  disabled={attendancePage === 1}
                   className="rounded-sm"
                 >
                   Sebelumnya
@@ -508,8 +455,8 @@ function AttendanceHistoryContent() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(getCurrentPage() + 1)}
-                  disabled={getCurrentPage() >= getTotalPages() - 1}
+                  onClick={() => setAttendancePage(p => Math.min(attendanceTotalPages, p + 1))}
+                  disabled={attendancePage === attendanceTotalPages}
                   className="rounded-sm"
                 >
                   Selanjutnya
@@ -606,35 +553,43 @@ function AttendanceHistoryContent() {
 
           {/* Pagination */}
           <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-700">Baris per halaman:</span>
-              <Select
-                value={leavePageSize.toString()}
-                onValueChange={(value) => setCurrentPageSize(Number(value))}
-              >
-                <SelectTrigger className="w-20 rounded-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="rounded-sm">
-                  {[10, 20, 50].map((size) => (
-                    <SelectItem key={size} value={size.toString()}>
-                      {size}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-700">Baris per halaman:</span>
+                <Select
+                  value={leavePageSize.toString()}
+                  onValueChange={(value) => {
+                    setLeavePageSize(Number(value))
+                    setLeavePage(1)
+                  }}
+                >
+                  <SelectTrigger className="w-20 rounded-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-sm">
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <span className="text-sm text-gray-700">
+                Menampilkan {(leavePage - 1) * leavePageSize + 1} ke{' '}
+                {Math.min(leavePage * leavePageSize, leaveData?.totalRows || 0)}{' '}
+                dari {leaveData?.totalRows || 0} hasil
+              </span>
             </div>
 
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-700">
-                Halaman {getCurrentPage() + 1} dari {getTotalPages() || 1}
+                Halaman {leavePage} dari {leaveTotalPages}
               </span>
               <div className="flex gap-1">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(getCurrentPage() - 1)}
-                  disabled={getCurrentPage() === 0}
+                  onClick={() => setLeavePage(p => Math.max(1, p - 1))}
+                  disabled={leavePage === 1}
                   className="rounded-sm"
                 >
                   Sebelumnya
@@ -642,8 +597,8 @@ function AttendanceHistoryContent() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(getCurrentPage() + 1)}
-                  disabled={getCurrentPage() >= getTotalPages() - 1}
+                  onClick={() => setLeavePage(p => Math.min(leaveTotalPages, p + 1))}
+                  disabled={leavePage === leaveTotalPages}
                   className="rounded-sm"
                 >
                   Selanjutnya

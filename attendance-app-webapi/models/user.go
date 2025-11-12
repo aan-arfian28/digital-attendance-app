@@ -12,6 +12,7 @@ type User struct {
 	Username string `json:"Username" validate:"required,min=3,max=32" gorm:"not null"`
 	Password string `json:"Password" validate:"required,min=8,max=72" gorm:"not null"`
 	Email    string `json:"Email" validate:"required,email"`
+	Name     string `json:"Name"`
 	RoleID   uint
 	Role     *Role `json:"Role" gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 
@@ -21,24 +22,9 @@ type User struct {
 	Supervisor   *User  `gorm:"foreignKey:SupervisorID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Subordinates []User `json:"Subordinates,omitempty" gorm:"foreignKey:SupervisorID;references:ID;"` // No constraint tag here to avoid conflict
 
-	// UserDetail Relationship (Corrected)
-	// This tag only informs GORM how to join, the actual constraint is in UserDetail model.
-	UserDetail UserDetail `gorm:"foreignKey:UserID"`
-
 	// One-to-Many Relationships
 	Attendances   []Attendance   `json:"Attendances,omitempty" gorm:"foreignKey:UserID"`
 	LeaveRequests []LeaveRequest `json:"LeaveRequests,omitempty" gorm:"foreignKey:UserID"`
-}
-
-// UserDetail stores additional information about the user. (Corrected)
-type UserDetail struct {
-	gorm.Model
-	// The 'unique' tag enforces the one-to-one relationship at the database level.
-	UserID uint   `gorm:"not null;unique"`
-	Name   string `json:"Name"`
-
-	// The constraint is now defined explicitly and only here.
-	User *User `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 type RoleName string

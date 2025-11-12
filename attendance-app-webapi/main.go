@@ -14,10 +14,12 @@
 // @BasePath /api
 // @schemes http
 
-// @securityDefinitions.apikey BearerAuth
+// @securityDefinitions.http BearerAuth
 // @in header
 // @name Authorization
-// @description For testing, you can use this admin test token (valid for 1 year):<br>Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImV4cCI6MTc5MzMyODc5OX0.sKEg9JeUxDqHyD4vGwAb6pk9iLrebJfBpTJGPRnMSrY
+// @scheme bearer
+// @bearerFormat JWT
+// @description Enter your JWT token in the format: Bearer {token}. For testing, you can use this admin test token (valid for 1 year): eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImV4cCI6MTc5MzMyODc5OX0.sKEg9JeUxDqHyD4vGwAb6pk9iLrebJfBpTJGPRnMSrY
 
 package main
 
@@ -61,6 +63,11 @@ func main() {
 	attendanceScheduler := scheduler.NewAttendanceScheduler(DB)
 	attendanceScheduler.Start()
 	defer attendanceScheduler.Stop()
+
+	// Initialize and start the reminder scheduler (for email notifications)
+	reminderScheduler := scheduler.NewReminderScheduler(DB)
+	reminderScheduler.Start()
+	defer reminderScheduler.Stop()
 
 	// Set up Swagger info
 	docs.SwaggerInfo.Title = "Digital Attendance API"

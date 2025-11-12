@@ -15,8 +15,14 @@ COPY go.mod go.sum ./
 # Download dependencies
 RUN go mod download
 
+# Install swag CLI for generating Swagger documentation
+RUN go install github.com/swaggo/swag/cmd/swag@latest
+
 # Copy source code
 COPY . .
+
+# Generate Swagger documentation
+RUN swag init -g main.go --output ./docs
 
 # Build static binary
 RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w -extldflags '-static'" -o /app/server main.go
@@ -37,6 +43,9 @@ WORKDIR /app
 
 # Copy binary from builder
 COPY --from=builder --chown=appuser:appuser /app/server /app/server
+
+# Copy Swagger documentation
+COPY --from=builder --chown=appuser:appuser /app/docs /app/docs
 
 # Copy migrations
 COPY --from=builder --chown=appuser:appuser /app/database/migrations /app/database/migrations

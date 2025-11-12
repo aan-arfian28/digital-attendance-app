@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { useDebounce } from '@/hooks/useDebounce'
 import {
   Dialog,
   DialogContent,
@@ -19,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, ExternalLink, Eye, X, Check } from 'lucide-react'
+import { AlertCircle, ExternalLink, Eye, X, Check, Download, Search } from 'lucide-react'
 import RoleGuard from '@/components/RoleGuard'
 import SubordinateGuard from '@/components/SubordinateGuard'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -39,26 +41,15 @@ const getAuthHeaders = () => {
   }
 }
 
-// OPTIMIZATION: Extract query functions outside component to prevent recreation
-const fetchSubordinateAttendance = async () => {
-  const response = await fetch(`${API_BASE_URL}/user/attendance/subordinates`, {
-    headers: getAuthHeaders(),
-  })
-  if (!response.ok) throw new Error('Failed to fetch attendance records')
-  const data = await response.json()
-  return Array.isArray(data) ? data : []
-}
-
-const fetchSubordinateLeaveRequests = async () => {
-  const response = await fetch(`${API_BASE_URL}/user/leave/subordinates`, {
-    headers: getAuthHeaders(),
-  })
-  if (!response.ok) throw new Error('Failed to fetch leave requests')
-  const data = await response.json()
-  return Array.isArray(data) ? data : []
-}
-
 // Types
+interface PaginatedResponse<T> {
+  data: T[]
+  page: number
+  pageSize: number
+  totalRows: number
+  totalPages: number
+}
+
 interface User {
   ID: number
   Username: string
@@ -121,41 +112,77 @@ function ValidateAttendanceContent() {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<'attendance' | 'leave'>('attendance')
   
-  // OPTIMIZED: Group modal-related state untuk atomic updates
+  // Attendance pagination state
+  const [attendancePage, setAttendancePage] = useState(1)
+  const [attendancePageSize, setAttendancePageSize] = useState(10)
+  const [attendanceSearch, setAttendanceSearch] = useState('')
+  const [attendanceSortBy] = useState('date')
+  const [attendanceSortOrder] = useState<'asc' | 'desc'>('desc')
+  const debouncedAttendanceSearch = useDebounce(attendanceSearch, 500)
+  
+  // Leave pagination state
+  const [leavePage, setLeavePage] = useState(1)
+  const [leavePageSize, setLeavePageSize] = useState(10)
+  const [leaveSearch, setLeaveSearch] = useState('')
+  const [leaveSortBy] = useState('start_date')
+  const [leaveSortOrder] = useState<'asc' | 'desc'>('desc')
+  const debouncedLeaveSearch = useDebounce(leaveSearch, 500)
+  
+  // Modal state
   const [isValidateModalOpen, setIsValidateModalOpen] = useState(false)
   const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | LeaveRequestRecord | null>(null)
   const [validationAction, setValidationAction] = useState<'approve' | 'reject' | 'detail'>('approve')
   const [validationStatus, setValidationStatus] = useState<string>('')
   const [validationNote, setValidationNote] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
-  
-  // OPTIMIZED: Group pagination state untuk atomic updates
-  const [attendancePage, setAttendancePage] = useState(0)
-  const [attendancePageSize, setAttendancePageSize] = useState(10)
-  const [leavePage, setLeavePage] = useState(0)
-  const [leavePageSize, setLeavePageSize] = useState(10)
+  const [isExporting, setIsExporting] = useState(false)
 
-  // Auto-refetch for real-time updates
-  const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery({
-    queryKey: ['subordinate-attendance'],
-    queryFn: fetchSubordinateAttendance,
-    staleTime: 0,
-    refetchInterval: 3000, // Refetch every 3 seconds
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
+  // Fetch subordinate attendance with pagination
+  const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
+    queryKey: ['subordinate-attendance', attendancePage, attendancePageSize, debouncedAttendanceSearch, attendanceSortBy, attendanceSortOrder],
+    queryFn: async (): Promise<PaginatedResponse<AttendanceRecord>> => {
+      const params = new URLSearchParams({
+        page: attendancePage.toString(),
+        pageSize: attendancePageSize.toString(),
+        sortBy: attendanceSortBy,
+        sortOrder: attendanceSortOrder,
+        ...(debouncedAttendanceSearch && { search: debouncedAttendanceSearch }),
+      })
+      const response = await fetch(`${API_BASE_URL}/user/attendance/subordinates?${params}`, {
+        headers: getAuthHeaders(),
+      })
+      if (!response.ok) throw new Error('Failed to fetch attendance records')
+      return response.json()
+    },
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
 
-  // Fetch subordinate leave requests
-  const { data: leaveRequests = [], isLoading: leaveLoading } = useQuery({
-    queryKey: ['subordinate-leave-requests'],
-    queryFn: fetchSubordinateLeaveRequests,
-    staleTime: 0,
-    refetchInterval: 3000, // Refetch every 3 seconds
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
+  // Fetch subordinate leave requests with pagination
+  const { data: leaveData, isLoading: leaveLoading } = useQuery({
+    queryKey: ['subordinate-leave-requests', leavePage, leavePageSize, debouncedLeaveSearch, leaveSortBy, leaveSortOrder],
+    queryFn: async (): Promise<PaginatedResponse<LeaveRequestRecord>> => {
+      const params = new URLSearchParams({
+        page: leavePage.toString(),
+        pageSize: leavePageSize.toString(),
+        sortBy: leaveSortBy,
+        sortOrder: leaveSortOrder,
+        ...(debouncedLeaveSearch && { search: debouncedLeaveSearch }),
+      })
+      const response = await fetch(`${API_BASE_URL}/user/leave/subordinates?${params}`, {
+        headers: getAuthHeaders(),
+      })
+      if (!response.ok) throw new Error('Failed to fetch leave requests')
+      return response.json()
+    },
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
+
+  const attendanceRecords = attendanceData?.data || []
+  const attendanceTotalPages = attendanceData?.totalPages || 1
+  const leaveRequests = leaveData?.data || []
+  const leaveTotalPages = leaveData?.totalPages || 1
 
   // Validate attendance mutation
   const validateAttendanceMutation = useMutation({
@@ -314,6 +341,61 @@ function ValidateAttendanceContent() {
     return `${baseURL}${relativePath}`
   }
 
+  // Export to Excel
+  const exportAttendanceToExcel = async () => {
+    setIsExporting(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/attendance/subordinates/export/excel`, {
+        headers: getAuthHeaders(),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to export subordinate attendance')
+      }
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `subordinate_attendance_${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Export error:', error)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const exportLeaveToExcel = async () => {
+    setIsExporting(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/leave/subordinates/export/excel`, {
+        headers: getAuthHeaders(),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to export subordinate leave requests')
+      }
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `subordinate_leave_requests_${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Export error:', error)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const openValidateModal = useCallback((record: AttendanceRecord | LeaveRequestRecord, action: 'approve' | 'reject' | 'detail') => {
     // Only reset form if it's a different record or different action
     // This allows X button to preserve form data when reopening same validation
@@ -379,77 +461,35 @@ function ValidateAttendanceContent() {
     }
   }, [selectedRecord, validationAction, validationNote, validationStatus, validateAttendanceMutation, validateLeaveMutation])
 
-  const setCurrentPage = useCallback((page: number) => {
-    if (activeTab === 'attendance') {
-      setAttendancePage(page)
-    } else {
-      setLeavePage(page)
-    }
-  }, [activeTab])
-
-  const setCurrentPageSize = useCallback((size: number) => {
-    if (activeTab === 'attendance') {
-      setAttendancePageSize(size)
-      setAttendancePage(0)
-    } else {
-      setLeavePageSize(size)
-      setLeavePage(0)
-    }
-  }, [activeTab])
-
-  // OPTIMIZED: Memoize pagination data untuk prevent recalculation
-  const paginatedAttendance = useMemo(() => {
-    const sortedRecords = [...attendanceRecords].sort((a, b) => {
-      const dateA = new Date(a.CheckInTime || 0).getTime()
-      const dateB = new Date(b.CheckInTime || 0).getTime()
-      return dateB - dateA // Newest first
-    })
-    const start = attendancePage * attendancePageSize
-    const end = start + attendancePageSize
-    return sortedRecords.slice(start, end)
-  }, [attendanceRecords, attendancePage, attendancePageSize])
-
-  const paginatedLeave = useMemo(() => {
-    const sortedRequests = [...leaveRequests].sort((a, b) => {
-      const dateA = new Date(a.StartDate).getTime()
-      const dateB = new Date(b.StartDate).getTime()
-      return dateB - dateA // Newest first
-    })
-    const start = leavePage * leavePageSize
-    const end = start + leavePageSize
-    return sortedRequests.slice(start, end)
-  }, [leaveRequests, leavePage, leavePageSize])
-
-  const totalAttendancePages = useMemo(() => 
-    Math.ceil(attendanceRecords.length / attendancePageSize),
-    [attendanceRecords.length, attendancePageSize]
-  )
-
-  const totalLeavePages = useMemo(() =>
-    Math.ceil(leaveRequests.length / leavePageSize),
-    [leaveRequests.length, leavePageSize]
-  )
-
-  // Pagination helpers
-  const getCurrentPageData = () => {
-    return activeTab === 'attendance' ? paginatedAttendance : paginatedLeave
+  // Reset to page 1 when search changes
+  const handleAttendanceSearchChange = (value: string) => {
+    setAttendanceSearch(value)
+    setAttendancePage(1)
   }
 
-  const getTotalPages = () => {
-    return activeTab === 'attendance' ? totalAttendancePages : totalLeavePages
+  const handleLeaveSearchChange = (value: string) => {
+    setLeaveSearch(value)
+    setLeavePage(1)
   }
-
-  const getCurrentPage = () => {
-    return activeTab === 'attendance' ? attendancePage : leavePage
-  }
-
-  const paginatedData = getCurrentPageData()
 
   return (
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Validasi Absensi</h1>
         <p className="text-gray-600">Tinjau dan validasi catatan absensi dan pengajuan izin dari bawahan Anda</p>
+      </div>
+
+      {/* Export Button */}
+      <div className="flex justify-start mb-6">
+        <Button
+          variant="outline"
+          onClick={activeTab === 'attendance' ? exportAttendanceToExcel : exportLeaveToExcel}
+          disabled={isExporting}
+          className="border-gray-300 rounded-sm disabled:opacity-50"
+        >
+          <Download className="h-4 w-4 mr-2" />
+          {isExporting ? 'Exporting...' : 'Export Excel'}
+        </Button>
       </div>
 
       {/* Tabs */}
@@ -478,7 +518,22 @@ function ValidateAttendanceContent() {
 
       {/* Attendance Table */}
       {activeTab === 'attendance' && (
-        <div className="border rounded-sm overflow-hidden bg-white">
+        <div className="space-y-4">
+          {/* Search Input */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Cari nama, lokasi, atau status..."
+                value={attendanceSearch}
+                onChange={(e) => handleAttendanceSearchChange(e.target.value)}
+                className="pl-10 rounded-sm"
+              />
+            </div>
+          </div>
+
+          <div className="border rounded-sm overflow-hidden bg-white">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b">
@@ -507,7 +562,7 @@ function ValidateAttendanceContent() {
                     </td>
                   </tr>
                 ) : (
-                  (paginatedData as AttendanceRecord[]).map((record: AttendanceRecord) => (
+                  attendanceRecords.map((record: AttendanceRecord) => (
                     <tr key={record.ID} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm text-gray-900">{record.User.Username}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{formatDate(record.CheckInTime || '')}</td>
@@ -560,35 +615,49 @@ function ValidateAttendanceContent() {
 
           {/* Pagination */}
           <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-700">Baris per halaman:</span>
-              <Select
-                value={attendancePageSize.toString()}
-                onValueChange={(value) => setCurrentPageSize(Number(value))}
-              >
-                <SelectTrigger className="w-20 rounded-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="rounded-sm">
-                  {[10, 20, 50].map((size) => (
-                    <SelectItem key={size} value={size.toString()}>
-                      {size}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-700">Baris per halaman:</span>
+                <Select
+                  value={attendancePageSize.toString()}
+                  onValueChange={(value) => {
+                    setAttendancePageSize(Number(value))
+                    setAttendancePage(1)
+                  }}
+                >
+                  <SelectTrigger className="w-20 rounded-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-sm">
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-sm text-gray-700">
+                {attendanceData && attendanceData.totalRows > 0 ? (
+                  <>
+                    Menampilkan {(attendancePage - 1) * attendancePageSize + 1} ke{' '}
+                    {Math.min(attendancePage * attendancePageSize, attendanceData.totalRows)} dari{' '}
+                    {attendanceData.totalRows} hasil
+                  </>
+                ) : (
+                  'Tidak ada data'
+                )}
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-700">
-                Halaman {getCurrentPage() + 1} dari {getTotalPages() || 1}
+                Halaman {attendancePage} dari {attendanceTotalPages}
               </span>
               <div className="flex gap-1">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(getCurrentPage() - 1)}
-                  disabled={getCurrentPage() === 0}
+                  onClick={() => setAttendancePage(attendancePage - 1)}
+                  disabled={attendancePage === 1}
                   className="rounded-sm"
                 >
                   Sebelumnya
@@ -596,8 +665,8 @@ function ValidateAttendanceContent() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(getCurrentPage() + 1)}
-                  disabled={getCurrentPage() >= getTotalPages() - 1}
+                  onClick={() => setAttendancePage(attendancePage + 1)}
+                  disabled={attendancePage >= attendanceTotalPages}
                   className="rounded-sm"
                 >
                   Selanjutnya
@@ -606,11 +675,27 @@ function ValidateAttendanceContent() {
             </div>
           </div>
         </div>
+        </div>
       )}
 
       {/* Leave Requests Table */}
       {activeTab === 'leave' && (
-        <div className="border rounded-sm overflow-hidden bg-white">
+        <div className="space-y-4">
+          {/* Search Input */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Cari nama, tipe izin, atau status..."
+                value={leaveSearch}
+                onChange={(e) => handleLeaveSearchChange(e.target.value)}
+                className="pl-10 rounded-sm"
+              />
+            </div>
+          </div>
+
+          <div className="border rounded-sm overflow-hidden bg-white">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b">
@@ -637,7 +722,7 @@ function ValidateAttendanceContent() {
                     </td>
                   </tr>
                 ) : (
-                  (paginatedData as LeaveRequestRecord[]).map((request: LeaveRequestRecord) => (
+                  leaveRequests.map((request: LeaveRequestRecord) => (
                     <tr key={request.ID} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm text-gray-900">{request.User.Username}</td>
                       <td className="px-6 py-4">
@@ -699,35 +784,49 @@ function ValidateAttendanceContent() {
 
           {/* Pagination */}
           <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-700">Baris per halaman:</span>
-              <Select
-                value={leavePageSize.toString()}
-                onValueChange={(value) => setCurrentPageSize(Number(value))}
-              >
-                <SelectTrigger className="w-20 rounded-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="rounded-sm">
-                  {[10, 20, 50].map((size) => (
-                    <SelectItem key={size} value={size.toString()}>
-                      {size}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-700">Baris per halaman:</span>
+                <Select
+                  value={leavePageSize.toString()}
+                  onValueChange={(value) => {
+                    setLeavePageSize(Number(value))
+                    setLeavePage(1)
+                  }}
+                >
+                  <SelectTrigger className="w-20 rounded-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-sm">
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-sm text-gray-700">
+                {leaveData && leaveData.totalRows > 0 ? (
+                  <>
+                    Menampilkan {(leavePage - 1) * leavePageSize + 1} ke{' '}
+                    {Math.min(leavePage * leavePageSize, leaveData.totalRows)} dari{' '}
+                    {leaveData.totalRows} hasil
+                  </>
+                ) : (
+                  'Tidak ada data'
+                )}
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-700">
-                Halaman {getCurrentPage() + 1} dari {getTotalPages() || 1}
+                Halaman {leavePage} dari {leaveTotalPages}
               </span>
               <div className="flex gap-1">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(getCurrentPage() - 1)}
-                  disabled={getCurrentPage() === 0}
+                  onClick={() => setLeavePage(leavePage - 1)}
+                  disabled={leavePage === 1}
                   className="rounded-sm"
                 >
                   Sebelumnya
@@ -735,8 +834,8 @@ function ValidateAttendanceContent() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(getCurrentPage() + 1)}
-                  disabled={getCurrentPage() >= getTotalPages() - 1}
+                  onClick={() => setLeavePage(leavePage + 1)}
+                  disabled={leavePage >= leaveTotalPages}
                   className="rounded-sm"
                 >
                   Selanjutnya
@@ -744,6 +843,7 @@ function ValidateAttendanceContent() {
               </div>
             </div>
           </div>
+        </div>
         </div>
       )}
 

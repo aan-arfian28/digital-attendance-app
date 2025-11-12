@@ -3,15 +3,11 @@ import { useState } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
   flexRender,
   type ColumnDef,
-  type SortingState,
-  type ColumnFiltersState,
 } from '@tanstack/react-table'
 import { Search, Download, ChevronUp, ChevronDown, ChevronsUpDown, AlertCircle, Trash2, Edit } from 'lucide-react'
+import { useDebounce } from '@/hooks/useDebounce'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -62,6 +58,14 @@ interface CreateRoleData {
   PositionLevel: number
 }
 
+interface PaginatedResponse<T> {
+  data: T[]
+  page: number
+  pageSize: number
+  totalRows: number
+  totalPages: number
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 function RoleManagement() {
@@ -74,19 +78,22 @@ function RoleManagement() {
 
 function RoleManagementContent() {
   const queryClient = useQueryClient()
-  const [sorting, setSorting] = useState<SortingState>([
-    {
-      id: 'PositionLevel',
-      desc: false,
-    },
-  ])
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [globalFilter, setGlobalFilter] = useState('')
+  
+  // Pagination state
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [search, setSearch] = useState('')
+  const [sortBy, setSortBy] = useState('position_level')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  
+  // Debounce search
+  const debouncedSearch = useDebounce(search, 500)
   
   // Modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingRole, setEditingRole] = useState<Role | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
   
   // Form state
   const [formData, setFormData] = useState<CreateRoleData>({
@@ -99,26 +106,32 @@ function RoleManagementContent() {
   const [errorMessage, setErrorMessage] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof CreateRoleData, string>>>({})
 
-  // Fetch roles data
-  const { data: roles = [], isLoading, error } = useQuery({
-    queryKey: ['roles'],
-    queryFn: async (): Promise<Role[]> => {
-      const response = await fetch(`${API_BASE_URL}/admin/users/roles`, {
+  // Fetch roles data with pagination
+  const { data: paginatedData, isLoading, error } = useQuery({
+    queryKey: ['roles', page, pageSize, debouncedSearch, sortBy, sortOrder],
+    queryFn: async (): Promise<PaginatedResponse<Role>> => {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        pageSize: pageSize.toString(),
+        sortBy,
+        sortOrder,
+        ...(debouncedSearch && { search: debouncedSearch }),
+      })
+      
+      const response = await fetch(`${API_BASE_URL}/admin/users/roles?${params}`, {
         headers: getAuthHeaders(),
       })
       if (!response.ok) {
         throw new Error('Failed to fetch roles')
       }
-      const data = await response.json()
-      // Sort by position level ascending
-      return data.sort((a: Role, b: Role) => a.PositionLevel - b.PositionLevel)
+      return response.json()
     },
-    staleTime: 0,
-    refetchInterval: 3000, // Refetch every 3 seconds
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
+
+  const roles = paginatedData?.data || []
+  const totalPages = paginatedData?.totalPages || 1
 
   // Create role mutation
   const createRoleMutation = useMutation({
@@ -255,22 +268,33 @@ function RoleManagementContent() {
     }
   }
 
-  // Export to CSV function
-  const exportToCSV = () => {
-    const csvContent = [
-      ['Role', 'Position', 'Position Level'],
-      ...roles.map(role => [role.Name, role.Position, role.PositionLevel.toString()])
-    ].map(row => row.join(',')).join('\n')
-
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `roles_${new Date().toISOString().split('T')[0]}.csv`
-    document.body.appendChild(a)
-    a.click()
-    window.URL.revokeObjectURL(url)
-    document.body.removeChild(a)
+  // Export to Excel function
+  const exportToExcel = async () => {
+    setIsExporting(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/users/roles/export/excel`, {
+        headers: getAuthHeaders(),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to export roles')
+      }
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `roles_${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Export error:', error)
+      setErrorMessage('Failed to export roles to Excel')
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   // Table columns definition
@@ -278,26 +302,36 @@ function RoleManagementContent() {
     {
       accessorKey: 'Name',
       header: 'Role',
-      enableSorting: false,
     },
     {
       accessorKey: 'Position',
       header: 'Position',
-      enableSorting: false,
     },
     {
       accessorKey: 'PositionLevel',
-      header: ({ column }) => {
+      header: () => {
+        const isActive = sortBy === 'position_level'
+        const isAsc = sortOrder === 'asc'
+        
         return (
           <button
             className="flex items-center gap-2 font-semibold"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            onClick={() => {
+              if (isActive) {
+                setSortOrder(isAsc ? 'desc' : 'asc')
+              } else {
+                setSortBy('position_level')
+                setSortOrder('asc')
+              }
+            }}
           >
             Level Posisi
-            {column.getIsSorted() === 'asc' ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : column.getIsSorted() === 'desc' ? (
-              <ChevronDown className="h-4 w-4" />
+            {isActive ? (
+              isAsc ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )
             ) : (
               <ChevronsUpDown className="h-4 w-4" />
             )}
@@ -345,28 +379,10 @@ function RoleManagementContent() {
     data: roles,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    onGlobalFilterChange: setGlobalFilter,
-    state: {
-      sorting,
-      columnFilters,
-      globalFilter,
-    },
-    initialState: {
-      sorting: [
-        {
-          id: 'PositionLevel',
-          desc: false,
-        },
-      ],
-      pagination: {
-        pageSize: 10,
-      },
-    },
+    manualPagination: true,
+    manualSorting: true,
+    manualFiltering: true,
+    pageCount: totalPages,
   })
 
   if (isLoading) {
@@ -406,8 +422,11 @@ function RoleManagementContent() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
             placeholder="Cari role..."
-            value={globalFilter ?? ''}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGlobalFilter(e.target.value)}
+            value={search}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              setSearch(e.target.value)
+              setPage(1) // Reset to first page on search
+            }}
             className="pl-10 rounded-sm"
           />
         </div>
@@ -416,11 +435,12 @@ function RoleManagementContent() {
         <div className="flex gap-3">
           <Button
             variant="outline"
-            onClick={exportToCSV}
-            className="border-gray-300 rounded-sm"
+            onClick={exportToExcel}
+            disabled={isExporting}
+            className="border-gray-300 rounded-sm disabled:opacity-50"
           >
             <Download className="h-4 w-4 mr-2" />
-            Export CSV
+            {isExporting ? 'Exporting...' : 'Export Excel'}
           </Button>
           
           <Dialog open={isCreateModalOpen} onOpenChange={(open) => {
@@ -541,7 +561,7 @@ function RoleManagementContent() {
                   {headerGroup.headers.map((header) => (
                     <th
                       key={header.id}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      className="px-6 py-3 text-left text-sm font-semibold text-gray-900"
                     >
                       {header.isPlaceholder
                         ? null
@@ -573,31 +593,50 @@ function RoleManagementContent() {
 
         {/* Pagination */}
         <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-700">Baris per halaman:</span>
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(value) => {
+                  setPageSize(Number(value))
+                  setPage(1)
+                }}
+              >
+                <SelectTrigger className="w-20 rounded-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-sm">
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <span className="text-sm text-gray-700">
-              Menampilkan {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} ke{' '}
-              {Math.min(
-                (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-                table.getFilteredRowModel().rows.length
-              )}{' '}
-              dari {table.getFilteredRowModel().rows.length} hasil
+              Menampilkan {(page - 1) * pageSize + 1} ke{' '}
+              {Math.min(page * pageSize, paginatedData?.totalRows || 0)}{' '}
+              dari {paginatedData?.totalRows || 0} hasil
             </span>
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
               className="rounded-sm"
             >
               Sebelumnya
             </Button>
+            <span className="text-sm text-gray-700">
+              Halaman {page} dari {totalPages}
+            </span>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
               className="rounded-sm"
             >
               Selanjutnya

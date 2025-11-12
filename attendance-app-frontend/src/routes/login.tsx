@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Eye, EyeOff, Lock, User, AlertCircle, Loader2 } from 'lucide-react'
 import { useLogin, useAuth } from '@/hooks/useAuth'
+import { useCompanySettings } from '@/hooks/useCompanySettings'
 import type { LoginRequest } from '@/types/auth'
 
 export const Route = createFileRoute('/login')({
@@ -13,6 +14,7 @@ export const Route = createFileRoute('/login')({
 function Login() {
   const navigate = useNavigate()
   const { isAuthenticated, isLoading } = useAuth()
+  const { companyName } = useCompanySettings()
   const loginMutation = useLogin()
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState<LoginRequest>({
@@ -71,7 +73,7 @@ function Login() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-[#428bff] text-white font-bold text-xl mb-4">
             T
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">ATTENDAPP</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">{companyName}</h1>
           <p className="text-gray-600">Digital Attendance App</p>
         </div>
 
