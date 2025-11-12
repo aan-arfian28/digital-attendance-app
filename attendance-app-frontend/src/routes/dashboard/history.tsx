@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useCallback } from 'react'
-import { Download, ChevronUp, ChevronDown, ChevronsUpDown, Eye, ExternalLink, Search } from 'lucide-react'
+import { Download, ChevronUp, ChevronDown, ChevronsUpDown, Eye, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { useDebounce } from '@/hooks/useDebounce'
 import {
   Dialog,
   DialogContent,
@@ -86,18 +84,14 @@ function AttendanceHistoryContent() {
   // Attendance pagination state
   const [attendancePage, setAttendancePage] = useState(1)
   const [attendancePageSize, setAttendancePageSize] = useState(10)
-  const [attendanceSearch, setAttendanceSearch] = useState('')
   const [attendanceSortBy] = useState('check_in_time')
   const [attendanceSortOrder, setAttendanceSortOrder] = useState<'asc' | 'desc'>('desc')
-  const debouncedAttendanceSearch = useDebounce(attendanceSearch, 500)
   
   // Leave pagination state
   const [leavePage, setLeavePage] = useState(1)
   const [leavePageSize, setLeavePageSize] = useState(10)
-  const [leaveSearch, setLeaveSearch] = useState('')
   const [leaveSortBy] = useState('start_date')
   const [leaveSortOrder, setLeaveSortOrder] = useState<'asc' | 'desc'>('desc')
-  const debouncedLeaveSearch = useDebounce(leaveSearch, 500)
   
   const [isExporting, setIsExporting] = useState(false)
   
@@ -106,14 +100,13 @@ function AttendanceHistoryContent() {
   const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | LeaveRequestRecord | null>(null)
 
   const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
-    queryKey: ['my-attendance', attendancePage, attendancePageSize, debouncedAttendanceSearch, attendanceSortBy, attendanceSortOrder],
+    queryKey: ['my-attendance', attendancePage, attendancePageSize, attendanceSortBy, attendanceSortOrder],
     queryFn: async (): Promise<PaginatedResponse<AttendanceRecord>> => {
       const params = new URLSearchParams({
         page: attendancePage.toString(),
         pageSize: attendancePageSize.toString(),
         sortBy: attendanceSortBy,
         sortOrder: attendanceSortOrder,
-        ...(debouncedAttendanceSearch && { search: debouncedAttendanceSearch }),
       })
       const response = await fetch(`${API_BASE_URL}/user/attendance/my-records?${params}`, {
         headers: getAuthHeaders(),
@@ -126,14 +119,13 @@ function AttendanceHistoryContent() {
   })
 
   const { data: leaveData, isLoading: leaveLoading } = useQuery({
-    queryKey: ['my-leave-requests', leavePage, leavePageSize, debouncedLeaveSearch, leaveSortBy, leaveSortOrder],
+    queryKey: ['my-leave-requests', leavePage, leavePageSize, leaveSortBy, leaveSortOrder],
     queryFn: async (): Promise<PaginatedResponse<LeaveRequestRecord>> => {
       const params = new URLSearchParams({
         page: leavePage.toString(),
         pageSize: leavePageSize.toString(),
         sortBy: leaveSortBy,
         sortOrder: leaveSortOrder,
-        ...(debouncedLeaveSearch && { search: debouncedLeaveSearch }),
       })
       const response = await fetch(`${API_BASE_URL}/user/leave/my-requests?${params}`, {
         headers: getAuthHeaders(),
@@ -273,26 +265,8 @@ function AttendanceHistoryContent() {
         <p className="text-gray-600">Lihat riwayat absensi dan pengajuan izin Anda</p>
       </div>
 
-      {/* Search and Export */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            placeholder={activeTab === 'attendance' ? 'Cari berdasarkan status atau lokasi...' : 'Cari berdasarkan jenis izin atau status...'}
-            value={activeTab === 'attendance' ? attendanceSearch : leaveSearch}
-            onChange={(e) => {
-              if (activeTab === 'attendance') {
-                setAttendanceSearch(e.target.value)
-                setAttendancePage(1)
-              } else {
-                setLeaveSearch(e.target.value)
-                setLeavePage(1)
-              }
-            }}
-            className="pl-10 rounded-sm"
-          />
-        </div>
-        
+      {/* Export Button */}
+      <div className="flex justify-start mb-6">
         <Button
           variant="outline"
           onClick={activeTab === 'attendance' ? exportAttendanceToExcel : exportLeaveToExcel}
