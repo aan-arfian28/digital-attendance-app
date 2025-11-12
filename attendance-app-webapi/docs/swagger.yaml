@@ -2263,3 +2263,8 @@ paths:
 schemes:
 - http
 swagger: "2.0"
+securityDefinitions:
+  BearerAuth:
+    type: http
+    scheme: bearer
+    bearerFormat: JWT
