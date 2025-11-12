@@ -90,13 +90,12 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 
 				users := admin.Group("/users")
 				{
+					users.GET("", UserManagement.GetAllUsers)
 					users.POST("/", UserManagement.CreateUser)
 					users.GET("/export/excel", UserManagement.ExportUsersToExcel)
 					users.GET("/:id", UserManagement.GetUser)
 					users.PUT("/:id", UserManagement.UpdateUser)
 					users.DELETE("/:id", UserManagement.DeleteUser)
-					users.GET("/admins", UserManagement.GetAllAdminUsers)
-					users.GET("/non-admins", UserManagement.GetAllNonAdminUsers)
 					users.GET("/subordinates", UserManagement.GetUserSubordinates)
 
 					roles := users.Group("/roles")

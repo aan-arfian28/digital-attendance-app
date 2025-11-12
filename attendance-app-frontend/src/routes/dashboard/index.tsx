@@ -48,23 +48,21 @@ const fetchSubordinateAttendanceDashboard = async () => {
 
 // Admin stats queries
 const fetchAdminUsers = async () => {
-  const adminResponse = await fetch(`${API_BASE_URL}/admin/users/admins?page=1&pageSize=1000`, {
-    headers: getAuthHeaders(),
-  })
-  const nonAdminResponse = await fetch(`${API_BASE_URL}/admin/users/non-admins?page=1&pageSize=1000`, {
+  const response = await fetch(`${API_BASE_URL}/admin/users?page=1&pageSize=1000&role=all`, {
     headers: getAuthHeaders(),
   })
   
-  if (!adminResponse.ok || !nonAdminResponse.ok) {
+  if (!response.ok) {
     throw new Error('Failed to fetch users')
   }
   
-  const adminsData = await adminResponse.json()
-  const nonAdminsData = await nonAdminResponse.json()
+  const data = await response.json()
+  const allUsers = Array.isArray(data) ? data : (data.data || [])
   
+  // Separate admins and non-admins client-side
   return {
-    admins: Array.isArray(adminsData) ? adminsData : (adminsData.data || []),
-    nonAdmins: Array.isArray(nonAdminsData) ? nonAdminsData : (nonAdminsData.data || []),
+    admins: allUsers.filter((user: any) => user.Role === 'admin'),
+    nonAdmins: allUsers.filter((user: any) => user.Role !== 'admin'),
   }
 }
 
