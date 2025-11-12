@@ -216,6 +216,6 @@ func GetSchedulerStatus(c *gin.Context) {
 				"seconds_until": eveningNext.Sub(nowInLocation).Seconds(),
 			},
 		},
-		"note": "Check Docker logs for 'CRON HEARTBEAT' messages appearing every minute to verify scheduler is working",
+		"note": "Check Docker logs for 'CRON TRIGGERED' messages to verify scheduler is working",
 	})
 }
