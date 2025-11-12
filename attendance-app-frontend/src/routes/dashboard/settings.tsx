@@ -63,7 +63,7 @@ interface LocationFormData {
 
 // Fetch functions
 const fetchSettings = async (): Promise<SettingsData> => {
-  const response = await fetch(`${API_BASE_URL}/admin/settings`, {
+  const response = await fetch(`${API_BASE_URL}/user/settings`, {
     headers: getAuthHeaders(),
   })
   if (!response.ok) throw new Error('Failed to fetch settings')

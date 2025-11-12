@@ -64,11 +64,9 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 			admin := auth.Group("/admin")
 			admin.Use(middleware.RoleMiddleware(models.RoleAdmin))
 			{
-				// Settings endpoints
+				// Settings endpoints (admin only - write operations)
 				adminSettings := admin.Group("/settings")
 				{
-					adminSettings.GET("", settings.GetAllSettings)
-					adminSettings.GET("/:key", settings.GetSettingByKey)
 					adminSettings.PUT("", settings.UpdateSettings)
 				}
 
@@ -123,6 +121,13 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 
 				// Subordinates endpoint - get current user's subordinates
 				user.GET("/subordinates", UserManagement.GetUserSubordinates)
+
+				// Settings endpoints (read-only for all users)
+				userSettings := user.Group("/settings")
+				{
+					userSettings.GET("", settings.GetAllSettings)
+					userSettings.GET("/:key", settings.GetSettingByKey)
+				}
 
 				// Attendance endpoints
 				attendances := user.Group("/attendance")

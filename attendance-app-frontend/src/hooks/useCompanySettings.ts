@@ -16,7 +16,7 @@ const getAuthHeaders = () => {
 
 // Fetch settings from API
 const fetchCompanySettings = async () => {
-    const response = await fetch(`${API_BASE_URL}/admin/settings`, {
+    const response = await fetch(`${API_BASE_URL}/user/settings`, {
         headers: getAuthHeaders(),
     })
     if (!response.ok) throw new Error('Failed to fetch settings')
