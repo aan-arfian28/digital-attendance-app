@@ -40,10 +40,10 @@ type LeaveValidationRequest struct {
 // @Accept multipart/form-data
 // @Produce json
 // @Param attachment formData file true "Supporting document (JPG, JPEG, PNG, PDF, max 5MB)"
-// @Param leaveType formData string true "Type of leave (SICK, PERMIT)" example:"SICK"
-// @Param startDate formData string true "Start date of leave (YYYY-MM-DD)" example:"2025-10-22" format:"date" default:"2025-10-21"
-// @Param endDate formData string true "End date of leave (YYYY-MM-DD)" example:"2025-10-24" format:"date" default:"2025-10-22"
-// @Param reason formData string true "Reason for leave request" example:"Medical appointment and recovery"
+// @Param leaveType formData string true "Type of leave (SICK, PERMIT)" example(SICK)
+// @Param startDate formData string true "Start date of leave (YYYY-MM-DD)" example(2025-10-22)
+// @Param endDate formData string true "End date of leave (YYYY-MM-DD)" example(2025-10-24)
+// @Param reason formData string true "Reason for leave request" example(Medical_appointment_and_recovery)
 // @Success 200 {object} models.LeaveRequestSwagger
 // @Failure 400 {object} map[string]string "Invalid request payload, dates, or attachment"
 // @Failure 401 {object} map[string]string "Unauthorized"

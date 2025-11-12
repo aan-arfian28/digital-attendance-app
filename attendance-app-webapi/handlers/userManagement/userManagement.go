@@ -509,11 +509,11 @@ func DeleteUser(c *gin.Context) {
 // @Produce json
 // @Param page query int false "Page number (default: 1)" example(1)
 // @Param pageSize query int false "Page size (default: 10)" example(10)
-// @Param search query string false "Search by email, role name, or position" example("admin")
-// @Param sortBy query string false "Sort by field (id, name, email, username, created_at, role, position_level)" example("name")
-// @Param sortOrder query string false "Sort order (asc, desc)" example("asc")
-// @Param role query string false "Filter by role: admin, user, or all (default: all)" example("all")
-// @Success 200 {object} models.PaginatedResponse{data=[]GetAllNonAdminUsersResponse}
+// @Param search query string false "Search by email, role name, or position" example(admin)
+// @Param sortBy query string false "Sort by field (id, name, email, username, created_at, role, position_level)" example(name)
+// @Param sortOrder query string false "Sort order (asc, desc)" example(asc)
+// @Param role query string false "Filter by role: admin, user, or all (default: all)" example(all)
+// @Success 200 {object} utils.PaginatedResponse{data=[]GetAllNonAdminUsersResponse}
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 403 {object} map[string]string "Forbidden - Only admins can access"
 // @Failure 500 {object} map[string]string "Server error"
@@ -990,14 +990,14 @@ func DeleteRole(c *gin.Context) {
 }
 
 // @Summary Get user's subordinates
-// @Description Get a list of all users who report to the current user
+// @Description Get a list of all users who report to the current user (accessible via both /admin/users/subordinates and /user/subordinates)
 // @Tags users
 // @Accept json
 // @Produce json
 // @Success 200 {array} models.UserSwagger "List of subordinate users"
 // @Failure 401 {object} map[string]string "Unauthorized or invalid token"
 // @Failure 500 {object} map[string]string "Server error"
-// @Router /admin/users/subordinates [get]
+// @Router /user/subordinates [get]
 // @Security BearerAuth
 func GetUserSubordinates(c *gin.Context) {
 	DB := c.MustGet("db").(*gorm.DB)

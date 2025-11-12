@@ -73,6 +73,9 @@ definitions:
       Email:
         example: john@example.com
         type: string
+      Name:
+        example: John Doe
+        type: string
       Password:
         example: SecurePass123!
         maxLength: 72
@@ -98,14 +101,6 @@ definitions:
       SupervisorID:
         example: 1
         type: integer
-      UserDetail:
-        properties:
-          Name:
-            example: John Doe
-            type: string
-        required:
-        - Name
-        type: object
       Username:
         example: john_doe
         maxLength: 32
@@ -113,9 +108,9 @@ definitions:
         type: string
     required:
     - Email
+    - Name
     - Password
     - Role
-    - UserDetail
     - Username
     type: object
   UserManagement.GetAllNonAdminUsersResponse:
@@ -147,6 +142,9 @@ definitions:
       Email:
         example: john.updated@example.com
         type: string
+      Name:
+        example: John Doe Updated
+        type: string
       Password:
         example: NewSecurePass123!
         maxLength: 72
@@ -169,17 +167,38 @@ definitions:
       SupervisorID:
         example: 2
         type: integer
-      UserDetail:
-        properties:
-          Name:
-            example: John Doe Updated
-            type: string
-        type: object
       Username:
         example: john_doe_updated
         maxLength: 32
         minLength: 3
         type: string
+    type: object
+  email.TestEmailRequest:
+    properties:
+      body:
+        example: <h1>Test Email</h1><p>This is a test email.</p>
+        type: string
+      recipients:
+        example:
+        - user@example.com
+        - admin@example.com
+        items:
+          type: string
+        minItems: 1
+        type: array
+      subject:
+        example: Test Email Subject
+        type: string
+      type:
+        enum:
+        - clock_in
+        - clock_out
+        - custom
+        example: clock_in
+        type: string
+    required:
+    - recipients
+    - type
     type: object
   handlers.loginPayload:
     properties:
@@ -192,6 +211,55 @@ definitions:
     required:
     - password
     - username
+    type: object
+  locations.CreateLocationRequest:
+    properties:
+      Address:
+        example: Jl. Sudirman No. 123, Jakarta
+        maxLength: 500
+        type: string
+      Latitude:
+        example: -6.2
+        type: number
+      Longitude:
+        example: 106.816666
+        type: number
+      Name:
+        example: Head Office
+        maxLength: 255
+        type: string
+      Radius:
+        example: 100
+        maximum: 50000
+        minimum: 10
+        type: integer
+    required:
+    - Latitude
+    - Longitude
+    - Name
+    - Radius
+    type: object
+  locations.UpdateLocationRequest:
+    properties:
+      Address:
+        example: Jl. Sudirman No. 123, Jakarta
+        maxLength: 500
+        type: string
+      Latitude:
+        example: -6.2
+        type: number
+      Longitude:
+        example: 106.816666
+        type: number
+      Name:
+        example: Head Office
+        maxLength: 255
+        type: string
+      Radius:
+        example: 100
+        maximum: 50000
+        minimum: 10
+        type: integer
     type: object
   models.AttendanceStatus:
     enum:
@@ -289,6 +357,25 @@ definitions:
     x-enum-varnames:
     - Sick
     - Permit
+  models.LocationSwagger:
+    properties:
+      Address:
+        type: string
+      CreatedAt:
+        type: string
+      ID:
+        type: integer
+      Latitude:
+        type: number
+      Longitude:
+        type: number
+      Name:
+        type: string
+      Radius:
+        type: integer
+      UpdatedAt:
+        type: string
+    type: object
   models.Role:
     type: object
   models.RoleName:
@@ -312,6 +399,21 @@ definitions:
       PositionLevel:
         type: integer
       UpdatedAt:
+        type: string
+    type: object
+  models.SettingSwagger:
+    properties:
+      CreatedAt:
+        type: string
+      ID:
+        type: integer
+      Key:
+        type: string
+      UpdatedAt:
+        type: string
+      UpdatedBy:
+        type: integer
+      Value:
         type: string
     type: object
   models.UserSwagger:
@@ -347,13 +449,34 @@ definitions:
     - Leave
     - Rejected
     - DidntCheckout
+  settings.SettingsResponse:
+    additionalProperties:
+      type: string
+    type: object
+  settings.UpdateSettingsRequest:
+    additionalProperties:
+      type: string
+    type: object
+  utils.PaginatedResponse:
+    properties:
+      data: {}
+      page:
+        type: integer
+      pageSize:
+        type: integer
+      totalPages:
+        type: integer
+      totalRows:
+        type: integer
+    type: object
 host: localhost:8080
 info:
   contact:
     email: support@swagger.io
     name: API Support
     url: http://www.swagger.io/support
-  description: API service for digital attendance system with role-based access control.
+  description: 'Enter your JWT token in the format: Bearer {token}. For testing, you
+    can use this admin test token (valid for 1 year): eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImV4cCI6MTc5MzMyODc5OX0.sKEg9JeUxDqHyD4vGwAb6pk9iLrebJfBpTJGPRnMSrY'
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -361,7 +484,504 @@ info:
   title: Digital Attendance API
   version: "1.0"
 paths:
+  /admin/email/scheduler-status:
+    get:
+      consumes:
+      - application/json
+      description: Get current scheduler status including timezone, current time,
+        and next scheduled jobs (Admin only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Scheduler status
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can access scheduler status
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get scheduler status
+      tags:
+      - email
+  /admin/email/send-reminder:
+    post:
+      consumes:
+      - application/json
+      description: Send clock-in or clock-out reminder to all users in the database
+        (Admin only)
+      parameters:
+      - description: Reminder type
+        enum:
+        - clock_in
+        - clock_out
+        in: query
+        name: type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Email sent successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can send reminders
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Send reminder to all users
+      tags:
+      - email
+  /admin/email/test:
+    post:
+      consumes:
+      - application/json
+      description: Test email sending functionality (Admin only). Send clock-in reminder,
+        clock-out reminder, or custom email.
+      parameters:
+      - description: Email test parameters
+        in: body
+        name: email
+        required: true
+        schema:
+          $ref: '#/definitions/email.TestEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Email sent successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can test email
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Test email sending
+      tags:
+      - email
+  /admin/locations:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all locations
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.LocationSwagger'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can access locations
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get all locations
+      tags:
+      - locations
+    post:
+      consumes:
+      - application/json
+      description: Create a new location
+      parameters:
+      - description: Location data
+        in: body
+        name: location
+        required: true
+        schema:
+          $ref: '#/definitions/locations.CreateLocationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.LocationSwagger'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can create locations
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create new location
+      tags:
+      - locations
+  /admin/locations/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Soft delete a location
+      parameters:
+      - description: Location ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Location deleted successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Cannot delete location - it has associated attendance records
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can delete locations
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Location not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete location
+      tags:
+      - locations
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a single location by its ID
+      parameters:
+      - description: Location ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LocationSwagger'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can access locations
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Location not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get location by ID
+      tags:
+      - locations
+    put:
+      consumes:
+      - application/json
+      description: Update an existing location
+      parameters:
+      - description: Location ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Location data
+        in: body
+        name: location
+        required: true
+        schema:
+          $ref: '#/definitions/locations.UpdateLocationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LocationSwagger'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can update locations
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Location not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update location
+      tags:
+      - locations
+  /admin/settings:
+    put:
+      consumes:
+      - application/json
+      description: Update multiple settings at once (bulk update)
+      parameters:
+      - description: Settings to update (key-value pairs)
+        in: body
+        name: settings
+        required: true
+        schema:
+          $ref: '#/definitions/settings.UpdateSettingsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/settings.SettingsResponse'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can update settings
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update settings
+      tags:
+      - settings
   /admin/users:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of users filtered by role (admin, user, or
+        all)
+      parameters:
+      - description: 'Page number (default: 1)'
+        example: 1
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 10)'
+        example: 10
+        in: query
+        name: pageSize
+        type: integer
+      - description: Search by email, role name, or position
+        example: admin
+        in: query
+        name: search
+        type: string
+      - description: Sort by field (id, name, email, username, created_at, role, position_level)
+        example: name
+        in: query
+        name: sortBy
+        type: string
+      - description: Sort order (asc, desc)
+        example: asc
+        in: query
+        name: sortOrder
+        type: string
+      - description: 'Filter by role: admin, user, or all (default: all)'
+        example: all
+        in: query
+        name: role
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.PaginatedResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/UserManagement.GetAllNonAdminUsersResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can access
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get all users with optional role filtering
+      tags:
+      - users
     post:
       consumes:
       - application/json
@@ -562,20 +1182,19 @@ paths:
       summary: Update user details
       tags:
       - users
-  /admin/users/non-admins:
+  /admin/users/export/excel:
     get:
       consumes:
       - application/json
-      description: Retrieve a list of all users who are not administrators
+      description: Export all users (including soft-deleted) with complete details
+        to Excel file
       produces:
-      - application/json
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
       responses:
         "200":
-          description: OK
+          description: Excel file with all users data
           schema:
-            items:
-              $ref: '#/definitions/UserManagement.GetAllNonAdminUsersResponse'
-            type: array
+            type: file
         "401":
           description: Unauthorized
           schema:
@@ -583,7 +1202,7 @@ paths:
               type: string
             type: object
         "403":
-          description: Forbidden - Only admins can view user list
+          description: Forbidden - Only admins can export users
           schema:
             additionalProperties:
               type: string
@@ -596,7 +1215,7 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Get all non-admin users
+      summary: Export all users to Excel
       tags:
       - users
   /admin/users/roles:
@@ -833,6 +1452,39 @@ paths:
       summary: Get admin roles
       tags:
       - roles
+  /admin/users/roles/export/excel:
+    get:
+      description: Export all roles (including soft-deleted) to Excel file
+      produces:
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      responses:
+        "200":
+          description: Excel file download
+          schema:
+            type: file
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Only admins can export roles
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Export roles to Excel
+      tags:
+      - roles
   /admin/users/roles/non-admins:
     get:
       consumes:
@@ -870,37 +1522,6 @@ paths:
       summary: Get non-admin roles
       tags:
       - roles
-  /admin/users/subordinates:
-    get:
-      consumes:
-      - application/json
-      description: Get a list of all users who report to the current user
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: List of subordinate users
-          schema:
-            items:
-              $ref: '#/definitions/models.UserSwagger'
-            type: array
-        "401":
-          description: Unauthorized or invalid token
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Server error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get user's subordinates
-      tags:
-      - users
   /login:
     post:
       consumes:
@@ -1069,6 +1690,33 @@ paths:
       summary: Check-out attendance
       tags:
       - attendance
+  /user/attendance/export/excel:
+    get:
+      description: Export current user's attendance records to Excel file
+      produces:
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      responses:
+        "200":
+          description: Excel file download
+          schema:
+            type: file
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Export my attendance records to Excel
+      tags:
+      - attendance
   /user/attendance/my-records:
     get:
       description: Retrieve all attendance records for the current user
@@ -1131,6 +1779,40 @@ paths:
       security:
       - BearerAuth: []
       summary: Get subordinate attendance records
+      tags:
+      - attendance
+  /user/attendance/subordinates/export/excel:
+    get:
+      description: Export subordinate attendance records to Excel file (supervisor
+        only)
+      produces:
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      responses:
+        "200":
+          description: Excel file download
+          schema:
+            type: file
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Not a supervisor
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Export subordinate attendance records to Excel
       tags:
       - attendance
   /user/attendance/update/{id}:
@@ -1204,21 +1886,25 @@ paths:
         required: true
         type: file
       - description: Type of leave (SICK, PERMIT)
+        example: SICK
         in: formData
         name: leaveType
         required: true
         type: string
       - description: Start date of leave (YYYY-MM-DD)
+        example: "2025-10-22"
         in: formData
         name: startDate
         required: true
         type: string
       - description: End date of leave (YYYY-MM-DD)
+        example: "2025-10-24"
         in: formData
         name: endDate
         required: true
         type: string
       - description: Reason for leave request
+        example: Medical_appointment_and_recovery
         in: formData
         name: reason
         required: true
@@ -1251,6 +1937,33 @@ paths:
       security:
       - BearerAuth: []
       summary: Submit leave request
+      tags:
+      - leave
+  /user/leave/export/excel:
+    get:
+      description: Export current user's leave requests to Excel file
+      produces:
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      responses:
+        "200":
+          description: Excel file download
+          schema:
+            type: file
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Export my leave requests to Excel
       tags:
       - leave
   /user/leave/my-requests:
@@ -1314,6 +2027,39 @@ paths:
       security:
       - BearerAuth: []
       summary: Get subordinate leave requests
+      tags:
+      - leave
+  /user/leave/subordinates/export/excel:
+    get:
+      description: Export subordinate leave requests to Excel file (supervisor only)
+      produces:
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      responses:
+        "200":
+          description: Excel file download
+          schema:
+            type: file
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Not a supervisor
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Export subordinate leave requests to Excel
       tags:
       - leave
   /user/leave/validate/{id}:
@@ -1410,13 +2156,110 @@ paths:
       summary: Get current user's profile
       tags:
       - users
+  /user/settings:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all application settings as key-value pairs (accessible
+        to all authenticated users)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/settings.SettingsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get all settings
+      tags:
+      - settings
+  /user/settings/{key}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a single setting by its key (accessible to all authenticated
+        users)
+      parameters:
+      - description: Setting key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SettingSwagger'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Setting not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get setting by key
+      tags:
+      - settings
+  /user/subordinates:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all users who report to the current user (accessible
+        via both /admin/users/subordinates and /user/subordinates)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of subordinate users
+          schema:
+            items:
+              $ref: '#/definitions/models.UserSwagger'
+            type: array
+        "401":
+          description: Unauthorized or invalid token
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get user's subordinates
+      tags:
+      - users
 schemes:
 - http
-securityDefinitions:
-  BearerAuth:
-    description: For testing, you can use this admin test token (valid for 1 year):<br>Bearer
-      eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImV4cCI6MTc5MzMyODc5OX0.sKEg9JeUxDqHyD4vGwAb6pk9iLrebJfBpTJGPRnMSrY
-    in: header
-    name: Authorization
-    type: apiKey
 swagger: "2.0"
