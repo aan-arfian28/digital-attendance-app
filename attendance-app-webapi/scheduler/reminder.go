@@ -11,54 +11,102 @@ import (
 )
 
 type ReminderScheduler struct {
-	db   *gorm.DB
-	cron *cron.Cron
+	db             *gorm.DB
+	cron           *cron.Cron
+	morningEntryID cron.EntryID
+	eveningEntryID cron.EntryID
 }
 
 func NewReminderScheduler(db *gorm.DB) *ReminderScheduler {
-	// Use Asia/Jakarta timezone
-	location, err := time.LoadLocation("Asia/Jakarta")
-	if err != nil {
-		log.Printf("Warning: Failed to load Asia/Jakarta timezone, using system timezone: %v", err)
-		location = time.Local
-	}
-
+	// Initial timezone will be set from config during Start()
 	return &ReminderScheduler{
 		db:   db,
-		cron: cron.New(cron.WithLocation(location)),
+		cron: nil, // Will be initialized in Start()
 	}
 }
 
 func (s *ReminderScheduler) Start() {
-	// Get the timezone from the cron scheduler
-	location := s.cron.Location()
-	now := time.Now().In(location)
-
 	log.Printf("=== REMINDER SCHEDULER INITIALIZATION ===")
+
+	// Load scheduler configuration from database
+	config, err := models.GetSchedulerSettings(s.db)
+	if err != nil {
+		log.Printf("ERROR: Failed to load scheduler settings, using defaults: %v", err)
+		// Create default config
+		config = &models.SchedulerConfig{
+			Enabled:        true,
+			AllowedDays:    []int{1, 2, 3, 4, 5}, // Monday-Friday
+			MorningTime:    "07:30",
+			MorningEnabled: true,
+			EveningTime:    "17:00",
+			EveningEnabled: true,
+			Timezone:       "Asia/Jakarta",
+		}
+	}
+
+	// Load timezone from configuration
+	location, err := time.LoadLocation(config.Timezone)
+	if err != nil {
+		log.Printf("Warning: Failed to load timezone %s, using system timezone: %v", config.Timezone, err)
+		location = time.Local
+	}
+
+	// Initialize cron with configured timezone
+	if s.cron == nil {
+		s.cron = cron.New(cron.WithLocation(location))
+	}
+
+	now := time.Now().In(location)
 	log.Printf("Timezone: %s", location.String())
 	log.Printf("Current time in scheduler timezone: %s", now.Format("2006-01-02 15:04:05 MST"))
 	log.Printf("Server system time: %s", time.Now().Format("2006-01-02 15:04:05 MST"))
+	log.Printf("Scheduler enabled: %v", config.Enabled)
+	log.Printf("Allowed days: %v", config.AllowedDays)
 
-	// Schedule morning reminder at 07:30 (Asia/Jakarta time)
-	morningEntryID, err := s.cron.AddFunc("30 7 * * *", func() {
-		log.Println("⏰ CRON TRIGGERED: Starting morning clock-in reminder job...")
-		s.sendClockInReminder()
-	})
-	if err != nil {
-		log.Printf("ERROR: Failed to schedule morning reminder: %v", err)
-	} else {
-		log.Printf("✓ Morning reminder scheduled (Entry ID: %d) - Cron: '30 7 * * *'", morningEntryID)
+	if !config.Enabled {
+		log.Printf("⚠️ Scheduler is DISABLED in settings. No reminders will be sent.")
+		log.Printf("========================================")
+		return
 	}
 
-	// Schedule evening reminder at 17:00 (Asia/Jakarta time)
-	eveningEntryID, err := s.cron.AddFunc("0 17 * * *", func() {
-		log.Println("⏰ CRON TRIGGERED: Starting evening clock-out reminder job...")
-		s.sendClockOutReminder()
-	})
-	if err != nil {
-		log.Printf("ERROR: Failed to schedule evening reminder: %v", err)
+	// Schedule morning reminder if enabled
+	if config.MorningEnabled {
+		morningCron, err := models.BuildCronExpression(config.MorningTime, config.AllowedDays)
+		if err != nil {
+			log.Printf("ERROR: Failed to build morning cron expression: %v", err)
+		} else {
+			s.morningEntryID, err = s.cron.AddFunc(morningCron, func() {
+				log.Println("⏰ CRON TRIGGERED: Starting morning clock-in reminder job...")
+				s.sendClockInReminder()
+			})
+			if err != nil {
+				log.Printf("ERROR: Failed to schedule morning reminder: %v", err)
+			} else {
+				log.Printf("✓ Morning reminder scheduled (Entry ID: %d) - Cron: '%s' - Time: %s", s.morningEntryID, morningCron, config.MorningTime)
+			}
+		}
 	} else {
-		log.Printf("✓ Evening reminder scheduled (Entry ID: %d) - Cron: '0 17 * * *'", eveningEntryID)
+		log.Printf("⚠️ Morning reminder is DISABLED in settings")
+	}
+
+	// Schedule evening reminder if enabled
+	if config.EveningEnabled {
+		eveningCron, err := models.BuildCronExpression(config.EveningTime, config.AllowedDays)
+		if err != nil {
+			log.Printf("ERROR: Failed to build evening cron expression: %v", err)
+		} else {
+			s.eveningEntryID, err = s.cron.AddFunc(eveningCron, func() {
+				log.Println("⏰ CRON TRIGGERED: Starting evening clock-out reminder job...")
+				s.sendClockOutReminder()
+			})
+			if err != nil {
+				log.Printf("ERROR: Failed to schedule evening reminder: %v", err)
+			} else {
+				log.Printf("✓ Evening reminder scheduled (Entry ID: %d) - Cron: '%s' - Time: %s", s.eveningEntryID, eveningCron, config.EveningTime)
+			}
+		}
+	} else {
+		log.Printf("⚠️ Evening reminder is DISABLED in settings")
 	}
 
 	s.cron.Start()
@@ -71,14 +119,66 @@ func (s *ReminderScheduler) Start() {
 		nextRun := entry.Next.In(location)
 		log.Printf("  [%d] Entry ID: %d | Next Run: %s", i+1, entry.ID, nextRun.Format("2006-01-02 15:04:05 MST"))
 	}
-	log.Printf("- Morning reminder: 07:30 (Asia/Jakarta)")
-	log.Printf("- Evening reminder: 17:00 (Asia/Jakarta)")
 	log.Printf("========================================")
 }
 
+// ReloadSchedule reloads scheduler configuration from database and updates cron jobs
+func (s *ReminderScheduler) ReloadSchedule() error {
+	log.Printf("=== RELOADING SCHEDULER CONFIGURATION ===")
+
+	// Load new configuration
+	config, err := models.GetSchedulerSettings(s.db)
+	if err != nil {
+		log.Printf("ERROR: Failed to load scheduler settings during reload: %v", err)
+		return err
+	}
+
+	// Stop current cron
+	if s.cron != nil {
+		s.cron.Stop()
+		log.Printf("✓ Stopped existing cron scheduler")
+	}
+
+	// Remove old entries
+	if s.morningEntryID != 0 {
+		s.cron.Remove(s.morningEntryID)
+		s.morningEntryID = 0
+	}
+	if s.eveningEntryID != 0 {
+		s.cron.Remove(s.eveningEntryID)
+		s.eveningEntryID = 0
+	}
+
+	// Reload timezone
+	location, err := time.LoadLocation(config.Timezone)
+	if err != nil {
+		log.Printf("Warning: Failed to load timezone %s, using system timezone: %v", config.Timezone, err)
+		location = time.Local
+	}
+
+	// Create new cron with updated timezone
+	s.cron = cron.New(cron.WithLocation(location))
+
+	log.Printf("Configuration reloaded:")
+	log.Printf("  - Enabled: %v", config.Enabled)
+	log.Printf("  - Allowed Days: %v", config.AllowedDays)
+	log.Printf("  - Morning: %s (enabled: %v)", config.MorningTime, config.MorningEnabled)
+	log.Printf("  - Evening: %s (enabled: %v)", config.EveningTime, config.EveningEnabled)
+	log.Printf("  - Timezone: %s", config.Timezone)
+
+	// Restart with new configuration
+	s.Start()
+
+	log.Printf("✓ Scheduler configuration reloaded successfully")
+	log.Printf("========================================")
+	return nil
+}
+
 func (s *ReminderScheduler) Stop() {
-	s.cron.Stop()
-	log.Println("Reminder scheduler stopped")
+	if s.cron != nil {
+		s.cron.Stop()
+		log.Println("Reminder scheduler stopped")
+	}
 }
 
 // getAllUserEmails retrieves all active user email addresses from the database
@@ -105,6 +205,32 @@ func (s *ReminderScheduler) getAllUserEmails() ([]string, error) {
 
 // sendClockInReminder sends morning clock-in reminder to all users
 func (s *ReminderScheduler) sendClockInReminder() {
+	// Load scheduler configuration for runtime validation
+	config, err := models.GetSchedulerSettings(s.db)
+	if err != nil {
+		log.Printf("Failed to load scheduler settings: %v", err)
+		return
+	}
+
+	// Check if scheduler is enabled
+	if !config.Enabled {
+		log.Printf("⚠️ Scheduler is disabled. Skipping clock-in reminder.")
+		return
+	}
+
+	// Check if morning reminder is enabled
+	if !config.MorningEnabled {
+		log.Printf("⚠️ Morning reminder is disabled. Skipping clock-in reminder.")
+		return
+	}
+
+	// Validate if today is an allowed day
+	if !config.IsTodayAllowed() {
+		today := time.Now().Weekday()
+		log.Printf("⚠️ Today (%s) is not in the allowed days list %v. Skipping clock-in reminder.", today, config.AllowedDays)
+		return
+	}
+
 	// Get all user emails
 	emails, err := s.getAllUserEmails()
 	if err != nil {
@@ -125,11 +251,37 @@ func (s *ReminderScheduler) sendClockInReminder() {
 		return
 	}
 
-	log.Printf("Successfully sent clock-in reminder to %d users", len(emails))
+	log.Printf("✓ Successfully sent clock-in reminder to %d users", len(emails))
 }
 
 // sendClockOutReminder sends evening clock-out reminder to all users
 func (s *ReminderScheduler) sendClockOutReminder() {
+	// Load scheduler configuration for runtime validation
+	config, err := models.GetSchedulerSettings(s.db)
+	if err != nil {
+		log.Printf("Failed to load scheduler settings: %v", err)
+		return
+	}
+
+	// Check if scheduler is enabled
+	if !config.Enabled {
+		log.Printf("⚠️ Scheduler is disabled. Skipping clock-out reminder.")
+		return
+	}
+
+	// Check if evening reminder is enabled
+	if !config.EveningEnabled {
+		log.Printf("⚠️ Evening reminder is disabled. Skipping clock-out reminder.")
+		return
+	}
+
+	// Validate if today is an allowed day
+	if !config.IsTodayAllowed() {
+		today := time.Now().Weekday()
+		log.Printf("⚠️ Today (%s) is not in the allowed days list %v. Skipping clock-out reminder.", today, config.AllowedDays)
+		return
+	}
+
 	// Get all user emails
 	emails, err := s.getAllUserEmails()
 	if err != nil {
@@ -150,5 +302,5 @@ func (s *ReminderScheduler) sendClockOutReminder() {
 		return
 	}
 
-	log.Printf("Successfully sent clock-out reminder to %d users", len(emails))
+	log.Printf("✓ Successfully sent clock-out reminder to %d users", len(emails))
 }
