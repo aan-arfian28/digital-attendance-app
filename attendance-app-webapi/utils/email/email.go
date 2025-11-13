@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/smtp"
-	"strings"
 
 	"attendance-app/config"
 )
@@ -17,6 +16,7 @@ type EmailContent struct {
 }
 
 // SendEmail sends an email to multiple recipients using Brevo SMTP
+// Each recipient receives an individual email (not exposed to other recipients)
 func SendEmail(recipients []string, subject, body string) error {
 	if len(recipients) == 0 {
 		log.Println("No recipients provided for email")
@@ -44,37 +44,61 @@ func SendEmail(recipients []string, subject, body string) error {
 	// Prepare authentication
 	auth := smtp.PlainAuth("", smtpConfig.User, smtpConfig.Password, smtpConfig.Host)
 
-	// Build email message
+	// Build sender info
 	from := fmt.Sprintf("%s <%s>", senderName, smtpConfig.SenderEmail)
-
-	// Email headers
-	var message bytes.Buffer
-	message.WriteString(fmt.Sprintf("From: %s\r\n", from))
-	message.WriteString(fmt.Sprintf("To: %s\r\n", strings.Join(recipients, ", ")))
-	message.WriteString(fmt.Sprintf("Subject: %s\r\n", subject))
-	message.WriteString("MIME-Version: 1.0\r\n")
-	message.WriteString("Content-Type: text/html; charset=UTF-8\r\n")
-	message.WriteString("\r\n")
-	message.WriteString(body)
 
 	// SMTP server address
 	addr := fmt.Sprintf("%s:%d", smtpConfig.Host, smtpConfig.Port)
 
-	// Send email
-	err := smtp.SendMail(
-		addr,
-		auth,
-		smtpConfig.SenderEmail,
-		recipients,
-		message.Bytes(),
-	)
+	// Track success and failures
+	successCount := 0
+	failedRecipients := []string{}
 
-	if err != nil {
-		log.Printf("Failed to send email: %v", err)
-		return fmt.Errorf("failed to send email: %w", err)
+	// Send individual email to each recipient
+	for _, recipient := range recipients {
+		// Build email message for this specific recipient
+		var message bytes.Buffer
+		message.WriteString(fmt.Sprintf("From: %s\r\n", from))
+		message.WriteString(fmt.Sprintf("To: %s\r\n", recipient))
+		message.WriteString(fmt.Sprintf("Subject: %s\r\n", subject))
+		message.WriteString("MIME-Version: 1.0\r\n")
+		message.WriteString("Content-Type: text/html; charset=UTF-8\r\n")
+		message.WriteString("\r\n")
+		message.WriteString(body)
+
+		// Send email to this single recipient
+		err := smtp.SendMail(
+			addr,
+			auth,
+			smtpConfig.SenderEmail,
+			[]string{recipient},
+			message.Bytes(),
+		)
+
+		if err != nil {
+			log.Printf("Failed to send email to %s: %v", recipient, err)
+			failedRecipients = append(failedRecipients, recipient)
+			continue
+		}
+
+		successCount++
+		log.Printf("Successfully sent email to %s", recipient)
 	}
 
-	log.Printf("Successfully sent email to %d recipients", len(recipients))
+	// Log summary
+	log.Printf("Email sending complete: %d succeeded, %d failed out of %d total recipients",
+		successCount, len(failedRecipients), len(recipients))
+
+	if len(failedRecipients) > 0 {
+		log.Printf("Failed recipients: %v", failedRecipients)
+	}
+
+	// Return error only if ALL emails failed
+	if successCount == 0 {
+		return fmt.Errorf("failed to send email to any recipients (%d failed)", len(failedRecipients))
+	}
+
+	// Return nil if at least one email succeeded (partial success is acceptable for bulk emails)
 	return nil
 }
 
