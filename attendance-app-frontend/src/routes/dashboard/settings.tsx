@@ -154,8 +154,7 @@ function SettingsPageContent() {
   const { data: settings, isLoading: settingsLoading } = useQuery({
     queryKey: ['settings'],
     queryFn: fetchSettings,
-    staleTime: 1000 * 3,
-    refetchInterval: 1000 * 30,
+    staleTime: 0,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
@@ -165,8 +164,7 @@ function SettingsPageContent() {
   const { data: locations = [], isLoading: locationsLoading } = useQuery({
     queryKey: ['locations'],
     queryFn: fetchLocations,
-    staleTime: 1000 * 3,
-    refetchInterval: 1000 * 30,
+    staleTime: 0,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
@@ -176,8 +174,7 @@ function SettingsPageContent() {
   const { data: schedulerData, isLoading: schedulerLoading } = useQuery({
     queryKey: ['scheduler-settings'],
     queryFn: fetchSchedulerSettings,
-    staleTime: 1000 * 3,
-    refetchInterval: 1000 * 30,
+    staleTime: 0,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
@@ -212,12 +209,13 @@ function SettingsPageContent() {
       }
       return response.json()
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settings'] })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['settings'] })
+      await queryClient.refetchQueries({ queryKey: ['settings'] })
       // Update localStorage with new company name
       updateCompanyNameInStorage(companyName)
       // Invalidate company settings cache to reflect changes
-      queryClient.invalidateQueries({ queryKey: ['company-settings'] })
+      await queryClient.invalidateQueries({ queryKey: ['company-settings'] })
       setSuccessMessage('Pengaturan berhasil diperbarui!')
       setErrorMessage('')
       setTimeout(() => setSuccessMessage(''), 3000)
@@ -242,8 +240,9 @@ function SettingsPageContent() {
       }
       return response.json()
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['locations'] })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['locations'] })
+      await queryClient.refetchQueries({ queryKey: ['locations'] })
       setIsLocationModalOpen(false)
       resetLocationForm()
       setSuccessMessage('Lokasi berhasil dibuat!')
@@ -268,8 +267,9 @@ function SettingsPageContent() {
       }
       return response.json()
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['locations'] })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['locations'] })
+      await queryClient.refetchQueries({ queryKey: ['locations'] })
       setIsLocationModalOpen(false)
       resetLocationForm()
       setSuccessMessage('Lokasi berhasil diperbarui!')
@@ -293,8 +293,9 @@ function SettingsPageContent() {
       }
       return response.json()
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['locations'] })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['locations'] })
+      await queryClient.refetchQueries({ queryKey: ['locations'] })
       setSuccessMessage('Lokasi berhasil dihapus!')
       setTimeout(() => setSuccessMessage(''), 3000)
     },
@@ -317,8 +318,9 @@ function SettingsPageContent() {
       }
       return response.json()
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['scheduler-settings'] })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['scheduler-settings'] })
+      await queryClient.refetchQueries({ queryKey: ['scheduler-settings'] })
       setSuccessMessage('Pengaturan jadwal email berhasil diperbarui!')
       setErrorMessage('')
       setTimeout(() => setSuccessMessage(''), 3000)
