@@ -68,6 +68,11 @@ func SetupRouter(DB *gorm.DB) *gin.Engine {
 				adminSettings := admin.Group("/settings")
 				{
 					adminSettings.PUT("", settings.UpdateSettings)
+
+					// Scheduler settings endpoints
+					adminSettings.GET("/scheduler", settings.GetSchedulerSettings)
+					adminSettings.PUT("/scheduler", settings.UpdateSchedulerSettings)
+					adminSettings.POST("/scheduler/reload", settings.ReloadScheduler)
 				}
 
 				// Locations endpoints

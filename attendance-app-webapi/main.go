@@ -29,6 +29,7 @@ import (
 	"os"
 
 	"attendance-app/database"
+	"attendance-app/handlers/settings"
 	"attendance-app/router"
 	"attendance-app/scheduler"
 	"attendance-app/storage"
@@ -68,6 +69,9 @@ func main() {
 	reminderScheduler := scheduler.NewReminderScheduler(DB)
 	reminderScheduler.Start()
 	defer reminderScheduler.Stop()
+
+	// Pass scheduler instance to settings handler for reload capability
+	settings.SetSchedulerInstance(reminderScheduler)
 
 	// Set up Swagger info
 	docs.SwaggerInfo.Title = "Digital Attendance API"

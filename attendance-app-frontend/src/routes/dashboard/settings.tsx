@@ -1,8 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
-import { Save, Plus, Edit, Trash2, AlertCircle } from 'lucide-react'
+import { Save, Plus, Edit, Trash2, AlertCircle, Clock, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -61,6 +62,26 @@ interface LocationFormData {
   Radius: number
 }
 
+interface SchedulerSettings {
+  enabled: boolean
+  allowedDays: number[] // 1=Monday, 7=Sunday
+  morningTime: string // HH:MM
+  morningEnabled: boolean
+  eveningTime: string // HH:MM
+  eveningEnabled: boolean
+  timezone: string
+}
+
+const DAYS_OF_WEEK = [
+  { value: 1, label: 'Senin' },
+  { value: 2, label: 'Selasa' },
+  { value: 3, label: 'Rabu' },
+  { value: 4, label: 'Kamis' },
+  { value: 5, label: 'Jumat' },
+  { value: 6, label: 'Sabtu' },
+  { value: 7, label: 'Minggu' },
+]
+
 // Fetch functions
 const fetchSettings = async (): Promise<SettingsData> => {
   const response = await fetch(`${API_BASE_URL}/user/settings`, {
@@ -75,6 +96,14 @@ const fetchLocations = async (): Promise<Location[]> => {
     headers: getAuthHeaders(),
   })
   if (!response.ok) throw new Error('Failed to fetch locations')
+  return response.json()
+}
+
+const fetchSchedulerSettings = async (): Promise<SchedulerSettings> => {
+  const response = await fetch(`${API_BASE_URL}/admin/settings/scheduler`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to fetch scheduler settings')
   return response.json()
 }
 
@@ -110,6 +139,17 @@ function SettingsPageContent() {
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
+  // Scheduler settings state
+  const [schedulerSettings, setSchedulerSettings] = useState<SchedulerSettings>({
+    enabled: true,
+    allowedDays: [1, 2, 3, 4, 5], // Monday-Friday default
+    morningTime: '07:30',
+    morningEnabled: true,
+    eveningTime: '17:00',
+    eveningEnabled: true,
+    timezone: 'Asia/Jakarta',
+  })
+
   // Fetch settings
   const { data: settings, isLoading: settingsLoading } = useQuery({
     queryKey: ['settings'],
@@ -132,6 +172,17 @@ function SettingsPageContent() {
     refetchOnReconnect: true,
   })
 
+  // Fetch scheduler settings
+  const { data: schedulerData, isLoading: schedulerLoading } = useQuery({
+    queryKey: ['scheduler-settings'],
+    queryFn: fetchSchedulerSettings,
+    staleTime: 1000 * 3,
+    refetchInterval: 1000 * 30,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  })
+
   // Update settings when data is loaded
   useEffect(() => {
     if (settings) {
@@ -139,6 +190,13 @@ function SettingsPageContent() {
       setDefaultLocationId(settings.default_location_id || '')
     }
   }, [settings])
+
+  // Update scheduler settings when data is loaded
+  useEffect(() => {
+    if (schedulerData) {
+      setSchedulerSettings(schedulerData)
+    }
+  }, [schedulerData])
 
   // Update settings mutation
   const updateSettingsMutation = useMutation({
@@ -245,6 +303,54 @@ function SettingsPageContent() {
     },
   })
 
+  // Update scheduler settings mutation
+  const updateSchedulerMutation = useMutation({
+    mutationFn: async (data: Partial<SchedulerSettings>) => {
+      const response = await fetch(`${API_BASE_URL}/admin/settings/scheduler`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update scheduler settings')
+      }
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['scheduler-settings'] })
+      setSuccessMessage('Pengaturan jadwal email berhasil diperbarui!')
+      setErrorMessage('')
+      setTimeout(() => setSuccessMessage(''), 3000)
+    },
+    onError: (error: Error) => {
+      setErrorMessage(error.message)
+      setSuccessMessage('')
+    },
+  })
+
+  // Reload scheduler mutation
+  const reloadSchedulerMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`${API_BASE_URL}/admin/settings/scheduler/reload`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to reload scheduler')
+      }
+      return response.json()
+    },
+    onSuccess: () => {
+      setSuccessMessage('Penjadwal berhasil dimuat ulang!')
+      setTimeout(() => setSuccessMessage(''), 3000)
+    },
+    onError: (error: Error) => {
+      setErrorMessage(error.message)
+    },
+  })
+
   const handleSaveSettings = () => {
     setErrorMessage('')
     setSuccessMessage('')
@@ -252,6 +358,27 @@ function SettingsPageContent() {
     updateSettingsMutation.mutate({
       company_name: companyName,
       default_location_id: defaultLocationId,
+    })
+  }
+
+  const handleSaveSchedulerSettings = () => {
+    setErrorMessage('')
+    setSuccessMessage('')
+    updateSchedulerMutation.mutate(schedulerSettings)
+  }
+
+  const handleReloadScheduler = () => {
+    setErrorMessage('')
+    setSuccessMessage('')
+    reloadSchedulerMutation.mutate()
+  }
+
+  const toggleDay = (day: number) => {
+    setSchedulerSettings(prev => {
+      const newDays = prev.allowedDays.includes(day)
+        ? prev.allowedDays.filter(d => d !== day)
+        : [...prev.allowedDays, day].sort((a, b) => a - b)
+      return { ...prev, allowedDays: newDays }
     })
   }
 
@@ -333,16 +460,8 @@ function SettingsPageContent() {
         <p className="text-gray-600">Konfigurasi pengaturan dan preferensi aplikasi</p>
       </div>
 
-      {/* Save Button */}
       <div className="mb-6">
-        <Button 
-          onClick={handleSaveSettings}
-          disabled={updateSettingsMutation.isPending}
-          className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm"
-        >
-          <Save className="h-4 w-4 mr-2" />
-          {updateSettingsMutation.isPending ? 'Menyimpan...' : 'Simpan Perubahan'}
-        </Button>
+        {/* Messages will display here */}
       </div>
 
       {/* Pesan Sukses */}
@@ -363,7 +482,17 @@ function SettingsPageContent() {
       <div className="space-y-8">
         {/* Pengaturan Umum */}
         <div className="bg-white border border-gray-300 rounded-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Pengaturan Umum</h2>
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900">Pengaturan Umum</h2>
+            <Button 
+              onClick={handleSaveSettings}
+              disabled={updateSettingsMutation.isPending}
+              className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm w-full md:w-auto"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {updateSettingsMutation.isPending ? 'Menyimpan...' : 'Simpan Perubahan'}
+            </Button>
+          </div>
           
           {settingsLoading || locationsLoading ? (
             <div className="text-center py-8 text-gray-500">Memuat pengaturan...</div>
@@ -405,11 +534,11 @@ function SettingsPageContent() {
 
         {/* Manajemen Lokasi */}
         <div className="bg-white border border-gray-300 rounded-sm p-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Manajemen Lokasi</h2>
             <Button
               onClick={openCreateLocationModal}
-              className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm"
+              className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm w-full md:w-auto"
             >
               <Plus className="h-4 w-4 mr-2" />
               Tambah Lokasi
@@ -467,6 +596,231 @@ function SettingsPageContent() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </div>
+
+        {/* Email Scheduler Settings */}
+        <div className="bg-white border border-gray-300 rounded-sm p-6">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Pengaturan Jadwal Email</h2>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+              <Button
+                onClick={handleReloadScheduler}
+                disabled={reloadSchedulerMutation.isPending}
+                variant="outline"
+                className="rounded-sm"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${reloadSchedulerMutation.isPending ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Muat Ulang</span>
+                <span className="sm:hidden">Muat</span>
+              </Button>
+              <Button
+                onClick={handleSaveSchedulerSettings}
+                disabled={updateSchedulerMutation.isPending || schedulerLoading}
+                className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">{updateSchedulerMutation.isPending ? 'Menyimpan...' : 'Simpan Jadwal'}</span>
+                <span className="sm:hidden">{updateSchedulerMutation.isPending ? 'Menyimpan...' : 'Simpan'}</span>
+              </Button>
+            </div>
+          </div>
+
+          {schedulerLoading ? (
+            <div className="text-center py-8 text-gray-500">Memuat pengaturan jadwal...</div>
+          ) : (
+            <div className="space-y-6">
+              {/* Enable/Disable Scheduler */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-sm">
+                <div className="flex items-center gap-3">
+                  <Clock className="h-5 w-5 text-gray-600" />
+                  <div>
+                    <Label htmlFor="scheduler-enabled" className="text-base font-medium">
+                      Aktifkan Penjadwal Email
+                    </Label>
+                    <p className="text-sm text-gray-600">
+                      {schedulerSettings.enabled ? 'Penjadwal aktif' : 'Penjadwal nonaktif'}
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="scheduler-enabled"
+                  checked={schedulerSettings.enabled}
+                  onCheckedChange={(checked: boolean) => 
+                    setSchedulerSettings(prev => ({ ...prev, enabled: checked }))
+                  }
+                />
+              </div>
+
+              {/* Allowed Days Selection */}
+              <div>
+                <Label className="block text-sm font-medium text-gray-700 mb-3">
+                  Hari Aktif (Pilih hari untuk mengirim email)
+                </Label>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2">
+                  {DAYS_OF_WEEK.map((day) => (
+                    <button
+                      key={day.value}
+                      type="button"
+                      onClick={() => toggleDay(day.value)}
+                      className={`px-3 py-2 text-xs sm:text-sm font-medium rounded-sm border transition-colors ${
+                        schedulerSettings.allowedDays.includes(day.value)
+                          ? 'bg-[#428bff] text-white border-[#428bff]'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {day.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Clock In and Clock Out Reminders - 2 Columns (Desktop), 2 Rows (Mobile) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Morning Reminder - Clock In (Left Column) */}
+                <div className="p-4 border border-gray-200 rounded-sm">
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <Label htmlFor="morning-time" className="block text-sm font-medium text-gray-700 mb-2">
+                        Waktu Reminder Pagi (Clock In)
+                      </Label>
+                      <div className="flex gap-2 items-center">
+                        <select
+                          value={schedulerSettings.morningTime.split(':')[0]}
+                          onChange={(e) => {
+                            const [, minute] = schedulerSettings.morningTime.split(':')
+                            setSchedulerSettings(prev => ({ 
+                              ...prev, 
+                              morningTime: `${e.target.value.padStart(2, '0')}:${minute}` 
+                            }))
+                          }}
+                          className="w-24 h-10 px-3 border border-gray-300 bg-white rounded-sm"
+                        >
+                          {Array.from({ length: 24 }, (_, i) => i).map(hour => (
+                            <option key={hour} value={hour.toString().padStart(2, '0')}>
+                              {hour.toString().padStart(2, '0')}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="font-semibold text-gray-700">:</span>
+                        <select
+                          value={schedulerSettings.morningTime.split(':')[1]}
+                          onChange={(e) => {
+                            const [hour] = schedulerSettings.morningTime.split(':')
+                            setSchedulerSettings(prev => ({ 
+                              ...prev, 
+                              morningTime: `${hour}:${e.target.value.padStart(2, '0')}` 
+                            }))
+                          }}
+                          className="w-24 h-10 px-3 border border-gray-300 bg-white rounded-sm"
+                        >
+                          {Array.from({ length: 60 }, (_, i) => i).map(minute => (
+                            <option key={minute} value={minute.toString().padStart(2, '0')}>
+                              {minute.toString().padStart(2, '0')}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Label htmlFor="morning-enabled" className="text-sm font-medium">
+                        {schedulerSettings.morningEnabled ? 'Aktif' : 'Nonaktif'}
+                      </Label>
+                      <Switch
+                        id="morning-enabled"
+                        checked={schedulerSettings.morningEnabled}
+                        onCheckedChange={(checked: boolean) => 
+                          setSchedulerSettings(prev => ({ ...prev, morningEnabled: checked }))
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Evening Reminder - Clock Out (Right Column) */}
+                <div className="p-4 border border-gray-200 rounded-sm">
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <Label htmlFor="evening-time" className="block text-sm font-medium text-gray-700 mb-2">
+                        Waktu Reminder Sore (Clock Out)
+                      </Label>
+                      <div className="flex gap-2 items-center">
+                        <select
+                          value={schedulerSettings.eveningTime.split(':')[0]}
+                          onChange={(e) => {
+                            const [, minute] = schedulerSettings.eveningTime.split(':')
+                            setSchedulerSettings(prev => ({ 
+                              ...prev, 
+                              eveningTime: `${e.target.value.padStart(2, '0')}:${minute}` 
+                            }))
+                          }}
+                          className="w-24 h-10 px-3 border border-gray-300 bg-white rounded-sm"
+                        >
+                          {Array.from({ length: 24 }, (_, i) => i).map(hour => (
+                            <option key={hour} value={hour.toString().padStart(2, '0')}>
+                              {hour.toString().padStart(2, '0')}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="font-semibold text-gray-700">:</span>
+                        <select
+                          value={schedulerSettings.eveningTime.split(':')[1]}
+                          onChange={(e) => {
+                            const [hour] = schedulerSettings.eveningTime.split(':')
+                            setSchedulerSettings(prev => ({ 
+                              ...prev, 
+                              eveningTime: `${hour}:${e.target.value.padStart(2, '0')}` 
+                            }))
+                          }}
+                          className="w-24 h-10 px-3 border border-gray-300 bg-white rounded-sm"
+                        >
+                          {Array.from({ length: 60 }, (_, i) => i).map(minute => (
+                            <option key={minute} value={minute.toString().padStart(2, '0')}>
+                              {minute.toString().padStart(2, '0')}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Label htmlFor="evening-enabled" className="text-sm font-medium">
+                        {schedulerSettings.eveningEnabled ? 'Aktif' : 'Nonaktif'}
+                      </Label>
+                      <Switch
+                        id="evening-enabled"
+                        checked={schedulerSettings.eveningEnabled}
+                        onCheckedChange={(checked: boolean) => 
+                          setSchedulerSettings(prev => ({ ...prev, eveningEnabled: checked }))
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Timezone */}
+              <div>
+                <Label htmlFor="timezone" className="block text-sm font-medium text-gray-700 mb-2">
+                  Zona Waktu
+                </Label>
+                <Select 
+                  value={schedulerSettings.timezone} 
+                  onValueChange={(value) => setSchedulerSettings(prev => ({ ...prev, timezone: value }))}
+                >
+                  <SelectTrigger className="w-full h-10 rounded-sm">
+                    <SelectValue placeholder="Pilih zona waktu" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-sm">
+                    <SelectItem value="Asia/Jakarta">Asia/Jakarta (WIB)</SelectItem>
+                    <SelectItem value="Asia/Makassar">Asia/Makassar (WITA)</SelectItem>
+                    <SelectItem value="Asia/Jayapura">Asia/Jayapura (WIT)</SelectItem>
+                    <SelectItem value="UTC">UTC</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           )}
         </div>
