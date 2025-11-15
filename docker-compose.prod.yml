@@ -10,7 +10,6 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
       TZ: Asia/Jakarta
     volumes:
-      # IMPORTANT: Use ../files/ for Dokploy persistence
       - ../files/db_data:/var/lib/mysql
     networks:
       - dokploy-network
@@ -50,7 +49,6 @@ services:
       GIN_MODE: release
       TZ: Asia/Jakarta
     volumes:
-      # Use ../files/ for Dokploy persistence
       - ../files/uploads_data:/app/uploads
     networks:
       - dokploy-network
@@ -59,10 +57,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Traefik labels for API routing
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.attendapp-api.rule=Host(`attendapp.yourdomain.com`) && PathPrefix(`/api`, `/uploads`, `/swagger`)"
+      - "traefik.http.routers.attendapp-api.rule=Host(`attendapp.riyaldi.qzz.io`) && PathPrefix(`/api`, `/uploads`, `/swagger`)"
       - "traefik.http.routers.attendapp-api.entrypoints=websecure"
       - "traefik.http.routers.attendapp-api.tls.certResolver=letsencrypt"
       - "traefik.http.services.attendapp-api.loadbalancer.server.port=8080"
@@ -81,10 +78,9 @@ services:
       - "80"
     depends_on:
       - backend
-    # Traefik labels for frontend routing
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.attendapp-frontend.rule=Host(`attendapp.yourdomain.com`)"
+      - "traefik.http.routers.attendapp-frontend.rule=Host(`attendapp.riyaldi.qzz.io`)"
       - "traefik.http.routers.attendapp-frontend.entrypoints=websecure"
       - "traefik.http.routers.attendapp-frontend.tls.certResolver=letsencrypt"
       - "traefik.http.services.attendapp-frontend.loadbalancer.server.port=80"
