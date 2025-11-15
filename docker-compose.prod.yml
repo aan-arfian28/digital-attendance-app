@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   db:
     image: mariadb:10.11
@@ -9,9 +11,9 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
       TZ: Asia/Jakarta
     volumes:
-      - ../files/db_data:/var/lib/mysql
+      - db_data:/var/lib/mysql
     networks:
-      - dokploy-network
+      - attendapp-net
     expose:
       - "3306"
     healthcheck:
@@ -33,7 +35,7 @@ services:
     environment:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      DB_HOST: db
+      DB_HOST: db  
       DB_PORT: 3306
       DB_NAME: ${DB_NAME}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
@@ -47,20 +49,12 @@ services:
       GIN_MODE: release
       TZ: Asia/Jakarta
     volumes:
-      - ../files/uploads_data:/app/uploads
+      - uploads_data:/app/uploads
     networks:
-      - dokploy-network
-    ports:
-      - "8080"
+      - attendapp-net
     depends_on:
       db:
         condition: service_healthy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.attendapp-api.rule=Host(`attendapp.riyaldi.qzz.io`) && PathPrefix(`/api`, `/uploads`, `/swagger`)"
-      - "traefik.http.routers.attendapp-api.entrypoints=websecure"
-      - "traefik.http.routers.attendapp-api.tls.certResolver=letsencrypt"
-      - "traefik.http.services.attendapp-api.loadbalancer.server.port=8080"
 
   frontend:
     build:
@@ -70,18 +64,14 @@ services:
         VITE_API_BASE_URL: /api
     restart: unless-stopped
     networks:
-      - dokploy-network
-    ports:
-      - "80"
+      - attendapp-net
     depends_on:
       - backend
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.attendapp-frontend.rule=Host(`attendapp.riyaldi.qzz.io`)"
-      - "traefik.http.routers.attendapp-frontend.entrypoints=websecure"
-      - "traefik.http.routers.attendapp-frontend.tls.certResolver=letsencrypt"
-      - "traefik.http.services.attendapp-frontend.loadbalancer.server.port=80"
 
 networks:
-  dokploy-network:
-    external: true
+  attendapp-net:
+    driver: bridge
+
+volumes:
+  db_data:
+  uploads_data:
