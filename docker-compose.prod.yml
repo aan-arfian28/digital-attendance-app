@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   db:
     image: mariadb:10.11
@@ -12,9 +10,10 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
       TZ: Asia/Jakarta
     volumes:
-      - db_data:/var/lib/mysql
+      # IMPORTANT: Use ../files/ for Dokploy persistence
+      - ../files/db_data:/var/lib/mysql
     networks:
-      - attendapp-net
+      - dokploy-network
     expose:
       - "3306"
     healthcheck:
@@ -37,7 +36,7 @@ services:
     environment:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      DB_HOST: db  
+      DB_HOST: db
       DB_PORT: 3306
       DB_NAME: ${DB_NAME}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
@@ -51,12 +50,22 @@ services:
       GIN_MODE: release
       TZ: Asia/Jakarta
     volumes:
-      - uploads_data:/app/uploads
+      # Use ../files/ for Dokploy persistence
+      - ../files/uploads_data:/app/uploads
     networks:
-      - attendapp-net
+      - dokploy-network
+    ports:
+      - "8080"
     depends_on:
       db:
         condition: service_healthy
+    # Traefik labels for API routing
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.attendapp-api.rule=Host(`attendapp.yourdomain.com`) && PathPrefix(`/api`, `/uploads`, `/swagger`)"
+      - "traefik.http.routers.attendapp-api.entrypoints=websecure"
+      - "traefik.http.routers.attendapp-api.tls.certResolver=letsencrypt"
+      - "traefik.http.services.attendapp-api.loadbalancer.server.port=8080"
 
   frontend:
     build:
@@ -67,14 +76,19 @@ services:
     container_name: attendapp_frontend
     restart: unless-stopped
     networks:
-      - attendapp-net
+      - dokploy-network
+    ports:
+      - "80"
     depends_on:
       - backend
+    # Traefik labels for frontend routing
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.attendapp-frontend.rule=Host(`attendapp.yourdomain.com`)"
+      - "traefik.http.routers.attendapp-frontend.entrypoints=websecure"
+      - "traefik.http.routers.attendapp-frontend.tls.certResolver=letsencrypt"
+      - "traefik.http.services.attendapp-frontend.loadbalancer.server.port=80"
 
 networks:
-  attendapp-net:
-    driver: bridge
-
-volumes:
-  db_data:
-  uploads_data:
+  dokploy-network:
+    external: true
