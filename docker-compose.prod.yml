@@ -1,7 +1,6 @@
 services:
   db:
     image: mariadb:10.11
-    container_name: attendapp_db
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -30,7 +29,6 @@ services:
     build:
       context: ./attendance-app-webapi
       dockerfile: Dockerfile
-    container_name: attendapp_backend
     restart: unless-stopped
     environment:
       DB_USER: ${DB_USER}
@@ -70,7 +68,6 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: /api
-    container_name: attendapp_frontend
     restart: unless-stopped
     networks:
       - dokploy-network
