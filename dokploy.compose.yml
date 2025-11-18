@@ -4,7 +4,20 @@ services:
       context: ./attendance-app-webapi
       dockerfile: Dockerfile
     environment:
-      GIN_MODE: release
+      - GIN_MODE: release
+      - DB_USER: ${DB_USER}
+      - DB_PASSWORD: ${DB_PASSWORD}
+      - DB_HOST: db
+      - DB_PORT: 3306
+      - DB_NAME: ${DB_NAME}
+      - JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      - JWT_EXP_TIME: ${JWT_EXP_TIME}
+      - SMTP_HOST: ${SMTP_HOST}
+      - SMTP_PORT: ${SMTP_PORT}
+      - SMTP_USER: ${SMTP_USER}
+      - SMTP_PASSWORD: ${SMTP_PASSWORD}
+      - SMTP_SENDER_EMAIL: ${SMTP_SENDER_EMAIL}
+      - SMTP_SENDER_NAME: ${SMTP_SENDER_NAME}
     networks:
       - dokploy-network 
       - attendapp-net 
