@@ -1,4 +1,38 @@
 services:
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - TZ=Asia/Jakarta
+    volumes:
+      - db_data_fix_2:/var/lib/mysql
+    networks:
+      - attendapp-net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./attendance-app-frontend
+      dockerfile: Dockerfile
+    networks:
+      - dokploy-network
+      - attendapp-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.attendapp-frontend.rule=Host(`attendapp.riyaldi.qzz.io`)"
+      - "traefik.http.services.attendapp-frontend.loadbalancer.server.port=80"
+      - "traefik.http.routers.attendapp-frontend.entrypoints=websecure"
+      - "traefik.http.routers.attendapp-frontend.tls.certresolver=letsencrypt"
+
   backend:
     build:
       context: ./attendance-app-webapi
@@ -21,40 +55,15 @@ services:
     networks:
       - dokploy-network
       - attendapp-net
+    depends_on:
+      db:
+        condition: service_healthy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.attendapp-backend.rule=Host(`attendapp.riyaldi.qzz.io`) && (PathPrefix(`/api`) || PathPrefix(`/swagger`) || PathPrefix(`/uploads`))"
       - "traefik.http.services.attendapp-backend.loadbalancer.server.port=8080"
       - "traefik.http.routers.attendapp-backend.entrypoints=websecure"
       - "traefik.http.routers.attendapp-backend.tls.certresolver=letsencrypt"
-
-  frontend:
-    build:
-      context: ./attendance-app-frontend
-      dockerfile: Dockerfile
-    networks:
-      - dokploy-network
-      - attendapp-net
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.attendapp-frontend.rule=Host(`attendapp.riyaldi.qzz.io`)"
-      - "traefik.http.services.attendapp-frontend.loadbalancer.server.port=80"
-      - "traefik.http.routers.attendapp-frontend.entrypoints=websecure"
-      - "traefik.http.routers.attendapp-frontend.tls.certresolver=letsencrypt"
-
-  db:
-    image: mariadb:10.11
-    restart: unless-stopped
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=${DB_NAME}
-      - MYSQL_USER=${DB_USER}
-      - MYSQL_PASSWORD=${DB_PASSWORD}
-      - TZ=Asia/Jakarta
-    volumes:
-      - db_data_fix_2:/var/lib/mysql
-    networks:
-      - attendapp-net
 
 networks:
   dokploy-network:
