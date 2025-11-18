@@ -1,0 +1,48 @@
+services:
+  backend:
+    build:
+      context: ./attendance-app-webapi
+      dockerfile: Dockerfile
+    environment:
+      GIN_MODE: release
+    networks:
+      - dokploy-network 
+      - attendapp-net 
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.attendapp-backend.rule=Host(`attendapp.riyaldi.qzz.io`) && (PathPrefix(`/api`) || PathPrefix(`/swagger`) || PathPrefix(`/uploads`))"
+      - "traefik.http.services.attendapp-backend.loadbalancer.server.port=8080"
+      - "traefik.http.routers.attendapp-backend.entrypoints=websecure"
+      - "traefik.http.routers.attendapp-backend.tls.certresolver=letsencrypt"
+
+  frontend:
+    build:
+      context: ./attendance-app-frontend
+      dockerfile: Dockerfile
+    networks:
+      - dokploy-network
+      - attendapp-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.attendapp-frontend.rule=Host(`attendapp.riyaldi.qzz.io`)"
+      - "traefik.http.services.attendapp-frontend.loadbalancer.server.port=80"
+      - "traefik.http.routers.attendapp-frontend.entrypoints=websecure"
+      - "traefik.http.routers.attendapp-frontend.tls.certresolver=letsencrypt"
+
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - attendapp-net
+
+networks:
+  dokploy-network:
+    external: true
+  attendapp-net:
+    driver: bridge
+
+volumes:
+  db_data:
+  uploads_data:

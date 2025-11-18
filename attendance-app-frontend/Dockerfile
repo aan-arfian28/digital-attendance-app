@@ -42,7 +42,7 @@ RUN echo 'server { \
     try_files $uri $uri/ /_shell.html; \
     } \
     location /api { \
-    proxy_pass http://attendapp_backend:8080; \
+    proxy_pass http://backend:8080; \ 
     proxy_http_version 1.1; \
     proxy_set_header Upgrade $http_upgrade; \
     proxy_set_header Connection "upgrade"; \
