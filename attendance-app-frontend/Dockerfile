@@ -1,4 +1,4 @@
-﻿# ==============================================
+﻿﻿# ==============================================
 # Stage 1: Build Application
 # ==============================================
 FROM node:24-alpine3.22 AS builder
@@ -28,34 +28,15 @@ FROM nginx:alpine
 # Copy public folder for assets first
 COPY --from=builder /app/public /usr/share/nginx/html
 
-# Copy built static files from builder (TanStack Start outputs to dist/client)
-# This will overwrite index.html from public with the built one
+# Copy hasil build (dist)
 COPY --from=builder /app/dist/client /usr/share/nginx/html
 
-# Create custom nginx configuration for SPA routing
-RUN echo 'server { \
-    listen 80; \
-    server_name localhost; \
-    root /usr/share/nginx/html; \
-    index _shell.html; \
-    location / { \
-    try_files $uri $uri/ /_shell.html; \
-    } \
-    location /api { \
-    proxy_pass http://backend:8080; \ 
-    proxy_http_version 1.1; \
-    proxy_set_header Upgrade $http_upgrade; \
-    proxy_set_header Connection "upgrade"; \
-    proxy_set_header Host $host; \
-    proxy_set_header X-Real-IP $remote_addr; \
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; \
-    proxy_set_header X-Forwarded-Proto $scheme; \
-    } \
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ { \
-    expires 1y; \
-    add_header Cache-Control "public, immutable"; \
-    } \
-    }' > /etc/nginx/conf.d/default.conf
+# Copy file nginx.conf GLOBAL yang baru kita buat
+# Perhatikan tujuannya: /etc/nginx/nginx.conf (Menimpa config bawaan)
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Hapus default config bawaan agar tidak bentrok
+RUN rm -rf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
