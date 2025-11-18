@@ -44,5 +44,5 @@ networks:
     driver: bridge
 
 volumes:
-  db_data:
+  db_data_fix:
   uploads_data:
