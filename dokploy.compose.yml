@@ -52,7 +52,7 @@ services:
       - MYSQL_PASSWORD=${DB_PASSWORD}
       - TZ=Asia/Jakarta
     volumes:
-      - db_data_fix:/var/lib/mysql
+      - db_data_fix_2:/var/lib/mysql
     networks:
       - attendapp-net
 
