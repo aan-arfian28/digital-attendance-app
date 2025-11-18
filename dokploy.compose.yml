@@ -52,6 +52,7 @@ services:
       - SMTP_PASSWORD=${SMTP_PASSWORD}
       - SMTP_SENDER_EMAIL=${SMTP_SENDER_EMAIL}
       - SMTP_SENDER_NAME=${SMTP_SENDER_NAME}
+      - TZ=Asia/Jakarta
     networks:
       - dokploy-network
       - attendapp-net
