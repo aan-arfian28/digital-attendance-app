@@ -5,7 +5,6 @@ FROM node:24-alpine3.22 AS builder
 
 WORKDIR /app
 
-# Install dependencies with retry and timeout configurations
 COPY package.json package-lock.json ./
 
 RUN npm config set fetch-retries 5 && \
@@ -25,17 +24,14 @@ RUN npm run build
 # ==============================================
 FROM nginx:alpine
 
-# Copy public folder for assets first
+RUN apk add --no-cache wget
+
 COPY --from=builder /app/public /usr/share/nginx/html
 
-# Copy hasil build (dist)
 COPY --from=builder /app/dist/client /usr/share/nginx/html
 
-# Copy file nginx.conf GLOBAL yang baru kita buat
-# Perhatikan tujuannya: /etc/nginx/nginx.conf (Menimpa config bawaan)
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Hapus default config bawaan agar tidak bentrok
 RUN rm -rf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
