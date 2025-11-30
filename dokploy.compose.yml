@@ -1,19 +1,23 @@
 services:
-  backend:
-    build:
-      context: ./attendance-app-webapi
-      dockerfile: Dockerfile
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
     environment:
-      GIN_MODE: release
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - TZ=Asia/Jakarta
+    volumes:
+      - db_data_fix_2:/var/lib/mysql
     networks:
-      - dokploy-network 
-      - attendapp-net 
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.attendapp-backend.rule=Host(`attendapp.riyaldi.qzz.io`) && (PathPrefix(`/api`) || PathPrefix(`/swagger`) || PathPrefix(`/uploads`))"
-      - "traefik.http.services.attendapp-backend.loadbalancer.server.port=8080"
-      - "traefik.http.routers.attendapp-backend.entrypoints=websecure"
-      - "traefik.http.routers.attendapp-backend.tls.certresolver=letsencrypt"
+      - attendapp-net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   frontend:
     build:
@@ -29,13 +33,38 @@ services:
       - "traefik.http.routers.attendapp-frontend.entrypoints=websecure"
       - "traefik.http.routers.attendapp-frontend.tls.certresolver=letsencrypt"
 
-  db:
-    image: mariadb:10.11
-    restart: unless-stopped
-    volumes:
-      - db_data:/var/lib/mysql
+  backend:
+    build:
+      context: ./attendance-app-webapi
+      dockerfile: Dockerfile
+    environment:
+      - GIN_MODE=release
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_EXP_TIME=${JWT_EXP_TIME}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_SENDER_EMAIL=${SMTP_SENDER_EMAIL}
+      - SMTP_SENDER_NAME=${SMTP_SENDER_NAME}
+      - TZ=Asia/Jakarta
     networks:
+      - dokploy-network
       - attendapp-net
+    depends_on:
+      db:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.attendapp-backend.rule=Host(`attendapp.riyaldi.qzz.io`) && (PathPrefix(`/api`) || PathPrefix(`/swagger`) || PathPrefix(`/uploads`))"
+      - "traefik.http.services.attendapp-backend.loadbalancer.server.port=8080"
+      - "traefik.http.routers.attendapp-backend.entrypoints=websecure"
+      - "traefik.http.routers.attendapp-backend.tls.certresolver=letsencrypt"
 
 networks:
   dokploy-network:
@@ -44,5 +73,5 @@ networks:
     driver: bridge
 
 volumes:
-  db_data:
+  db_data_fix_2:
   uploads_data:
