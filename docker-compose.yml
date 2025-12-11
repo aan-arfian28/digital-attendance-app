@@ -1,7 +1,6 @@
 ﻿services:
   db:
     image: mariadb:10.11
-    container_name: attendapp_db
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -13,8 +12,6 @@
       - db_data:/var/lib/mysql
     networks:
       - attendapp-net
-    expose:
-      - "3306"
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
@@ -30,12 +27,11 @@
     build:
       context: ./attendance-app-webapi
       dockerfile: Dockerfile
-    container_name: attendapp_backend
     restart: unless-stopped
     environment:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      DB_HOST: db
+      DB_HOST: db 
       DB_PORT: 3306
       DB_NAME: ${DB_NAME}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
@@ -46,14 +42,12 @@
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_SENDER_EMAIL: ${SMTP_SENDER_EMAIL}
       SMTP_SENDER_NAME: ${SMTP_SENDER_NAME}
-      GIN_MODE: release
+      GIN_MODE: release 
       TZ: Asia/Jakarta
     volumes:
       - uploads_data:/app/uploads
     networks:
       - attendapp-net
-    ports:
-      - "8080:8080"
     depends_on:
       db:
         condition: service_healthy
@@ -64,12 +58,9 @@
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: /api
-    container_name: attendapp_frontend
     restart: unless-stopped
     networks:
       - attendapp-net
-    ports:
-      - "8081:80"
     depends_on:
       - backend
 

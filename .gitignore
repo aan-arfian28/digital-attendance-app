@@ -1,6 +1,7 @@
 .env
 /.github/
 /.zed/
+docker-compose.override.yml
 
 # Uploaded files (photos, PDFs)
 attendance-app-webapi/uploads/*
