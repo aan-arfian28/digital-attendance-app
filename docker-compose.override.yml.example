@@ -1,0 +1,17 @@
+services:
+  backend:
+    ports:
+      - "8080:8080" 
+    container_name: attendapp_backend 
+    environment:
+      GIN_MODE: debug
+
+  frontend:
+    ports:
+      - "8081:80" 
+    container_name: attendapp_frontend
+
+  db:
+    ports:
+      - "3306:3306" 
+    container_name: attendapp_db
