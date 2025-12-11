@@ -203,6 +203,102 @@ func (s *ReminderScheduler) getAllUserEmails() ([]string, error) {
 	return emails, nil
 }
 
+// getUsersWithoutClockIn retrieves emails of users who haven't clocked in today
+func (s *ReminderScheduler) getUsersWithoutClockIn() ([]string, int, error) {
+	// Load timezone
+	location, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		location = time.Local
+	}
+
+	// Get today's date range in Asia/Jakarta timezone
+	now := time.Now().In(location)
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location)
+	endOfDay := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 999999999, location)
+
+	// Get all users with valid emails
+	var allUsers []models.User
+	if err := s.db.Where("email IS NOT NULL AND email != ''").Find(&allUsers).Error; err != nil {
+		log.Printf("Error fetching users: %v", err)
+		return nil, 0, err
+	}
+
+	totalUsers := len(allUsers)
+
+	// Get users who have already clocked in today
+	var attendanceRecords []models.Attendance
+	if err := s.db.Where("check_in_time >= ? AND check_in_time <= ?", startOfDay, endOfDay).
+		Select("user_id").
+		Find(&attendanceRecords).Error; err != nil {
+		log.Printf("Error fetching attendance records: %v", err)
+		return nil, totalUsers, err
+	}
+
+	// Create a map of user IDs who have clocked in
+	clockedInUsers := make(map[uint]bool)
+	for _, record := range attendanceRecords {
+		clockedInUsers[record.UserID] = true
+	}
+
+	// Filter users who haven't clocked in
+	emails := make([]string, 0)
+	for _, user := range allUsers {
+		if !clockedInUsers[user.ID] && user.Email != "" {
+			emails = append(emails, user.Email)
+		}
+	}
+
+	log.Printf("Clock-in check: Total users=%d, Already clocked in=%d, Need reminder=%d",
+		totalUsers, len(clockedInUsers), len(emails))
+
+	return emails, totalUsers, nil
+}
+
+// getUsersWhoNeedClockOut retrieves emails of users who clocked in but haven't clocked out today
+func (s *ReminderScheduler) getUsersWhoNeedClockOut() ([]string, int, error) {
+	// Load timezone
+	location, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		location = time.Local
+	}
+
+	// Get today's date range in Asia/Jakarta timezone
+	now := time.Now().In(location)
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location)
+	endOfDay := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 999999999, location)
+
+	// Get all users with valid emails
+	var allUsers []models.User
+	if err := s.db.Where("email IS NOT NULL AND email != ''").Find(&allUsers).Error; err != nil {
+		log.Printf("Error fetching users: %v", err)
+		return nil, 0, err
+	}
+
+	totalUsers := len(allUsers)
+
+	// Get users who clocked in today but haven't clocked out
+	var attendanceRecords []models.Attendance
+	if err := s.db.Where("check_in_time >= ? AND check_in_time <= ? AND check_out_time IS NULL", startOfDay, endOfDay).
+		Preload("User").
+		Find(&attendanceRecords).Error; err != nil {
+		log.Printf("Error fetching attendance records: %v", err)
+		return nil, totalUsers, err
+	}
+
+	// Extract emails from users who need to clock out
+	emails := make([]string, 0)
+	for _, record := range attendanceRecords {
+		if record.User.Email != "" {
+			emails = append(emails, record.User.Email)
+		}
+	}
+
+	log.Printf("Clock-out check: Total users=%d, Clocked in without clock-out=%d, Need reminder=%d",
+		totalUsers, len(attendanceRecords), len(emails))
+
+	return emails, totalUsers, nil
+}
+
 // sendClockInReminder sends morning clock-in reminder to all users
 func (s *ReminderScheduler) sendClockInReminder() {
 	// Load scheduler configuration for runtime validation
@@ -231,23 +327,23 @@ func (s *ReminderScheduler) sendClockInReminder() {
 		return
 	}
 
-	// Get all user emails
-	emails, err := s.getAllUserEmails()
+	// Get users who haven't clocked in today
+	emails, totalUsers, err := s.getUsersWithoutClockIn()
 	if err != nil {
-		log.Printf("Failed to get user emails for clock-in reminder: %v", err)
+		log.Printf("❌ Failed to get users without clock-in: %v", err)
 		return
 	}
 
 	if len(emails) == 0 {
-		log.Println("No user emails found to send clock-in reminder")
+		log.Printf("✓ All users (%d) have already clocked in. No reminder needed.", totalUsers)
 		return
 	}
 
-	log.Printf("Sending clock-in reminder to %d users", len(emails))
+	log.Printf("📧 Sending clock-in reminder to %d users (out of %d total users)", len(emails), totalUsers)
 
 	// Send email using the email service
 	if err := email.SendClockInReminder(emails); err != nil {
-		log.Printf("Failed to send clock-in reminder: %v", err)
+		log.Printf("❌ Failed to send clock-in reminder: %v", err)
 		return
 	}
 
@@ -282,25 +378,117 @@ func (s *ReminderScheduler) sendClockOutReminder() {
 		return
 	}
 
-	// Get all user emails
-	emails, err := s.getAllUserEmails()
+	// Get users who clocked in but haven't clocked out
+	emails, totalUsers, err := s.getUsersWhoNeedClockOut()
 	if err != nil {
-		log.Printf("Failed to get user emails for clock-out reminder: %v", err)
+		log.Printf("❌ Failed to get users who need clock-out: %v", err)
 		return
 	}
 
 	if len(emails) == 0 {
-		log.Println("No user emails found to send clock-out reminder")
+		log.Printf("✓ No users need clock-out reminder (Total users: %d)", totalUsers)
 		return
 	}
 
-	log.Printf("Sending clock-out reminder to %d users", len(emails))
+	log.Printf("📧 Sending clock-out reminder to %d users (out of %d total users)", len(emails), totalUsers)
 
 	// Send email using the email service
 	if err := email.SendClockOutReminder(emails); err != nil {
-		log.Printf("Failed to send clock-out reminder: %v", err)
+		log.Printf("❌ Failed to send clock-out reminder: %v", err)
 		return
 	}
 
 	log.Printf("✓ Successfully sent clock-out reminder to %d users", len(emails))
+}
+
+// GetUsersWithoutClockInToday is a public helper function to get users who haven't clocked in today
+// Can be used by handlers for manual testing
+func GetUsersWithoutClockInToday(db *gorm.DB) (emails []string, totalUsers, alreadyClockedIn int, err error) {
+	// Load timezone
+	location, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		location = time.Local
+	}
+
+	// Get today's date range in Asia/Jakarta timezone
+	now := time.Now().In(location)
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location)
+	endOfDay := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 999999999, location)
+
+	// Get all users with valid emails
+	var allUsers []models.User
+	if err := db.Where("email IS NOT NULL AND email != ''").Find(&allUsers).Error; err != nil {
+		return nil, 0, 0, err
+	}
+
+	totalUsers = len(allUsers)
+
+	// Get users who have already clocked in today
+	var attendanceRecords []models.Attendance
+	if err := db.Where("check_in_time >= ? AND check_in_time <= ?", startOfDay, endOfDay).
+		Select("user_id").
+		Find(&attendanceRecords).Error; err != nil {
+		return nil, totalUsers, 0, err
+	}
+
+	// Create a map of user IDs who have clocked in
+	clockedInUsers := make(map[uint]bool)
+	for _, record := range attendanceRecords {
+		clockedInUsers[record.UserID] = true
+	}
+
+	alreadyClockedIn = len(clockedInUsers)
+
+	// Filter users who haven't clocked in
+	emails = make([]string, 0)
+	for _, user := range allUsers {
+		if !clockedInUsers[user.ID] && user.Email != "" {
+			emails = append(emails, user.Email)
+		}
+	}
+
+	return emails, totalUsers, alreadyClockedIn, nil
+}
+
+// GetUsersWhoNeedClockOutToday is a public helper function to get users who need to clock out today
+// Can be used by handlers for manual testing
+func GetUsersWhoNeedClockOutToday(db *gorm.DB) (emails []string, totalUsers, needClockOut int, err error) {
+	// Load timezone
+	location, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		location = time.Local
+	}
+
+	// Get today's date range in Asia/Jakarta timezone
+	now := time.Now().In(location)
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location)
+	endOfDay := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 999999999, location)
+
+	// Get all users with valid emails
+	var allUsers []models.User
+	if err := db.Where("email IS NOT NULL AND email != ''").Find(&allUsers).Error; err != nil {
+		return nil, 0, 0, err
+	}
+
+	totalUsers = len(allUsers)
+
+	// Get users who clocked in today but haven't clocked out
+	var attendanceRecords []models.Attendance
+	if err := db.Where("check_in_time >= ? AND check_in_time <= ? AND check_out_time IS NULL", startOfDay, endOfDay).
+		Preload("User").
+		Find(&attendanceRecords).Error; err != nil {
+		return nil, totalUsers, 0, err
+	}
+
+	needClockOut = len(attendanceRecords)
+
+	// Extract emails from users who need to clock out
+	emails = make([]string, 0)
+	for _, record := range attendanceRecords {
+		if record.User.Email != "" {
+			emails = append(emails, record.User.Email)
+		}
+	}
+
+	return emails, totalUsers, needClockOut, nil
 }

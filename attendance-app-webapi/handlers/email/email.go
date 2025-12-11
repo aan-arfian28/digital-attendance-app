@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"attendance-app/models"
+	"attendance-app/scheduler"
 	"attendance-app/utils/email"
 
 	"gorm.io/gorm"
@@ -85,7 +85,7 @@ func TestEmail(c *gin.Context) {
 }
 
 // @Summary Send reminder to all users
-// @Description Send clock-in or clock-out reminder to all users in the database (Admin only)
+// @Description Send clock-in or clock-out reminder to users who need it (Admin only). Only sends to users who haven't completed the respective action today.
 // @Tags email
 // @Accept json
 // @Produce json
@@ -106,36 +106,66 @@ func SendReminderToAll(c *gin.Context) {
 		return
 	}
 
-	// Get all user emails
-	var users []models.User
-	if err := DB.Where("email IS NOT NULL AND email != ''").Find(&users).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
-		return
-	}
-
-	if len(users) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No users with valid email addresses found"})
-		return
-	}
-
-	// Extract emails
-	emails := make([]string, 0, len(users))
-	for _, user := range users {
-		if user.Email != "" {
-			emails = append(emails, user.Email)
-		}
-	}
-
+	var emails []string
+	var totalUsers, targetedUsers int
 	var err error
 	var emailType string
 
 	switch reminderType {
 	case "clock_in":
 		emailType = "Clock-In Reminder"
+		// Get only users who haven't clocked in today
+		var alreadyClockedIn int
+		emails, totalUsers, alreadyClockedIn, err = scheduler.GetUsersWithoutClockInToday(DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Failed to fetch users",
+				"details": err.Error(),
+			})
+			return
+		}
+		targetedUsers = len(emails)
+
+		if targetedUsers == 0 {
+			c.JSON(http.StatusOK, gin.H{
+				"message":            "No reminders needed - all users have clocked in",
+				"type":               emailType,
+				"total_users":        totalUsers,
+				"already_clocked_in": alreadyClockedIn,
+				"reminders_sent":     0,
+			})
+			return
+		}
+
 		err = email.SendClockInReminder(emails)
+
 	case "clock_out":
 		emailType = "Clock-Out Reminder"
+		// Get only users who clocked in but haven't clocked out today
+		var needClockOut int
+		emails, totalUsers, needClockOut, err = scheduler.GetUsersWhoNeedClockOutToday(DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Failed to fetch users",
+				"details": err.Error(),
+			})
+			return
+		}
+		targetedUsers = len(emails)
+
+		if targetedUsers == 0 {
+			c.JSON(http.StatusOK, gin.H{
+				"message":                 "No reminders needed - no users need to clock out",
+				"type":                    emailType,
+				"total_users":             totalUsers,
+				"users_needing_clock_out": needClockOut,
+				"reminders_sent":          0,
+			})
+			return
+		}
+
 		err = email.SendClockOutReminder(emails)
+
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reminder type. Must be: clock_in or clock_out"})
 		return
@@ -150,9 +180,11 @@ func SendReminderToAll(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":    "Reminder sent successfully to all users",
-		"type":       emailType,
-		"recipients": len(emails),
+		"message":        "Reminder sent successfully to users who need it",
+		"type":           emailType,
+		"total_users":    totalUsers,
+		"reminders_sent": targetedUsers,
+		"recipients":     emails,
 	})
 }
 
