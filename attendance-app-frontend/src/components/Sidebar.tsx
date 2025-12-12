@@ -6,7 +6,8 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Home
+  Home,
+  BookOpen
 } from 'lucide-react'
 import { Link, useLocation } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
@@ -41,6 +42,8 @@ const allMenuItems: MenuItem[] = [
   // User-only pages
   { id: 'history', label: 'Riwayat', icon: History, href: '/dashboard/history', isUserOnly: true },
   { id: 'validate', label: 'Validasi', icon: CheckCircle, href: '/dashboard/validate', isUserOnly: true },
+  // User manual (available to all)
+  { id: 'user-manual', label: 'Panduan Pengguna', icon: BookOpen, href: '/user-manual' },
 ]
 
 export default function Sidebar({ isOpen, onToggle, onMobileMenuClose }: SidebarProps) {

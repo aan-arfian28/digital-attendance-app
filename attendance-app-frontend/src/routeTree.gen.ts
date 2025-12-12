@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UserManualRouteImport } from './routes/user-manual'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as R404RouteImport } from './routes/404'
@@ -21,6 +22,11 @@ import { Route as DashboardRoleManagementRouteImport } from './routes/dashboard/
 import { Route as DashboardProfileRouteImport } from './routes/dashboard/profile'
 import { Route as DashboardHistoryRouteImport } from './routes/dashboard/history'
 
+const UserManualRoute = UserManualRouteImport.update({
+  id: '/user-manual',
+  path: '/user-manual',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/404': typeof R404Route
   '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
+  '/user-manual': typeof UserManualRoute
   '/dashboard/history': typeof DashboardHistoryRoute
   '/dashboard/profile': typeof DashboardProfileRoute
   '/dashboard/role-management': typeof DashboardRoleManagementRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/404': typeof R404Route
   '/login': typeof LoginRoute
+  '/user-manual': typeof UserManualRoute
   '/dashboard/history': typeof DashboardHistoryRoute
   '/dashboard/profile': typeof DashboardProfileRoute
   '/dashboard/role-management': typeof DashboardRoleManagementRoute
@@ -108,6 +116,7 @@ export interface FileRoutesById {
   '/404': typeof R404Route
   '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
+  '/user-manual': typeof UserManualRoute
   '/dashboard/history': typeof DashboardHistoryRoute
   '/dashboard/profile': typeof DashboardProfileRoute
   '/dashboard/role-management': typeof DashboardRoleManagementRoute
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/dashboard'
     | '/login'
+    | '/user-manual'
     | '/dashboard/history'
     | '/dashboard/profile'
     | '/dashboard/role-management'
@@ -135,6 +145,7 @@ export interface FileRouteTypes {
     | '/'
     | '/404'
     | '/login'
+    | '/user-manual'
     | '/dashboard/history'
     | '/dashboard/profile'
     | '/dashboard/role-management'
@@ -148,6 +159,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/dashboard'
     | '/login'
+    | '/user-manual'
     | '/dashboard/history'
     | '/dashboard/profile'
     | '/dashboard/role-management'
@@ -162,10 +174,18 @@ export interface RootRouteChildren {
   R404Route: typeof R404Route
   DashboardRoute: typeof DashboardRouteWithChildren
   LoginRoute: typeof LoginRoute
+  UserManualRoute: typeof UserManualRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/user-manual': {
+      id: '/user-manual'
+      path: '/user-manual'
+      fullPath: '/user-manual'
+      preLoaderRoute: typeof UserManualRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -275,6 +295,7 @@ const rootRouteChildren: RootRouteChildren = {
   R404Route: R404Route,
   DashboardRoute: DashboardRouteWithChildren,
   LoginRoute: LoginRoute,
+  UserManualRoute: UserManualRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
