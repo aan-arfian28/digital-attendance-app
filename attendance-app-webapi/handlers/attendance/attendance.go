@@ -265,7 +265,7 @@ func CheckOut(c *gin.Context) {
 	result := db.Where("user_id = ? AND check_in_time >= ? AND validation_status != ?", userId, startOfDay, models.Absent).First(&attendance)
 
 	if result.Error != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No check-in record found for today. Cannot checkout without checking in first."})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Haven't Check In Yet"})
 		return
 	}
 

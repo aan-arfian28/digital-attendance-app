@@ -59,14 +59,21 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	// 2. Validate role name
+	// 2. Validate struct constraints
+	if err := utils.Validate.Struct(req); err != nil {
+		errors := utils.FormatValidationErrors(err)
+		c.JSON(http.StatusBadRequest, gin.H{"errors": errors})
+		return
+	}
+
+	// 3. Validate role name
 	if req.Role.Name != models.RoleAdmin && req.Role.Name != models.RoleUser {
 		tx.Rollback()
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role name. Must be 'admin' or 'user'"})
 		return
 	}
 
-	// 3. Check for duplicates (both username and email)
+	// 4. Check for duplicates (both username and email)
 	var existingUser models.User
 	result := tx.Where("username = ?", req.Username).Or("email = ?", req.Email).First(&existingUser)
 	if result.Error == nil {
@@ -83,7 +90,7 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	// 4. Hash password
+	// 5. Hash password
 	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
 		tx.Rollback()
@@ -91,7 +98,7 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	// 5. First, check if role already exists
+	// 6. First, check if role already exists
 	var role models.Role
 	result = tx.Where("name = ? AND position = ? AND position_level = ?",
 		req.Role.Name, req.Role.Position, req.Role.PositionLevel).First(&role)
@@ -116,7 +123,7 @@ func CreateUser(c *gin.Context) {
 		}
 	}
 
-	// 6. Create user object
+	// 7. Create user object
 	user := models.User{
 		Username:     req.Username,
 		Password:     hashedPassword,
@@ -126,7 +133,7 @@ func CreateUser(c *gin.Context) {
 		SupervisorID: req.SupervisorID,
 	}
 
-	// 7. Validate supervisor if present
+	// 8. Validate supervisor if present
 	if user.SupervisorID != nil {
 		var supervisor models.User
 		if err := tx.Preload("Role").First(&supervisor, *user.SupervisorID).Error; err != nil {
@@ -157,14 +164,14 @@ func CreateUser(c *gin.Context) {
 		}
 	}
 
-	// 8. Create user
+	// 9. Create user
 	if err := tx.Create(&user).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
 
-	// 9. Commit transaction
+	// 10. Commit transaction
 	if err := tx.Commit().Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction"})
 		return

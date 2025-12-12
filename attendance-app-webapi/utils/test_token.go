@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -14,7 +15,7 @@ func GenerateTestToken(userId uint, username string) (string, error) {
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 		NotBefore: jwt.NewNumericDate(time.Now()),
 		Subject:   username,
-		ID:        string(userId),
+		ID:        fmt.Sprintf("%d", userId), // Convert uint to string properly
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
