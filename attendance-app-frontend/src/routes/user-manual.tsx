@@ -94,6 +94,11 @@ function UserManual() {
 
                 <section>
                   <h3 className="text-xl font-bold mb-3">Instruksi Login</h3>
+                  <img 
+                    src="/images/user-manual/1 Buka halaman login dan klik login.png" 
+                    alt="Halaman Login"
+                    className="w-full max-w-3xl mx-auto my-4 rounded-lg border border-gray-300 shadow-sm"
+                  />
                   <ol className="list-decimal list-inside space-y-2 text-gray-700 ml-4">
                     <li>Buka halaman login</li>
                     <li>Masukkan username dan password yang diberikan administrator</li>
@@ -153,8 +158,19 @@ function UserManual() {
                       <h4 className="font-semibold text-lg mb-2">Membuat User Baru</h4>
                       <ol className="list-decimal list-inside space-y-2 text-gray-700 ml-4">
                         <li>Buka "Manajemen User" dari dashboard</li>
-                        <li>Klik tombol "Tambah User Baru"</li>
+                        <li>Klik tombol "Tambah User Baru"
+                          <img 
+                            src="/images/user-manual/membuat user_klik button buat user.png" 
+                            alt="Klik tombol buat user"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
                         <li>Isi informasi yang diperlukan:
+                          <img 
+                            src="/images/user-manual/membuat user_mengisi detail.png" 
+                            alt="Mengisi detail user baru"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
                           <ul className="list-disc list-inside ml-6 mt-2 space-y-1">
                             <li>Username (3-32 karakter)</li>
                             <li>Password (minimal 8 karakter)</li>
@@ -164,17 +180,47 @@ function UserManual() {
                             <li>Tetapkan supervisor (opsional, untuk non-admin)</li>
                           </ul>
                         </li>
-                        <li>Klik "Buat User" untuk menyimpan</li>
+                        <li>Klik "Buat User" untuk menyimpan
+                          <img 
+                            src="/images/user-manual/membuat user_klik buat user.png" 
+                            alt="Klik buat user untuk menyimpan"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
                       </ol>
                     </div>
 
                     <div>
                       <h4 className="font-semibold text-lg mb-2">Mengedit User</h4>
                       <ol className="list-decimal list-inside space-y-2 text-gray-700 ml-4">
-                        <li>Cari user di daftar</li>
-                        <li>Klik ikon edit di samping user</li>
-                        <li>Perbarui field yang diperlukan</li>
-                        <li>Klik "Update User" untuk menyimpan</li>
+                        <li>Cari user di daftar
+                          <img 
+                            src="/images/user-manual/pencarian.png" 
+                            alt="Mencari user"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
+                        <li>Klik ikon edit di samping user
+                          <img 
+                            src="/images/user-manual/edit user.png" 
+                            alt="Klik ikon edit"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
+                        <li>Perbarui field yang diperlukan
+                          <img 
+                            src="/images/user-manual/edit user_mengisi detail.png" 
+                            alt="Perbarui detail user"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
+                        <li>Klik "Update User" untuk menyimpan
+                          <img 
+                            src="/images/user-manual/edit user_klik perbarui user.png" 
+                            alt="Klik perbarui user"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
                       </ol>
                     </div>
 
@@ -182,7 +228,13 @@ function UserManual() {
                       <h4 className="font-semibold text-lg mb-2">Menghapus User</h4>
                       <ol className="list-decimal list-inside space-y-2 text-gray-700 ml-4">
                         <li>Cari user di daftar</li>
-                        <li>Klik ikon hapus</li>
+                        <li>Klik ikon hapus
+                          <img 
+                            src="/images/user-manual/hapus user.png" 
+                            alt="Hapus user"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
                         <li>Konfirmasi penghapusan</li>
                       </ol>
                       <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
@@ -257,21 +309,69 @@ function UserManual() {
                       <h4 className="font-semibold text-lg mb-2">Proses Check-In</h4>
                       <ol className="list-decimal list-inside space-y-2 text-gray-700 ml-4">
                         <li>Buka Dashboard</li>
-                        <li>Klik tombol "Check In"</li>
-                        <li>Izinkan akses lokasi saat diminta</li>
+                        <li>Klik tombol "Check In"
+                          <img 
+                            src="/images/user-manual/absen pagi.png" 
+                            alt="Tombol Check In"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
+                        <li>Izinkan akses lokasi saat diminta
+                          <img 
+                            src="/images/user-manual/absen pagi_dapatkan lokasi.png" 
+                            alt="Akses lokasi"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
                         <li>Pastikan Anda berada dalam radius kantor</li>
-                        <li>Ambil foto untuk verifikasi</li>
-                        <li>Klik "Kirim Check In"</li>
+                        <li>Ambil foto untuk verifikasi
+                          <img 
+                            src="/images/user-manual/absen pagi_ambil foto.png" 
+                            alt="Ambil foto check in"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
+                        <li>Klik "Kirim Check In"
+                          <img 
+                            src="/images/user-manual/absen pagi_kirim kehadiran.png" 
+                            alt="Kirim check in"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
                       </ol>
                     </div>
 
                     <div>
                       <h4 className="font-semibold text-lg mb-2">Proses Check-Out</h4>
                       <ol className="list-decimal list-inside space-y-2 text-gray-700 ml-4">
-                        <li>Klik tombol "Check Out" di akhir hari</li>
-                        <li>Verifikasi lokasi Anda dalam radius kantor</li>
-                        <li>Ambil foto untuk verifikasi</li>
-                        <li>Klik "Kirim Check Out"</li>
+                        <li>Klik tombol "Check Out" di akhir hari
+                          <img 
+                            src="/images/user-manual/absen sore.png" 
+                            alt="Tombol Check Out"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
+                        <li>Verifikasi lokasi Anda dalam radius kantor
+                          <img 
+                            src="/images/user-manual/absen sore_dapatkan lokasi.png" 
+                            alt="Verifikasi lokasi check out"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
+                        <li>Ambil foto untuk verifikasi
+                          <img 
+                            src="/images/user-manual/absen sore_ambil foto.png" 
+                            alt="Ambil foto check out"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
+                        <li>Klik "Kirim Check Out"
+                          <img 
+                            src="/images/user-manual/absen sore_kirim kehadiran.png" 
+                            alt="Kirim check out"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
                       </ol>
                     </div>
                   </div>
@@ -284,8 +384,20 @@ function UserManual() {
                     <div>
                       <h4 className="font-semibold text-lg mb-2">Validasi Absensi</h4>
                       <ol className="list-decimal list-inside space-y-2 text-gray-700 ml-4">
-                        <li>Buka "Validasi" dari dashboard</li>
-                        <li>Tinjau catatan absensi bawahan</li>
+                        <li>Buka "Validasi" dari dashboard
+                          <img 
+                            src="/images/user-manual/validasi presensi_catatan absensi.png" 
+                            alt="Menu validasi"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
+                        <li>Tinjau catatan absensi bawahan
+                          <img 
+                            src="/images/user-manual/validasi presensi_catatan absensi_detail.png" 
+                            alt="Detail catatan absensi"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
                         <li>Periksa foto dan data lokasi</li>
                         <li>Pilih status validasi:
                           <ul className="list-disc list-inside ml-6 mt-2">
@@ -294,7 +406,13 @@ function UserManual() {
                           </ul>
                         </li>
                         <li>Tambahkan catatan jika perlu</li>
-                        <li>Klik "Kirim Validasi"</li>
+                        <li>Klik "Kirim Validasi"
+                          <img 
+                            src="/images/user-manual/validasi presensi_catatan absensi_tolak.png" 
+                            alt="Tolak validasi absensi"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
                       </ol>
                     </div>
 
@@ -302,9 +420,32 @@ function UserManual() {
                       <h4 className="font-semibold text-lg mb-2">Persetujuan Cuti</h4>
                       <ol className="list-decimal list-inside space-y-2 text-gray-700 ml-4">
                         <li>Buka bagian "Validasi"</li>
-                        <li>Beralih ke tab "Pengajuan Cuti"</li>
-                        <li>Tinjau detail dan lampiran pengajuan cuti</li>
-                        <li>Setujui atau tolak dengan catatan</li>
+                        <li>Beralih ke tab "Pengajuan Cuti"
+                          <img 
+                            src="/images/user-manual/validasi presensi_pengajuan izin.png" 
+                            alt="Tab pengajuan izin"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
+                        <li>Tinjau detail dan lampiran pengajuan cuti
+                          <img 
+                            src="/images/user-manual/validasi presensi_pengajuan izin_detail.png" 
+                            alt="Detail pengajuan cuti"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
+                        <li>Setujui atau tolak dengan catatan
+                          <img 
+                            src="/images/user-manual/validasi presensi_pengajuan izin_setujui.png" 
+                            alt="Setujui pengajuan"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                          <img 
+                            src="/images/user-manual/validasi presensi_pengajuan izin_tolak.png" 
+                            alt="Tolak pengajuan"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
                         <li>Kirim keputusan</li>
                       </ol>
                     </div>
@@ -341,11 +482,35 @@ function UserManual() {
                       <ol className="list-decimal list-inside space-y-2 text-gray-700 ml-4">
                         <li>Buka aplikasi di perangkat mobile atau komputer</li>
                         <li>Login dengan kredensial Anda</li>
-                        <li>Dari Dashboard, klik "Check In"</li>
-                        <li>Izinkan aplikasi mengakses lokasi Anda</li>
+                        <li>Dari Dashboard, klik "Check In"
+                          <img 
+                            src="/images/user-manual/absen pagi.png" 
+                            alt="Tombol Check In"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
+                        <li>Izinkan aplikasi mengakses lokasi Anda
+                          <img 
+                            src="/images/user-manual/absen pagi_dapatkan lokasi.png" 
+                            alt="Akses lokasi"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
                         <li>Pastikan Anda berada di area kantor</li>
-                        <li>Ambil foto diri Anda dengan jelas</li>
-                        <li>Kirim check-in Anda</li>
+                        <li>Ambil foto diri Anda dengan jelas
+                          <img 
+                            src="/images/user-manual/absen pagi_ambil foto.png" 
+                            alt="Ambil foto check in"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
+                        <li>Kirim check-in Anda
+                          <img 
+                            src="/images/user-manual/absen pagi_kirim kehadiran.png" 
+                            alt="Kirim check in"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
                       </ol>
                       <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
                         <p className="text-sm text-blue-800">
@@ -357,10 +522,34 @@ function UserManual() {
                     <div>
                       <h4 className="font-semibold text-lg mb-2">Cara Check Out</h4>
                       <ol className="list-decimal list-inside space-y-2 text-gray-700 ml-4">
-                        <li>Klik tombol "Check Out" di akhir hari kerja</li>
-                        <li>Pastikan Anda masih dalam radius kantor</li>
-                        <li>Ambil foto</li>
-                        <li>Kirim check-out Anda</li>
+                        <li>Klik tombol "Check Out" di akhir hari kerja
+                          <img 
+                            src="/images/user-manual/absen sore.png" 
+                            alt="Tombol Check Out"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
+                        <li>Pastikan Anda masih dalam radius kantor
+                          <img 
+                            src="/images/user-manual/absen sore_dapatkan lokasi.png" 
+                            alt="Verifikasi lokasi"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
+                        <li>Ambil foto
+                          <img 
+                            src="/images/user-manual/absen sore_ambil foto.png" 
+                            alt="Ambil foto check out"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
+                        <li>Kirim check-out Anda
+                          <img 
+                            src="/images/user-manual/absen sore_kirim kehadiran.png" 
+                            alt="Kirim check out"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
                       </ol>
                       <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
                         <p className="text-sm text-yellow-800">
@@ -380,8 +569,19 @@ function UserManual() {
                       <h4 className="font-semibold text-lg mb-2">Membuat Pengajuan Cuti</h4>
                       <ol className="list-decimal list-inside space-y-2 text-gray-700 ml-4">
                         <li>Buka Dashboard</li>
-                        <li>Klik tombol "Ajukan Cuti"</li>
+                        <li>Klik tombol "Ajukan Cuti"
+                          <img 
+                            src="/images/user-manual/pengajuan izin.png" 
+                            alt="Tombol ajukan cuti"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
                         <li>Isi formulir:
+                          <img 
+                            src="/images/user-manual/pengajuan izin_mengisi detail dan mengunggah dokumen.png" 
+                            alt="Mengisi formulir cuti"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
                           <ul className="list-disc list-inside ml-6 mt-2">
                             <li>Jenis cuti (Sakit atau Izin)</li>
                             <li>Tanggal mulai</li>
@@ -390,7 +590,13 @@ function UserManual() {
                             <li>Upload dokumen pendukung (surat dokter, dll)</li>
                           </ul>
                         </li>
-                        <li>Kirim pengajuan</li>
+                        <li>Kirim pengajuan
+                          <img 
+                            src="/images/user-manual/pengajuan izin_lanjutkan ke review.png" 
+                            alt="Kirim pengajuan cuti"
+                            className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                          />
+                        </li>
                         <li>Tunggu persetujuan supervisor</li>
                       </ol>
                     </div>
@@ -400,6 +606,21 @@ function UserManual() {
                       <p className="text-gray-700 mb-2 ml-4">
                         Buka "Riwayat" → tab "Pengajuan Cuti" untuk melihat status:
                       </p>
+                      <img 
+                        src="/images/user-manual/riwayat pengajuan izin.png" 
+                        alt="Riwayat pengajuan izin"
+                        className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                      />
+                      <img 
+                        src="/images/user-manual/riwayat pengajuan izin_detail.png" 
+                        alt="Detail pengajuan izin"
+                        className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                      />
+                      <img 
+                        src="/images/user-manual/riwayat pengajuan izin_status.png" 
+                        alt="Status pengajuan"
+                        className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                      />
                       <ul className="list-disc list-inside ml-8 space-y-1 text-gray-700">
                         <li><span className="font-medium">Pending:</span> Menunggu tinjauan supervisor</li>
                         <li><span className="font-medium">Approved:</span> Pengajuan disetujui</li>
@@ -412,6 +633,21 @@ function UserManual() {
                 <section>
                   <h3 className="text-xl font-bold mb-4">Melihat Catatan Anda</h3>
                   <p className="text-gray-700 mb-2">Buka "Riwayat" untuk melihat:</p>
+                  <img 
+                    src="/images/user-manual/riwayat absensi.png" 
+                    alt="Riwayat absensi"
+                    className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                  />
+                  <img 
+                    src="/images/user-manual/riwayat absensi_detail.png" 
+                    alt="Detail riwayat absensi"
+                    className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                  />
+                  <img 
+                    src="/images/user-manual/export excel.png" 
+                    alt="Export ke Excel"
+                    className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                  />
                   <ul className="list-disc list-inside ml-4 space-y-2 text-gray-700">
                     <li><strong>Riwayat Absensi:</strong> Semua catatan check-in/check-out Anda</li>
                     <li><strong>Pengajuan Cuti:</strong> Pengajuan cuti yang diajukan dan statusnya</li>
@@ -421,6 +657,11 @@ function UserManual() {
 
                 <section>
                   <h3 className="text-xl font-bold mb-4">Manajemen Profil</h3>
+                  <img 
+                    src="/images/user-manual/edit profile.png" 
+                    alt="Edit profile"
+                    className="w-full max-w-3xl mx-auto my-3 rounded-lg border border-gray-300 shadow-sm"
+                  />
                   <p className="text-gray-700 mb-2">Akses profil Anda untuk:</p>
                   <ul className="list-disc list-inside ml-4 space-y-1 text-gray-700">
                     <li>Melihat informasi pribadi</li>
