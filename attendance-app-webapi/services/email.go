@@ -56,3 +56,20 @@ func (s *EmailService) SendAttendanceValidationNotification(toEmail, userName, s
 
 	return smtp.SendMail(addr, auth, s.fromEmail, []string{toEmail}, []byte(msg))
 }
+
+func (s *EmailService) SendLeaveRequestNotification(toEmail, supervisorName, employeeName, leaveType, startDate, endDate, reason string) error {
+	subject := "New Leave Request Submitted"
+	body := fmt.Sprintf("Dear %s,\n\n%s has submitted a new leave request that requires your approval.\n\nLeave Details:\n- Type: %s\n- Start Date: %s\n- End Date: %s\n- Reason: %s\n\nPlease review and approve/reject this request in the system.\n\nBest regards,\nDigital Attendance System",
+		supervisorName, employeeName, leaveType, startDate, endDate, reason)
+
+	msg := fmt.Sprintf("From: %s\r\n"+
+		"To: %s\r\n"+
+		"Subject: %s\r\n"+
+		"\r\n"+
+		"%s\r\n", s.fromEmail, toEmail, subject, body)
+
+	auth := smtp.PlainAuth("", s.smtpUsername, s.smtpPassword, s.smtpHost)
+	addr := fmt.Sprintf("%s:%s", s.smtpHost, s.smtpPort)
+
+	return smtp.SendMail(addr, auth, s.fromEmail, []string{toEmail}, []byte(msg))
+}
