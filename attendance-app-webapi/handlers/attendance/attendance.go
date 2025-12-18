@@ -2,9 +2,9 @@ package attendance
 
 import (
 	"attendance-app/models"
-	"attendance-app/services"
 	"attendance-app/storage"
 	"attendance-app/utils"
+	"attendance-app/utils/email"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -533,8 +533,7 @@ func UpdateSubordinateAttendanceRecord(c *gin.Context) {
 	}
 
 	// Send email notification
-	emailService := services.NewEmailService()
-	if err := emailService.SendAttendanceValidationNotification(
+	if err := email.SendAttendanceValidationNotification(
 		user.Email,
 		user.Username,
 		string(req.ValidationStatus),

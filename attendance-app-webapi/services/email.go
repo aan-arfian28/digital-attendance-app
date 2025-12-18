@@ -18,13 +18,22 @@ func NewEmailService() *EmailService {
 	return &EmailService{
 		smtpHost:     os.Getenv("SMTP_HOST"),
 		smtpPort:     os.Getenv("SMTP_PORT"),
-		smtpUsername: os.Getenv("SMTP_USERNAME"),
+		smtpUsername: os.Getenv("SMTP_USER"), // Changed from SMTP_USERNAME
 		smtpPassword: os.Getenv("SMTP_PASSWORD"),
-		fromEmail:    os.Getenv("FROM_EMAIL"),
+		fromEmail:    os.Getenv("SMTP_SENDER_EMAIL"), // Changed from FROM_EMAIL
 	}
 }
 
+// IsConfigured checks if the email service is properly configured
+func (s *EmailService) IsConfigured() bool {
+	return s.smtpHost != "" && s.smtpPort != "" && s.smtpUsername != "" && s.smtpPassword != "" && s.fromEmail != ""
+}
+
 func (s *EmailService) SendAttendanceReminder(toEmail, userName string) error {
+	if !s.IsConfigured() {
+		return fmt.Errorf("email service not configured - skipping email")
+	}
+
 	subject := "Daily Attendance Reminder"
 	body := fmt.Sprintf("Dear %s,\n\nThis is a reminder to record your attendance for today.\n\nBest regards,\nDigital Attendance System", userName)
 
@@ -41,6 +50,10 @@ func (s *EmailService) SendAttendanceReminder(toEmail, userName string) error {
 }
 
 func (s *EmailService) SendAttendanceValidationNotification(toEmail, userName, status, validatorName, notes string) error {
+	if !s.IsConfigured() {
+		return fmt.Errorf("email service not configured - skipping email")
+	}
+
 	subject := "Attendance Validation Update"
 	body := fmt.Sprintf("Dear %s,\n\nYour attendance has been %s by %s.\n\nNotes: %s\n\nBest regards,\nDigital Attendance System",
 		userName, status, validatorName, notes)
@@ -58,6 +71,10 @@ func (s *EmailService) SendAttendanceValidationNotification(toEmail, userName, s
 }
 
 func (s *EmailService) SendLeaveRequestNotification(toEmail, supervisorName, employeeName, leaveType, startDate, endDate, reason string) error {
+	if !s.IsConfigured() {
+		return fmt.Errorf("email service not configured - skipping email")
+	}
+
 	subject := "New Leave Request Submitted"
 	body := fmt.Sprintf("Dear %s,\n\n%s has submitted a new leave request that requires your approval.\n\nLeave Details:\n- Type: %s\n- Start Date: %s\n- End Date: %s\n- Reason: %s\n\nPlease review and approve/reject this request in the system.\n\nBest regards,\nDigital Attendance System",
 		supervisorName, employeeName, leaveType, startDate, endDate, reason)

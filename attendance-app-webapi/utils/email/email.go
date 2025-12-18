@@ -265,6 +265,329 @@ func SendClockInReminder(recipients []string) error {
 	return SendEmail(recipients, subject, body)
 }
 
+// SendAttendanceValidationNotification sends a notification when attendance is validated
+func SendAttendanceValidationNotification(recipientEmail, userName, status, validatorName, notes string) error {
+	subject := "Update Status Validasi Absensi - Sistem Absensi Digital"
+
+	// Determine status color and message
+	statusColor := "#28a745" // green for approved
+	statusMessage := "disetujui"
+	if status == "REJECTED" {
+		statusColor = "#dc3545" // red for rejected
+		statusMessage = "ditolak"
+	}
+
+	body := fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 20px auto; 
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header { 
+            background-color: #428bff; 
+            color: white; 
+            padding: 30px 20px; 
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content { 
+            padding: 30px 20px;
+        }
+        .content h2 {
+            color: #428bff;
+            margin-top: 0;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-weight: bold;
+            color: white;
+            background-color: %s;
+            margin: 15px 0;
+        }
+        .info-box {
+            background-color: #e7f3ff;
+            border-left: 4px solid #428bff;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-box strong {
+            color: #428bff;
+        }
+        .notes-box {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .footer { 
+            background-color: #f8f9fa;
+            text-align: center; 
+            padding: 20px; 
+            font-size: 12px; 
+            color: #777;
+            border-top: 1px solid #e9ecef;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+        .button {
+            display: inline-block;
+            background-color: #428bff;
+            color: white !important;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Update Validasi Absensi</h1>
+        </div>
+        <div class="content">
+            <h2>Notifikasi Validasi</h2>
+            <p>Yth. %s,</p>
+            <p>Absensi Anda telah <strong>%s</strong> oleh supervisor.</p>
+            
+            <div class="status-badge">
+                Status: %s
+            </div>
+            
+            <div class="info-box">
+                <strong>Divalidasi oleh:</strong> %s
+            </div>
+            
+            %s
+            
+            <div style="text-align: center;">
+                <a href="https://attendapp.riyaldi.qzz.io/dashboard" class="button">Lihat Detail Absensi</a>
+            </div>
+            
+            <p style="margin-top: 20px; color: #666; font-size: 14px;">
+                Jika Anda memiliki pertanyaan, silakan hubungi supervisor atau administrator.
+            </p>
+        </div>
+        <div class="footer">
+            <p>Email ini dikirim secara otomatis oleh Sistem Absensi Digital.</p>
+            <p style="margin-top: 15px;">&copy; 2025 Digital Attendance System. Hak cipta dilindungi.</p>
+        </div>
+    </div>
+</body>
+</html>
+`, statusColor, userName, statusMessage, status, validatorName, func() string {
+		if notes != "" {
+			return fmt.Sprintf(`<div class="notes-box">
+                <strong>Catatan dari Validator:</strong><br>
+                %s
+            </div>`, notes)
+		}
+		return ""
+	}())
+
+	return SendEmail([]string{recipientEmail}, subject, body)
+}
+
+// SendLeaveRequestNotification sends a notification to supervisor about new leave request
+func SendLeaveRequestNotification(recipientEmail, supervisorName, employeeName, leaveType, startDate, endDate, reason string) error {
+	subject := "Pengajuan Izin Baru Memerlukan Persetujuan - Sistem Absensi Digital"
+
+	// Determine leave type label
+	leaveTypeLabel := "Sakit"
+	if leaveType == "PERMIT" {
+		leaveTypeLabel = "Izin"
+	}
+
+	body := fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 20px auto; 
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header { 
+            background-color: #428bff; 
+            color: white; 
+            padding: 30px 20px; 
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content { 
+            padding: 30px 20px;
+        }
+        .content h2 {
+            color: #428bff;
+            margin-top: 0;
+        }
+        .alert-box {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .alert-box strong {
+            color: #856404;
+        }
+        .info-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-row {
+            display: flex;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #428bff;
+            min-width: 120px;
+        }
+        .info-value {
+            flex: 1;
+            color: #333;
+        }
+        .reason-box {
+            background-color: #e7f3ff;
+            border-left: 4px solid #428bff;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .footer { 
+            background-color: #f8f9fa;
+            text-align: center; 
+            padding: 20px; 
+            font-size: 12px; 
+            color: #777;
+            border-top: 1px solid #e9ecef;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+        .button {
+            display: inline-block;
+            background-color: #428bff;
+            color: white !important;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔔 Pengajuan Izin Baru</h1>
+        </div>
+        <div class="content">
+            <h2>Memerlukan Persetujuan Anda</h2>
+            <p>Yth. %s,</p>
+            <p><strong>%s</strong> telah mengajukan permohonan izin yang memerlukan persetujuan Anda.</p>
+            
+            <div class="alert-box">
+                <strong>⚠️ Tindakan Diperlukan:</strong> Silakan tinjau dan setujui/tolak pengajuan ini melalui sistem.
+            </div>
+            
+            <div class="info-box">
+                <div class="info-row">
+                    <div class="info-label">Nama Pengaju:</div>
+                    <div class="info-value">%s</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Jenis Izin:</div>
+                    <div class="info-value">%s</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Tanggal Mulai:</div>
+                    <div class="info-value">%s</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Tanggal Selesai:</div>
+                    <div class="info-value">%s</div>
+                </div>
+            </div>
+            
+            <div class="reason-box">
+                <strong>Alasan Pengajuan:</strong><br>
+                %s
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="https://attendapp.riyaldi.qzz.io/dashboard/validation" class="button">Tinjau Pengajuan</a>
+            </div>
+            
+            <p style="margin-top: 20px; color: #666; font-size: 14px;">
+                Mohon segera meninjau pengajuan ini untuk memastikan proses persetujuan berjalan lancar.
+            </p>
+        </div>
+        <div class="footer">
+            <p>Email ini dikirim secara otomatis oleh Sistem Absensi Digital.</p>
+            <p style="margin-top: 15px;">&copy; 2025 Digital Attendance System. Hak cipta dilindungi.</p>
+        </div>
+    </div>
+</body>
+</html>
+`, supervisorName, employeeName, employeeName, leaveTypeLabel, startDate, endDate, reason)
+
+	return SendEmail([]string{recipientEmail}, subject, body)
+}
+
 // SendClockOutReminder sends an evening clock-out reminder
 func SendClockOutReminder(recipients []string) error {
 	subject := "Pengingat Absensi Keluar - Sistem Absensi Digital"

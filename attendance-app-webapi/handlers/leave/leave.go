@@ -3,9 +3,9 @@ package leave
 
 import (
 	"attendance-app/models"
-	"attendance-app/services"
 	"attendance-app/storage"
 	"attendance-app/utils"
+	"attendance-app/utils/email"
 	"fmt"
 	"net/http"
 	"time"
@@ -219,8 +219,7 @@ func SubmitLeaveRequest(c *gin.Context) {
 	if err := db.Preload("Supervisor").First(&user, userId).Error; err == nil {
 		if user.Supervisor != nil {
 			// Send email notification to supervisor
-			emailService := services.NewEmailService()
-			if err := emailService.SendLeaveRequestNotification(
+			if err := email.SendLeaveRequestNotification(
 				user.Supervisor.Email,
 				user.Supervisor.Name,
 				user.Name,
