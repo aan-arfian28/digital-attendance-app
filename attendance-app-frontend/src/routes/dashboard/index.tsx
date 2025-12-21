@@ -276,9 +276,9 @@ function DashboardHome() {
       subordinateAttendance.slice(0, 10).forEach((record) => {
         if (record.CheckInTime) {
           activities.push({
-            time: getRelativeTime(record.CheckInTime),
+            time: getRelativeTime(record.UpdatedAt),
             activity: `Catatan absensi ${formatValidationStatus(record.ValidationStatus)}`,
-            timestamp: new Date(record.CheckInTime),
+            timestamp: new Date(record.UpdatedAt),
           })
         }
       })
@@ -287,16 +287,16 @@ function DashboardHome() {
       attendanceRecords.forEach((record) => {
         if (record.CheckInTime) {
           activities.push({
-            time: getRelativeTime(record.CheckInTime),
+            time: getRelativeTime(record.UpdatedAt),
             activity: `Anda sudah check in`,
-            timestamp: new Date(record.CheckInTime),
+            timestamp: new Date(record.UpdatedAt),
           })
         }
         if (record.CheckOutTime) {
           activities.push({
-            time: getRelativeTime(record.CheckOutTime),
+            time: getRelativeTime(record.UpdatedAt),
             activity: `Anda sudah check out`,
-            timestamp: new Date(record.CheckOutTime),
+            timestamp: new Date(record.UpdatedAt),
           })
         }
         if (record.ValidationStatus !== 'PENDING') {
@@ -310,9 +310,9 @@ function DashboardHome() {
 
       leaveRequests.forEach((request) => {
         activities.push({
-          time: getRelativeTime(request.CreatedAt),
+          time: getRelativeTime(request.UpdatedAt),
           activity: `Pengajuan izin (${formatLeaveType(request.LeaveType)}) ${formatLeaveStatus(request.Status)}`,
-          timestamp: new Date(request.CreatedAt),
+          timestamp: new Date(request.UpdatedAt),
         })
       })
     }
