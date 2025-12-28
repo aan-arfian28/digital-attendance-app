@@ -361,17 +361,21 @@ function AttendanceHistoryContent() {
                         {calculateDuration(record.CheckInTime, record.CheckOutTime)}
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        <span
-                          className={`px-2 py-1 text-xs border rounded-sm ${
-                            record.Status === 'ON_TIME'
-                              ? 'bg-green-100 text-green-800 border-green-200'
-                              : record.Status === 'LATE'
-                              ? 'bg-orange-100 text-orange-800 border-orange-200'
-                              : 'bg-gray-100 text-gray-800 border-gray-200'
-                          }`}
-                        >
-                          {record.Status === 'ON_TIME' ? 'Tepat Waktu' : record.Status === 'LATE' ? 'Terlambat' : record.Status}
-                        </span>
+                        {record.ValidationStatus === 'LEAVE' ? (
+                          <span className="text-gray-500">-</span>
+                        ) : (
+                          <span
+                            className={`px-2 py-1 text-xs border rounded-sm ${
+                              record.Status === 'ON_TIME'
+                                ? 'bg-green-100 text-green-800 border-green-200'
+                                : record.Status === 'LATE'
+                                ? 'bg-orange-100 text-orange-800 border-orange-200'
+                                : 'bg-gray-100 text-gray-800 border-gray-200'
+                            }`}
+                          >
+                            {record.Status === 'ON_TIME' ? 'Tepat Waktu' : record.Status === 'LATE' ? 'Terlambat' : record.Status}
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         <span

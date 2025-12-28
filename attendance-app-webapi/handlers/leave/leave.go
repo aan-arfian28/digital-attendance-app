@@ -5,6 +5,7 @@ import (
 	"attendance-app/models"
 	"attendance-app/storage"
 	"attendance-app/utils"
+	"attendance-app/utils/email"
 	"fmt"
 	"net/http"
 	"time"
@@ -211,6 +212,26 @@ func SubmitLeaveRequest(c *gin.Context) {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction"})
 		return
+	}
+
+	// Get user details and supervisor to send notification
+	var user models.User
+	if err := db.Preload("Supervisor").First(&user, userId).Error; err == nil {
+		if user.Supervisor != nil {
+			// Send email notification to supervisor
+			if err := email.SendLeaveRequestNotification(
+				user.Supervisor.Email,
+				user.Supervisor.Name,
+				user.Name,
+				string(req.LeaveType),
+				startDate.Format("2006-01-02"),
+				endDate.Format("2006-01-02"),
+				req.Reason,
+			); err != nil {
+				// Log the error but don't fail the request
+				fmt.Printf("Failed to send email notification to supervisor: %v\n", err)
+			}
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{

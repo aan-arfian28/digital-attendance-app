@@ -2,9 +2,9 @@ package attendance
 
 import (
 	"attendance-app/models"
-	"attendance-app/services"
 	"attendance-app/storage"
 	"attendance-app/utils"
+	"attendance-app/utils/email"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -265,7 +265,7 @@ func CheckOut(c *gin.Context) {
 	result := db.Where("user_id = ? AND check_in_time >= ? AND validation_status != ?", userId, startOfDay, models.Absent).First(&attendance)
 
 	if result.Error != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No check-in record found for today. Cannot checkout without checking in first."})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Haven't Check In Yet"})
 		return
 	}
 
@@ -533,8 +533,7 @@ func UpdateSubordinateAttendanceRecord(c *gin.Context) {
 	}
 
 	// Send email notification
-	emailService := services.NewEmailService()
-	if err := emailService.SendAttendanceValidationNotification(
+	if err := email.SendAttendanceValidationNotification(
 		user.Email,
 		user.Username,
 		string(req.ValidationStatus),

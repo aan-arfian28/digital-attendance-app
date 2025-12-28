@@ -1,8 +1,8 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Eye, EyeOff, Lock, User, AlertCircle, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Lock, User, AlertCircle, Loader2, BookOpen } from 'lucide-react'
 import { useLogin, useAuth } from '@/hooks/useAuth'
 import { useCompanySettings } from '@/hooks/useCompanySettings'
 import type { LoginRequest } from '@/types/auth'
@@ -176,6 +176,17 @@ function Login() {
               )}
             </Button>
           </form>
+
+          {/* User Manual Link */}
+          <div className="mt-6 text-center">
+            <Link
+              to="/user-manual"
+              className="inline-flex items-center gap-2 text-sm text-[#428bff] hover:text-[#3b7ee6] transition-colors"
+            >
+              <BookOpen className="h-4 w-4" />
+              Lihat Panduan Pengguna
+            </Link>
+          </div>
         </div>
       </div>
     </div>

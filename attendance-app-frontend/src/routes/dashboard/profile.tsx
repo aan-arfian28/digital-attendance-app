@@ -61,7 +61,7 @@ function ProfilePage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Profil Saya</h1>
           <p className="text-gray-600">Kelola informasi profil dan akun Anda</p>
         </div>
-        <Button className="bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm">
+        <Button className="hidden bg-[#428bff] hover:bg-[#3b7ee6] text-white rounded-sm">
           <Edit className="h-4 w-4 mr-2" />
           Edit Profil
         </Button>
@@ -75,7 +75,7 @@ function ProfilePage() {
                 <div className="w-24 h-24 bg-[#428bff] text-white rounded-sm flex items-center justify-center text-2xl font-bold">
                   {initials}
                 </div>
-                <button className="absolute bottom-0 right-0 w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-sm flex items-center justify-center border-2 border-white shadow-sm">
+                <button className="hidden absolute bottom-0 right-0 w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-sm flex items-center justify-center border-2 border-white shadow-sm">
                   <Camera className="h-4 w-4 text-gray-600" />
                 </button>
               </div>
@@ -230,7 +230,7 @@ function ProfilePage() {
           )}
 
           {/* Actions */}
-          <div className="bg-white rounded-sm border border-gray-200">
+          <div className="hidden bg-white rounded-sm border border-gray-200">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">Aksi Akun</h3>
             </div>
